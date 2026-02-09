@@ -33,17 +33,16 @@ function LoginContent() {
             const result = await signIn("credentials", {
                 email,
                 password,
-                redirect: false,
+                callbackUrl: safeCallbackUrl,
+                redirect: true,
             });
 
-            if (result.error) {
+            if (result?.error) {
                 setError("Invalid email or password");
-            } else {
-                router.replace(safeCallbackUrl);
+                setIsLoading(false);
             }
         } catch (err) {
             setError("Connection failed. Please retry.");
-        } finally {
             setIsLoading(false);
         }
     };

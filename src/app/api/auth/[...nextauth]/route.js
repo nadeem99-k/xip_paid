@@ -160,6 +160,7 @@ export const authOptions = {
         signIn: "/login",
     },
     secret: process.env.NEXTAUTH_SECRET,
+    useSecureCookies: process.env.NODE_ENV === "production",
 };
 
 const handler = NextAuth(authOptions);
