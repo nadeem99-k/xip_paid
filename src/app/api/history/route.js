@@ -12,11 +12,24 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: user, error: userError } = await supabase
+        let { data: user, error: userError } = await supabase
             .from("users")
-            .select("id, email, package, coins, role")
+            .select("id, email, package, coins, role, joined_whatsapp")
             .eq("id", session.user.id)
             .single();
+
+        // Fallback for missing column during migration
+        if (userError && userError.code === '42703') {
+            const { data: fallbackUser, error: fallbackError } = await supabase
+                .from("users")
+                .select("id, email, package, coins, role")
+                .eq("id", session.user.id)
+                .single();
+
+            if (fallbackError) throw fallbackError;
+            user = { ...fallbackUser, joined_whatsapp: false };
+            userError = null;
+        }
 
         if (userError) throw userError;
         console.log(`History API: Found user ${user.id} with ${user.coins} coins`);

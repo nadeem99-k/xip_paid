@@ -84,17 +84,28 @@ export const authOptions = {
             }
 
             // Always fetch latest data from Supabase to keep token in sync
-            const { data: dbUser } = await supabase
+            let { data: dbUser, error: dbError } = await supabase
                 .from("users")
-                .select("id, role, package, coins")
+                .select("id, role, package, coins, joined_whatsapp")
                 .eq("email", token.email)
                 .single();
+
+            // Handle missing column fallback
+            if (dbError && dbError.code === '42703') {
+                const { data: fallbackUser } = await supabase
+                    .from("users")
+                    .select("id, role, package, coins")
+                    .eq("email", token.email)
+                    .single();
+                dbUser = { ...fallbackUser, joined_whatsapp: false };
+            }
 
             if (dbUser) {
                 token.id = dbUser.id;
                 token.role = dbUser.role;
                 token.package = dbUser.package;
                 token.coins = dbUser.coins;
+                token.joined_whatsapp = dbUser.joined_whatsapp;
             }
 
             if (trigger === "update" && session?.package) {
@@ -111,6 +122,7 @@ export const authOptions = {
                 session.user.package = token.package;
                 session.user.coins = token.coins;
                 session.user.id = token.id;
+                session.user.joined_whatsapp = token.joined_whatsapp;
             }
             return session;
         },

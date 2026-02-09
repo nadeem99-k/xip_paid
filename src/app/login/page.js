@@ -1,15 +1,24 @@
 'use client';
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { signIn, useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginContent() {
+    const { data: session, status } = useSession();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+
+    useEffect(() => {
+        if (status === 'authenticated') {
+            router.replace(callbackUrl);
+        }
+    }, [status, router, callbackUrl]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -23,22 +32,30 @@ export default function LoginPage() {
                 redirect: false,
             });
 
-            if (res.error) {
+            if (res?.error) {
                 setError(res.error);
+                setIsLoading(false);
             } else {
-                router.push('/dashboard');
+                router.replace(callbackUrl);
             }
         } catch (e) {
             setError("An unexpected error occurred.");
-        } finally {
             setIsLoading(false);
         }
     };
 
     const handleGoogleSignIn = () => {
         setIsLoading(true);
-        signIn('google', { callbackUrl: '/dashboard' });
+        signIn('google', { callbackUrl });
     };
+
+    if (status === 'loading') {
+        return (
+            <div className="flex justify-center items-center min-h-screen bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col justify-center items-center min-h-screen pt-20 px-6 bg-white">
@@ -114,9 +131,21 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-center text-[10px] font-black text-blue-950/20 uppercase tracking-[0.2em] mt-8">
-                    New to XIP PRO? <Link href="/signup" className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">Register Node</Link>
+                    New to XIP PRO? <Link href={`/signup${callbackUrl !== '/dashboard' ? `?callbackUrl=${callbackUrl}` : ''}`} className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">Register Node</Link>
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center min-h-screen bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }

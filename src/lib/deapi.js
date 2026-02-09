@@ -4,7 +4,6 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     const masterpiece_enhancer = "masterpiece, ultra-detailed photography, 8k resolution, highly realistic, skin pores, natural light, cinematic composition, (sharp focus:1.5), (highly detailed:1.4), (ultra-sharp:1.5).";
 
     let finalPrompt = "";
-    // Identity preservation & realism prompts
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
         finalPrompt += `${identity_preservation} wearing a matching (bikini:1.4), ${masterpiece_enhancer} realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same person, face, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
@@ -23,92 +22,107 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
     const allKeys = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',').filter(k => k.trim());
     const model = modelOverride || "Flux_2_Klein_4B_BF16";
-
-    // Create form data for multipart/form-data
-    const formData = new FormData();
-    const blob = new Blob([initImgBuffer], { type: 'image/jpeg' });
-    formData.append('image', blob, 'image.jpg');
-    formData.append('prompt', finalPrompt);
-    formData.append('model', model);
-    formData.append('steps', '4');
-    formData.append('width', '1024'); // Explicitly set width for HD
-    formData.append('height', '1024'); // Explicitly set height for HD
-    formData.append('guidance_scale', '3.5'); // Increase guidance for clarity
-    formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
-
-    // Shuffle keys to distribute load
     const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
+
+    const blob = new Blob([initImgBuffer], { type: 'image/jpeg' });
 
     for (let i = 0; i < shuffledKeys.length; i++) {
         const apiKey = shuffledKeys[i].trim();
         try {
             console.log(`Attempting DeAPI generation with key index ${i}...`);
-            const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
-                method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: formData
-            });
 
-            if (response.status === 429) {
-                console.warn(`DeAPI key ${i} rate limited (429). Rotating to next key...`);
-                continue;
-            }
+            // Try preferred model first
+            const modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`DeAPI error: ${response.status} - ${errorText}`);
-            }
+            for (const currentModel of modelsToTry) {
+                const formData = new FormData();
+                formData.append('image', blob, 'image.jpg');
+                formData.append('prompt', finalPrompt);
+                formData.append('model', currentModel);
+                formData.append('steps', '4');
+                formData.append('width', '1024');
+                formData.append('height', '1024');
+                formData.append('guidance_scale', '3.5');
+                formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
 
-            const data = await response.json();
-            const requestId = data.data?.request_id || data.request_id;
-
-            if (!requestId) {
-                throw new Error(`No request_id returned from DeAPI: ${JSON.stringify(data)}`);
-            }
-
-            // Polling logic
-            let attempts = 0;
-            const maxAttempts = 30;
-            while (attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                const statusResponse = await fetch(`https://api.deapi.ai/api/v1/client/request-status/${requestId}`, {
-                    method: 'GET',
+                const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
+                    method: 'POST',
                     headers: {
                         'accept': 'application/json',
                         'Authorization': `Bearer ${apiKey}`
-                    }
+                    },
+                    body: formData
                 });
 
-                if (!statusResponse.ok) {
-                    console.warn(`DeAPI status check failed: ${statusResponse.status}`);
-                    attempts++;
+                if (response.status === 429) {
+                    console.warn(`DeAPI key ${i} rate limited (429). Rotating to next key...`);
+                    break; // Exit model loop, try next key
+                }
+
+                if (response.status === 422) {
+                    console.warn(`DeAPI key ${i} does not support model ${currentModel}. Trying next fallback...`);
+                    continue; // Try next fallback model with SAME key
+                }
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`DeAPI key ${i} error ${response.status}: ${errorText}`);
+                    break; // Exit model loop, try next key
+                }
+
+                const data = await response.json();
+                const requestId = data.data?.request_id || data.request_id;
+
+                if (!requestId) {
+                    console.warn(`No request_id returned from DeAPI with key ${i} and model ${currentModel}`);
                     continue;
                 }
 
-                const statusData = await statusResponse.json();
-                const status = statusData.data?.status || statusData.status;
-
-                if (status === 'done' || status === 'success') {
-                    const result = statusData.data?.result || statusData.result;
-                    const url = Array.isArray(result) ? result[0] : (typeof result === 'string' ? result : (statusData.data?.url || statusData.url || statusData.data?.result_url));
-                    if (url) return [url];
-                    throw new Error(`DeAPI completed but no URL found: ${JSON.stringify(statusData)}`);
-                } else if (status === 'error' || status === 'failed') {
-                    throw new Error(`DeAPI processing failed: ${JSON.stringify(statusData)}`);
-                }
-                attempts++;
+                // If we got here, request is accepted, start polling
+                return await pollStatus(requestId, apiKey);
             }
-            throw new Error(`DeAPI timed out after ${maxAttempts * 2} seconds.`);
         } catch (error) {
             console.error(`DeAPI Attempt with key index ${i} failed:`, error.message);
-            // If it's the last key, rethrow the error
-            if (i === shuffledKeys.length - 1) throw error;
-            // Otherwise, continue to next key
         }
     }
-    throw new Error("All DeAPI keys failed or were rate-limited.");
+    throw new Error("All DeAPI keys failed or were rate-limited. Please try again later.");
 }
 
+async function pollStatus(requestId, apiKey) {
+    let attempts = 0;
+    const maxAttempts = 30;
+    while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            const statusResponse = await fetch(`https://api.deapi.ai/api/v1/client/request-status/${requestId}`, {
+                method: 'GET',
+                headers: {
+                    'accept': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+
+            if (!statusResponse.ok) {
+                console.warn(`DeAPI status check failed: ${statusResponse.status}`);
+                attempts++;
+                continue;
+            }
+
+            const statusData = await statusResponse.json();
+            const status = statusData.data?.status || statusData.status;
+
+            if (status === 'done' || status === 'success') {
+                const result = statusData.data?.result || statusData.result;
+                const url = Array.isArray(result) ? result[0] : (typeof result === 'string' ? result : (statusData.data?.url || statusData.url || statusData.data?.result_url));
+                if (url) return [url];
+                throw new Error(`DeAPI completed but no URL found.`);
+            } else if (status === 'error' || status === 'failed') {
+                throw new Error(`DeAPI processing failed: ${JSON.stringify(statusData)}`);
+            }
+        } catch (pollError) {
+            console.warn(`Polling error: ${pollError.message}`);
+        }
+        attempts++;
+    }
+    throw new Error(`DeAPI timed out after ${maxAttempts * 2} seconds.`);
+}

@@ -109,8 +109,9 @@ export default function DashboardPage() {
             const data = await res.json();
             if (data.success) {
                 setUser(data.user);
-                // Also update the session to show correct coins in Navbar
-                update({ coins: data.user.coins });
+                update({
+                    coins: data.user.coins
+                });
             }
         } catch (err) {
             console.error("Fetch user error:", err);
@@ -232,31 +233,20 @@ export default function DashboardPage() {
         );
     }
 
-    const userPackage = session.user.package;
-    const hasAccess = (userPackage && userPackage !== 'none') || (session.user.coins > 0) || (user?.coins > 0);
-
-    if (!hasAccess) {
-        return (
-            <div className="pt-24 pb-20 px-6 min-h-screen flex flex-col items-center justify-center text-center space-y-12 animate-slide-up bg-white">
-                <div className="relative">
-                    <div className="w-32 h-32 bg-blue-50 rounded-[2.5rem] flex items-center justify-center text-5xl animate-float">🔒</div>
-                    <div className="absolute -inset-8 bg-blue-100 blur-3xl -z-10 rounded-full animate-pulse"></div>
-                </div>
-                <div className="space-y-4 max-w-lg">
-                    <h1 className="text-5xl font-black tracking-tighter text-blue-950">Access <span className="text-blue-600">Restricted</span></h1>
-                    <p className="text-blue-950/40 leading-relaxed font-bold uppercase tracking-widest text-[10px]">
-                        The XIP PRO AI Engine requires a premium subscription to process identity-preserved transformations.
-                    </p>
-                </div>
-                <Link href="/pricing" className="px-12 py-5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-[0_20px_40px_rgba(37,99,235,0.15)] active:scale-95">
-                    Browse Plans & Pricing
-                </Link>
-            </div>
-        );
-    }
+    // Removal of Access Restricted gateway as per user request
+    // All authenticated users can now access the studio layout
 
     const handleGenerate = async (e) => {
         if (e) e.preventDefault();
+
+        // Check for sufficient coins
+        const cost = selectedMode === 'nude' ? 6 : 2;
+        if ((user?.coins || 0) < cost) {
+            alert(`Insufficient credits. ${selectedMode === 'nude' ? 'Nude' : 'Bikini'} mode requires ${cost} coins. Redirecting to plans...`);
+            router.push('/pricing');
+            return;
+        }
+
         if (!inputImage) {
             setGenError("Please upload a source image.");
             return;
@@ -298,7 +288,8 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen flex text-blue-950 pt-20 bg-white">
-            {/* Sidebar */}
+            {/* Dashboard Navigation (Responsive) */}
+            {/* Desktop Sidebar */}
             <aside className="w-80 bg-white border-r border-blue-50 p-10 hidden lg:flex flex-col fixed h-[calc(100vh-80px)] top-20 left-0">
                 <div className="space-y-12 flex-1">
                     <div className="space-y-4">
@@ -317,6 +308,10 @@ export default function DashboardPage() {
                                     <span className="text-xl">💳</span>
                                     <span className="text-[10px] uppercase tracking-[0.2em]">Billing</span>
                                 </button>
+                                <button onClick={() => setActiveTab('payments')} className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'payments' ? 'bg-blue-600 text-white font-bold shadow-[0_10px_20px_rgba(37,99,235,0.15)]' : 'text-blue-900/50 hover:text-blue-600 hover:bg-blue-50'}`}>
+                                    <span className="text-xl">💸</span>
+                                    <span className="text-[10px] uppercase tracking-[0.2em]">Payments</span>
+                                </button>
                             </div>
                         </nav>
                     </div>
@@ -330,7 +325,7 @@ export default function DashboardPage() {
                                         {session?.user?.name?.[0].toUpperCase()}
                                     </div>
                                     <div>
-                                        <p className="text-blue-950 text-sm font-bold tracking-tight">{session?.user?.name}</p>
+                                        <p className="text-blue-950 text-sm font-bold tracking-tight line-clamp-1">{session?.user?.name}</p>
                                         <p className="text-[9px] font-black uppercase tracking-widest text-blue-600">Elite Account</p>
                                     </div>
                                 </div>
@@ -351,8 +346,40 @@ export default function DashboardPage() {
                 </div>
             </aside>
 
+            {/* Mobile Bottom Navigation */}
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-blue-50 z-50 flex items-center justify-around p-2 lg:hidden shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+                <button
+                    onClick={() => setActiveTab('studio')}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${activeTab === 'studio' ? 'text-blue-600' : 'text-blue-900/30'}`}
+                >
+                    <span className="text-xl">✨</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Studio</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('history')}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${activeTab === 'history' ? 'text-blue-600' : 'text-blue-900/30'}`}
+                >
+                    <span className="text-xl">🕰️</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Logs</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('billing')}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${activeTab === 'billing' ? 'text-blue-600' : 'text-blue-900/30'}`}
+                >
+                    <span className="text-xl">💳</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Refill</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('payments')}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${activeTab === 'payments' ? 'text-blue-600' : 'text-blue-900/30'}`}
+                >
+                    <span className="text-xl">💸</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Vault</span>
+                </button>
+            </nav>
+
             {/* Main Stage */}
-            <main className="flex-1 lg:ml-80 p-6 md:p-16">
+            <main className="flex-1 lg:ml-80 p-6 md:p-16 pb-32 lg:pb-16">
                 <div className="max-w-6xl mx-auto space-y-16 animate-slide-up">
                     {activeTab === 'studio' ? (
                         <div className="space-y-16">
@@ -363,7 +390,7 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
                                     <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {user?.coins || 0} Coins</div>
-                                    <span className="text-xs font-black uppercase tracking-widest text-blue-950">{user?.package || userPackage} Plan</span>
+                                    <span className="text-xs font-black uppercase tracking-widest text-blue-950">{user?.package || session?.user?.package || 'Starter'} Plan</span>
                                 </div>
                             </header>
 
@@ -461,7 +488,19 @@ export default function DashboardPage() {
                                                         <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-950">Select Base Identity</p>
                                                         <p className="text-[10px] text-blue-900/30 font-bold uppercase tracking-widest leading-relaxed">Ensure the face is clearly visible for optimal synthesis.</p>
                                                     </div>
-                                                    <input type="file" onChange={(e) => setInputImage(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
+                                                    <input
+                                                        type="file"
+                                                        onChange={(e) => {
+                                                            if ((user?.coins || 0) === 0) {
+                                                                alert("You have 0 coins. Redirecting to plans to recharge...");
+                                                                router.push('/pricing');
+                                                                return;
+                                                            }
+                                                            setInputImage(e.target.files[0]);
+                                                        }}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                        accept="image/*"
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -794,7 +833,7 @@ export default function DashboardPage() {
                         </div>
                     )}
                 </div>
-            </main >
-        </div >
+            </main>
+        </div>
     );
 }

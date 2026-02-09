@@ -1,15 +1,24 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
 import Link from 'next/link';
 
-export default function SignupPage() {
+function SignupContent() {
+    const { data: session, status } = useSession();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+
+    useEffect(() => {
+        if (status === 'authenticated') {
+            router.replace(callbackUrl);
+        }
+    }, [status, router, callbackUrl]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -24,22 +33,43 @@ export default function SignupPage() {
             });
 
             if (res.ok) {
-                router.push('/login');
+                // Auto login after successful signup
+                const loginRes = await signIn('credentials', {
+                    email,
+                    password,
+                    redirect: false,
+                });
+
+                if (loginRes?.error) {
+                    setError("Signup successful, but login failed. Please login manually.");
+                    setIsLoading(false);
+                    router.push('/login');
+                } else {
+                    router.replace(callbackUrl);
+                }
             } else {
                 const data = await res.json();
                 setError(data.error || "Signup failed");
+                setIsLoading(false);
             }
         } catch (e) {
             setError("Network error. Please try again.");
-        } finally {
             setIsLoading(false);
         }
     };
 
     const handleGoogleSignUp = () => {
         setIsLoading(true);
-        signIn('google', { callbackUrl: '/dashboard' });
+        signIn('google', { callbackUrl });
     };
+
+    if (status === 'loading') {
+        return (
+            <div className="flex justify-center items-center min-h-screen bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col justify-center items-center min-h-screen pt-20 px-6 bg-white">
@@ -115,9 +145,21 @@ export default function SignupPage() {
                 </div>
 
                 <p className="text-center text-[10px] font-black text-blue-950/20 uppercase tracking-[0.2em] mt-8">
-                    Already registered? <Link href="/login" className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">SignIn Access</Link>
+                    Already registered? <Link href={`/login${callbackUrl !== '/dashboard' ? `?callbackUrl=${callbackUrl}` : ''}`} className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">SignIn Access</Link>
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function SignupPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center min-h-screen bg-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        }>
+            <SignupContent />
+        </Suspense>
     );
 }

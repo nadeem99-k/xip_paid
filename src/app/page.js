@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession } from "next-auth/react";
+import { useRouter } from 'next/navigation';
 
 const slides = [
   {
@@ -25,7 +26,8 @@ const slides = [
 ];
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -34,6 +36,14 @@ export default function Home() {
     }, 5000);
     return () => clearInterval(timer);
   }, []);
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center bg-white min-h-screen">
@@ -59,7 +69,7 @@ export default function Home() {
         </div>
 
         {/* Persistent Content Layer */}
-        <div className="relative h-full flex flex-col items-center justify-center text-center z-50 px-6 pointer-events-none">
+        < div className="relative h-full flex flex-col items-center justify-center text-center z-50 px-6 pointer-events-none" >
           <div key={currentSlide} className="animate-fade-in-up flex flex-col items-center pointer-events-auto">
             <div className="inline-block px-4 py-1.5 bg-blue-600 text-white text-[10px] font-black tracking-[0.4em] uppercase rounded-full mb-6 md:mb-8">
               {slides[currentSlide].tag}
@@ -89,23 +99,25 @@ export default function Home() {
               )}
             </div>
           </div>
-        </div>
+        </div >
 
         {/* Slider Indicators */}
-        <div className="absolute bottom-10 md:bottom-12 left-1/2 -translate-x-1/2 flex gap-3 z-40">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`h-1.5 rounded-full transition-all duration-500 ${index === currentSlide ? "w-10 md:w-12 bg-blue-600" : "w-3 bg-blue-200"
-                }`}
-            />
-          ))}
-        </div>
-      </section>
+        < div className="absolute bottom-10 md:bottom-12 left-1/2 -translate-x-1/2 flex gap-3 z-40" >
+          {
+            slides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentSlide(index)}
+                className={`h-1.5 rounded-full transition-all duration-500 ${index === currentSlide ? "w-10 md:w-12 bg-blue-600" : "w-3 bg-blue-200"
+                  }`}
+              />
+            ))
+          }
+        </div >
+      </section >
 
       {/* Trust Stats */}
-      <section className="w-full max-w-7xl mx-auto px-6 -mt-12 md:-mt-20 relative z-40">
+      < section className="w-full max-w-7xl mx-auto px-6 -mt-12 md:-mt-20 relative z-40" >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-center glass rounded-[2rem] md:rounded-[2.5rem] p-2 md:p-4 border border-blue-100 shadow-2xl overflow-hidden">
           <div className="p-6 md:p-8 border-r border-blue-50">
             <div className="text-2xl md:text-4xl font-black text-blue-950">50k+</div>
@@ -124,10 +136,10 @@ export default function Home() {
             <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-2">User Score</div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Workflow Section */}
-      <section className="w-full py-24 md:py-40 px-6 max-w-7xl mx-auto">
+      < section className="w-full py-24 md:py-40 px-6 max-w-7xl mx-auto" >
         <div className="grid lg:grid-cols-2 gap-12 md:gap-20 items-center">
           <div className="space-y-6 md:space-y-8">
             <div className="inline-block px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black tracking-widest uppercase">The Process</div>
@@ -180,10 +192,10 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Bento Showcase */}
-      <section className="w-full py-24 md:py-40 px-6 bg-blue-50/50">
+      < section className="w-full py-24 md:py-40 px-6 bg-blue-50/50" >
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16 md:mb-24 space-y-4">
             <h2 className="text-4xl md:text-7xl font-black text-blue-950 tracking-tighter">Elite <span className="text-blue-600">Features</span></h2>
@@ -227,19 +239,26 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="sm:col-span-2 glass rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between border-white shadow-xl group gap-6">
-              <div>
+            <div className="sm:col-span-2 glass rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between border-white shadow-xl group gap-6 overflow-hidden">
+              <div className="relative z-10">
                 <h3 className="text-2xl md:text-3xl font-black text-blue-950 tracking-tight mb-2">Identity Vault</h3>
                 <p className="text-blue-900/60 max-w-xs text-sm md:text-base">Preserve character consistency across sessions with custom LoRA weights.</p>
               </div>
-              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-dashed border-blue-200 animate-spin-slow shrink-0"></div>
+              <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0 group">
+                <div className="absolute inset-0 rounded-full border-4 border-dashed border-blue-200 animate-spin-slow"></div>
+                <img
+                  src="/images/gallery-2.png"
+                  className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] object-cover rounded-full grayscale group-hover:grayscale-0 transition-all duration-500"
+                  alt="Identity Vault"
+                />
+              </div>
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Gallery Showcase */}
-      <section className="w-full py-24 md:py-40 px-6">
+      < section className="w-full py-24 md:py-40 px-6" >
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 md:mb-24 gap-8">
             <div className="space-y-4">
@@ -256,7 +275,11 @@ export default function Home() {
               <div key={item} className="group cursor-none">
                 <div className="aspect-[4/5] rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative">
                   <img
-                    src={item === 1 ? "/images/gallery-1.png" : item === 2 ? "/images/gallery-2.png" : "/images/showcase.png"}
+                    src={
+                      item === 1 ? "/images/slider-1.png" :
+                        item === 2 ? "/images/slider-2.png" :
+                          "/images/slider-3.png"
+                    }
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
                     alt={`Gallery ${item}`}
                   />
@@ -275,7 +298,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="w-full py-16 md:py-24 px-6 border-t border-blue-50 border-white bg-blue-50/30">
+      < footer className="w-full py-16 md:py-24 px-6 border-t border-blue-50 border-white bg-blue-50/30" >
         <div className="max-w-7xl mx-auto grid sm:grid-cols-2 md:grid-cols-4 gap-12 md:gap-16 text-center md:text-left">
           <div className="sm:col-span-2 space-y-6 md:space-y-8">
             <div className="text-3xl md:text-4xl font-black text-blue-950 tracking-tighter">

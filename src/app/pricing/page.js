@@ -180,13 +180,22 @@ export default function PricingPage() {
                                 </div>
                             </div>
 
-                            <button
-                                disabled={isUploading}
-                                type="submit"
-                                className="w-full h-20 bg-blue-600 text-white font-black rounded-3xl text-sm uppercase tracking-[0.4em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 shadow-2xl shadow-blue-600/20"
-                            >
-                                {isUploading ? "Transmitting..." : "Authorize Access"}
-                            </button>
+                            {session ? (
+                                <button
+                                    disabled={isUploading}
+                                    type="submit"
+                                    className="w-full h-20 bg-blue-600 text-white font-black rounded-3xl text-sm uppercase tracking-[0.4em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 shadow-2xl shadow-blue-600/20"
+                                >
+                                    {isUploading ? "Transmitting..." : "Authorize Access"}
+                                </button>
+                            ) : (
+                                <Link
+                                    href={`/login?callbackUrl=/pricing`}
+                                    className="w-full h-20 bg-blue-600 text-white font-black rounded-3xl text-sm uppercase tracking-[0.4em] hover:bg-blue-700 transition-all active:scale-[0.98] shadow-2xl shadow-blue-600/20 flex items-center justify-center"
+                                >
+                                    Sign In to Purchase
+                                </Link>
+                            )}
                         </form>
                     </div>
                 )}
