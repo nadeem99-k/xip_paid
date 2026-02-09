@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --accent-blue: #2563eb;
+  --accent-white: #ffffff;
+  --accent-soft: #64748b;
+  --accent-gold: #d4af37;
+  --accent-silver: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-white: var(--accent-white);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-silver: var(--accent-silver);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+  position: relative;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Vibrant Atmospheric Mesh for Light Mode */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(37, 99, 235, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(37, 99, 235, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 50% 10%, rgba(37, 99, 235, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 50% 90%, rgba(37, 99, 235, 0.02) 0%, transparent 50%);
+  z-index: -1;
+  pointer-events: none;
+  animation: drift 20s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.1) translate(10px, 10px);
+  }
+}
+
+/* Grain Overlay - More subtle for light mode */
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  opacity: 0.05;
+  filter: contrast(120%) brightness(120%);
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Glassmorphism for Light Mode */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(37, 99, 235, 0.1);
+}
+
+.glass-dark {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(37, 99, 235, 0.1);
+}
+
+.glass-blue {
+  background: rgba(37, 99, 235, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+/* Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes glow {
+
+  0%,
+  100% {
+    opacity: 0.6;
+    filter: brightness(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    filter: brightness(1.1) drop-shadow(0 0 15px rgba(37, 99, 235, 0.3));
+  }
+}
+
+.animate-glow {
+  animation: glow 4s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Aura & Glow Effects */
+.aura-glow {
+  position: relative;
+}
+
+.aura-glow::after {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: -1;
+}
+
+.aura-glow:hover::after {
+  opacity: 1;
+}
+
+.shatter-hover {
+  overflow: hidden;
+}
+
+.shatter-hover img {
+  transform: scale(1.05);
+  transition: transform 0.8s cubic-bezier(0.2, 1, 0.2, 1), filter 0.5s ease;
+}
+
+.shatter-hover:hover img {
+  transform: scale(1.15) rotate(1deg);
+  filter: brightness(1.05) contrast(1.05);
+}
+
+.text-ultra-glow {
+  text-shadow:
+    0 0 10px rgba(37, 99, 235, 0.2),
+    0 0 20px rgba(37, 99, 235, 0.1);
+}
+
+/* Text Enhancements */
+.text-glow {
+  text-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #2563eb, #3b82f6, #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hover & Motion */
+.magnetic-link {
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.magnetic-link:hover {
+  transform: scale(1.05) translateY(-2px);
+}
+
+.parallax-img {
+  transition: transform 0.6s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.hover-parallax:hover .parallax-img {
+  transform: scale(1.1) translateY(-5%);
+}
+
+.card-glow:hover {
+  box-shadow: 0 10px 40px rgba(37, 99, 235, 0.05);
+  border-color: rgba(37, 99, 235, 0.1) !important;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+/* Slider Animations moved from page.js */
+@keyframes slow-zoom {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.15);
+  }
+}
+
+.animate-slow-zoom {
+  animation: slow-zoom 20s linear infinite alternate;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 1s ease-out forwards;
+}
+
+/* Responsive Utilities */
+.mobile-safe-padding {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
