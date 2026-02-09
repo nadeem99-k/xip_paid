@@ -21,100 +21,129 @@ export const authOptions = {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
+                try {
+                    const { email, password } = credentials;
+
+                    const { data: user, error } = await supabase
+                        .from("users")
+                        .select("*")
+                        .eq("email", email)
+                        .single();
+
+                    if (error || !user) {
+                        console.error("User not found:", email);
+                        return null;
+                    }
+
+                    const isValid = await bcrypt.compare(password, user.password);
+
+                    if (!isValid) {
+                        console.error("Invalid password for:", email);
+                        return null;
+                    }
+
+                    return {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                        role: user.role,
+                        package: user.package,
+                        coins: user.coins,
+                    };
+                } catch (err) {
+                    console.error("Authorization error:", err);
                     return null;
                 }
-
-                const { data: user, error } = await supabase
-                    .from("users")
-                    .select("*")
-                    .eq("email", credentials.email)
-                    .single();
-
-                if (error || !user) {
-                    throw new Error("No user found with this email");
-                }
-
-                const isValid = await bcrypt.compare(credentials.password, user.password);
-
-                if (!isValid) {
-                    throw new Error("Invalid password");
-                }
-
-                return {
-                    id: user.id,
-                    email: user.email,
-                    role: user.role,
-                    package: user.package,
-                    coins: user.coins || 0,
-                    name: user.email.split("@")[0]
-                };
             },
         }),
     ],
     callbacks: {
-        async signIn({ user, account, profile }) {
+        async signIn({ user, account }) {
             if (account.provider === "google") {
+                const { email, name } = user;
+
                 const { data: existingUser } = await supabase
                     .from("users")
                     .select("*")
-                    .eq("email", user.email)
+                    .eq("email", email)
                     .single();
 
                 if (!existingUser) {
-                    // Create new user in Supabase if they don't exist
-                    const { error } = await supabase.from("users").insert([
-                        {
-                            email: user.email,
-                            role: "user",
-                            coins: 0,
-                            package: "none",
-                        },
-                    ]);
-                    if (error) console.error("Error creating user during Google sign-in:", error);
+                    const { error } = await supabase
+                        .from("users")
+                        .insert([
+                            {
+                                email,
+                                name: name || "Google User",
+                                role: "user",
+                                package: "free",
+                                coins: 3,
+                            },
+                        ]);
+
+                    if (error) {
+                        console.error("Error creating Google user:", error);
+                        return false;
+                    }
                 }
             }
             return true;
         },
         async jwt({ token, user, trigger, session }) {
-            // Initial sign in
-            if (user) {
-                token.id = user.id;
-                token.email = user.email;
-            }
+            try {
+                // Initial sign in
+                if (user) {
+                    token.id = user.id;
+                    token.email = user.email;
+                    token.role = user.role;
+                }
 
-            // Always fetch latest data from Supabase to keep token in sync
-            let { data: dbUser, error: dbError } = await supabase
-                .from("users")
-                .select("id, role, package, coins, joined_whatsapp")
-                .eq("email", token.email)
-                .single();
+                if (!token.email) return token;
 
-            // Handle missing column fallback
-            if (dbError && dbError.code === '42703') {
-                const { data: fallbackUser } = await supabase
+                // Always fetch latest data from Supabase to keep token in sync
+                let { data: dbUser, error: dbError } = await supabase
                     .from("users")
-                    .select("id, role, package, coins")
+                    .select("id, role, package, coins, joined_whatsapp")
                     .eq("email", token.email)
                     .single();
-                dbUser = { ...fallbackUser, joined_whatsapp: false };
-            }
 
-            if (dbUser) {
-                token.id = dbUser.id;
-                token.role = dbUser.role;
-                token.package = dbUser.package;
-                token.coins = dbUser.coins;
-                token.joined_whatsapp = dbUser.joined_whatsapp;
-            }
+                // Handle missing column fallback
+                if (dbError && dbError.code === '42703') {
+                    console.warn(`Column missing in Supabase users table, using fallback for ${token.email}`);
+                    const { data: fallbackUser, error: fbError } = await supabase
+                        .from("users")
+                        .select("id, role, package, coins")
+                        .eq("email", token.email)
+                        .single();
 
-            if (trigger === "update" && session?.package) {
-                token.package = session.package;
+                    if (fbError) {
+                        console.error(`Fallback fetch failed for ${token.email}:`, fbError);
+                    } else {
+                        dbUser = { ...fallbackUser, joined_whatsapp: false };
+                    }
+                } else if (dbError) {
+                    console.error(`JWT Callback: Error fetching user ${token.email}:`, dbError);
+                }
+
+                if (dbUser) {
+                    token.id = dbUser.id;
+                    token.role = dbUser.role;
+                    token.package = dbUser.package;
+                    token.coins = dbUser.coins;
+                    token.joined_whatsapp = dbUser.joined_whatsapp;
+                }
+
+                if (trigger === "update" && session?.package) {
+                    token.package = session.package;
+                }
+                if (trigger === "update" && typeof session?.coins !== 'undefined') {
+                    token.coins = session.coins;
+                }
+                return token;
+            } catch (err) {
+                console.error("JWT Callback Critical Error:", err);
+                return token;
             }
-            if (trigger === "update" && typeof session?.coins !== 'undefined') {
-                token.coins = session.coins;
-            }
-            return token;
         },
         async session({ session, token }) {
             if (session.user) {

@@ -22,45 +22,50 @@ function SignupContent() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
         setIsLoading(true);
-        setError('');
+
+        const safeCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
+            ? callbackUrl
+            : '/dashboard';
 
         try {
-            const res = await fetch('/api/auth/signup', {
-                method: 'POST',
+            const res = await fetch("/api/auth/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
-                headers: { 'Content-Type': 'application/json' }
             });
 
+            const data = await res.json();
+
             if (res.ok) {
-                // Auto login after successful signup
-                const loginRes = await signIn('credentials', {
+                const loginResult = await signIn("credentials", {
                     email,
                     password,
                     redirect: false,
                 });
 
-                if (loginRes?.error) {
-                    setError("Signup successful, but login failed. Please login manually.");
-                    setIsLoading(false);
-                    router.push('/login');
+                if (loginResult.error) {
+                    setError("Account created, but auto-login failed. Please sign in.");
                 } else {
-                    router.replace(callbackUrl);
+                    router.replace(safeCallbackUrl);
                 }
             } else {
-                const data = await res.json();
                 setError(data.error || "Signup failed");
-                setIsLoading(false);
             }
-        } catch (e) {
-            setError("Network error. Please try again.");
+        } catch (err) {
+            setError("Connection failed. Please retry.");
+        } finally {
             setIsLoading(false);
         }
     };
 
-    const handleGoogleSignUp = () => {
+    const handleGoogleSignUp = async () => {
         setIsLoading(true);
-        signIn('google', { callbackUrl });
+        const safeCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
+            ? callbackUrl
+            : '/dashboard';
+        await signIn("google", { callbackUrl: safeCallbackUrl });
     };
 
     if (status === 'loading') {

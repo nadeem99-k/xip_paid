@@ -22,31 +22,39 @@ function LoginContent() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
         setIsLoading(true);
-        setError('');
+
+        const safeCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
+            ? callbackUrl
+            : '/dashboard';
 
         try {
-            const res = await signIn('credentials', {
+            const result = await signIn("credentials", {
                 email,
                 password,
                 redirect: false,
             });
 
-            if (res?.error) {
-                setError(res.error);
-                setIsLoading(false);
+            if (result.error) {
+                setError("Invalid email or password");
             } else {
-                router.replace(callbackUrl);
+                router.replace(safeCallbackUrl);
             }
-        } catch (e) {
-            setError("An unexpected error occurred.");
+        } catch (err) {
+            setError("Connection failed. Please retry.");
+        } finally {
             setIsLoading(false);
         }
     };
 
-    const handleGoogleSignIn = () => {
+    const handleGoogleSignIn = async () => {
         setIsLoading(true);
-        signIn('google', { callbackUrl });
+        const safeCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
+            ? callbackUrl
+            : '/dashboard';
+
+        await signIn("google", { callbackUrl: safeCallbackUrl });
     };
 
     if (status === 'loading') {
@@ -127,6 +135,10 @@ function LoginContent() {
                             <span className="relative z-10">{isLoading ? "Validating..." : "Initialize Session"}</span>
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1000ms]"></div>
                         </button>
+
+                        <p className="text-center text-xs font-bold text-blue-600 hover:text-blue-700 mt-4">
+                            <Link href="/support">Forgot Password? Contact Support</Link>
+                        </p>
                     </form>
                 </div>
 

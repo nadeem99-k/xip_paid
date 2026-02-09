@@ -85,7 +85,7 @@ export default function SupportPage() {
                                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900/30 ml-2">Message Packet</label>
                                     <textarea name="message" required className="w-full h-32 bg-white border border-blue-50 rounded-2xl p-6 focus:border-blue-500 focus:outline-none transition-all resize-none" placeholder="Describe your query..."></textarea>
                                 </div>
-                                <button type="submit" className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.4em] hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 active:scale-95">Transfrom Signal</button>
+                                <button type="submit" className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.4em] hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 active:scale-95">Transmit Signal</button>
                             </form>
                         )}
                     </div>

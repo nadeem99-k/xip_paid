@@ -28,6 +28,7 @@ export default function Navbar() {
                     {!isAuthPage && (
                         <Link href="/pricing" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Pricing</Link>
                     )}
+                    <Link href="/support" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Support</Link>
                     {session && (
                         <Link href="/dashboard" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Dashboard</Link>
                     )}
@@ -81,6 +82,7 @@ export default function Navbar() {
                         {!isAuthPage && (
                             <Link href="/pricing" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Pricing</Link>
                         )}
+                        <Link href="/support" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Support</Link>
                         {session ? (
                             <>
                                 <Link href="/dashboard" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Dashboard</Link>

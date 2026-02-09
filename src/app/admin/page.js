@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
     const router = useRouter();
     const [payments, setPayments] = useState([]);
     const [stats, setStats] = useState({ totalUsers: 0, totalVolume: 0 });
@@ -124,13 +124,19 @@ export default function AdminDashboard() {
         }
     };
 
-    if (loading) return (
+    useEffect(() => {
+        if (status === "unauthenticated") {
+            router.replace('/login?callbackUrl=/admin');
+        }
+    }, [status, router]);
+
+    if (status === "loading") return (
         <div className="min-h-screen flex items-center justify-center bg-white">
             <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
         </div>
     );
 
-    if (session?.user?.role !== 'admin') {
+    if (!session || session?.user?.role !== 'admin') {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center text-center space-y-6 bg-white px-6">
                 <div className="text-6xl animate-bounce">⚠️</div>

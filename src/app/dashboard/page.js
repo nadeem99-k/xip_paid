@@ -214,6 +214,12 @@ export default function DashboardPage() {
         }
     };
 
+    useEffect(() => {
+        if (status === "unauthenticated") {
+            router.replace('/login?callbackUrl=/dashboard');
+        }
+    }, [status, router]);
+
     if (status === "loading") {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
@@ -222,7 +228,7 @@ export default function DashboardPage() {
         );
     }
 
-    if (!session) {
+    if (!session && status !== "loading") {
         return (
             <div className="pt-32 pb-20 px-6 text-center space-y-8 animate-slide-up bg-white min-h-screen">
                 <div className="text-6xl">👤</div>
