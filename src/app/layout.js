@@ -1,9 +1,8 @@
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import Navbar from "@/components/Navbar";
 
-const inter = Inter({ subsets: ["latin"] });
+// Font is now handled in globals.css via system stack for better build reliability
 
 export const metadata = {
   title: "Xip Premium AI",
