@@ -62,29 +62,43 @@ export const authOptions = {
             if (account.provider === "google") {
                 const { email, name } = user;
 
-                const { data: existingUser } = await supabase
-                    .from("users")
-                    .select("*")
-                    .eq("email", email)
-                    .single();
-
-                if (!existingUser) {
-                    const { error } = await supabase
+                try {
+                    // Check if user exists
+                    const { data: existingUser, error: fetchError } = await supabase
                         .from("users")
-                        .insert([
-                            {
-                                email,
-                                name: name || "Google User",
-                                role: "user",
-                                package: "free",
-                                coins: 3,
-                            },
-                        ]);
+                        .select("id")
+                        .eq("email", email)
+                        .maybeSingle();
 
-                    if (error) {
-                        console.error("Error creating Google user:", error);
-                        return false;
+                    if (fetchError) {
+                        console.error("Error fetching Google user:", fetchError);
+                        // Don't block sign-in if it's just a fetch error, but log it
                     }
+
+                    if (!existingUser) {
+                        const { error: insertError } = await supabase
+                            .from("users")
+                            .insert([
+                                {
+                                    email,
+                                    name: name || "Google User",
+                                    role: "user",
+                                    package: "free",
+                                    coins: 3,
+                                    password: "", // Google users don't have a password, but field might be required
+                                },
+                            ]);
+
+                        if (insertError) {
+                            console.error("Error creating Google user:", insertError);
+                            // If insert fails, we might want to return false to show Access Denied
+                            // but let's see if we can provide more info or at least not crash
+                            return false;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Sync error in signIn callback:", err);
+                    return false;
                 }
             }
             return true;
