@@ -41,21 +41,34 @@ export async function GET(req) {
             .order("timestamp", { ascending: false });
 
         if (error) {
-            console.error("History fetch error details:", error);
-            // If timestamp fails, try without ordering or with created_at if common
-            const { data: altHistory, error: altError } = await supabase
+            console.warn("History: timestamp sort failed, trying created_at fallback:", error.message);
+
+            // Try created_at as fallback
+            const { data: historyAlt, error: errorAlt } = await supabase
+                .from("generations")
+                .select("*")
+                .eq("user_id", session.user.id)
+                .order("created_at", { ascending: false });
+
+            if (!errorAlt) {
+                return NextResponse.json({ success: true, history: historyAlt, user });
+            }
+
+            // If combined fail, try any order
+            const { data: finalHistory, error: finalError } = await supabase
                 .from("generations")
                 .select("*")
                 .eq("user_id", session.user.id);
 
-            if (altError) {
-                console.error("Critical fallback failed:", altError);
-                return NextResponse.json({ success: true, history: [], user });
+            if (finalError) {
+                console.error("Critical: All history fetch methods failed:", finalError);
+                return NextResponse.json({ error: "Failed to fetch history registry", details: finalError.message }, { status: 500 });
             }
-            return NextResponse.json({ success: true, history: altHistory, user });
+
+            return NextResponse.json({ success: true, history: finalHistory || [], user });
         }
 
-        return NextResponse.json({ success: true, history, user });
+        return NextResponse.json({ success: true, history: history || [], user });
     } catch (error) {
         console.error("History fetch error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

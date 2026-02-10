@@ -11,8 +11,8 @@ export default function Footer() {
         <footer className="w-full py-16 md:py-24 px-6 border-t border-blue-50 border-white bg-blue-50/30">
             <div className="max-w-7xl mx-auto grid sm:grid-cols-2 md:grid-cols-4 gap-12 md:gap-16 text-center md:text-left">
                 <div className="sm:col-span-2 space-y-6 md:space-y-8">
-                    <div className="text-3xl md:text-4xl font-black text-blue-950 tracking-tighter">
-                        XIP<span className="text-blue-600">PRO</span>
+                    <div className="flex justify-center md:justify-start">
+                        <img src="/logo.png" alt="XIP AI" className="h-12 w-auto" />
                     </div>
                     <p className="text-blue-950/50 font-medium leading-relaxed max-w-sm mx-auto md:mx-0 text-sm md:text-base">
                         Pushing the boundaries of generative aesthetics through research and design excellence. Join the vanguard of AI synthesis.
@@ -48,7 +48,7 @@ export default function Footer() {
             </div>
 
             <div className="max-w-7xl mx-auto pt-12 md:pt-20 mt-12 md:mt-20 border-t border-blue-100 flex flex-col md:flex-row justify-between items-center gap-6 text-[8px] md:text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em] text-center">
-                <p>© 2026 XIP PRO LABS. ALL RIGHTS RESERVED.</p>
+                <p>© 2026 XIP AI. ALL RIGHTS RESERVED.</p>
                 <div className="flex gap-6 md:gap-10">
                     <Link href="/privacy" className="hover:text-blue-600">Privacy Policy</Link>
                     <Link href="/terms" className="hover:text-blue-600">Terms of Service</Link>

@@ -62,32 +62,50 @@ export async function POST(req) {
             resultUrls = await generateImageGradio(prompt, buffer, mode);
         }
 
+        let generationId = null;
         // Log generation and deduct coins
         if (resultUrls && resultUrls.length > 0) {
             // Log generation
-            await supabase
+            const { data: genData, error: genError } = await supabase
                 .from("generations")
                 .insert([
                     {
-                        user_id: session.user.id,
+                        user_id: user.id, // Use the DB-verified user ID
                         prompt: prompt || "Visual transformation",
                         image_url: resultUrls[0],
                         mode: mode,
                         provider: provider,
                         model: model || (provider === "deapi" ? "Flux_2_Klein_4B_BF16" : "Gradio Pool"),
                     }
-                ]);
+                ])
+                .select("id")
+                .single();
+
+            if (genError) {
+                console.error("Critical: Database log failed for generation:", genError);
+                // We still return success:true because the image was generated, 
+                // but we log the error for debugging.
+            } else {
+                generationId = genData?.id;
+            }
 
             // Deduct coins
-            if (cost > 0) {
-                await supabase
-                    .from("users")
-                    .update({ coins: user.coins - cost })
-                    .eq("id", session.user.id);
+            const { error: deductError } = await supabase
+                .from("users")
+                .update({ coins: user.coins - cost })
+                .eq("id", session.user.id);
+
+            if (deductError) {
+                console.error("Critical: Coin deduction failed:", deductError);
             }
         }
 
-        return NextResponse.json({ success: true, images: resultUrls, remainingCoins: user.coins - cost });
+        return NextResponse.json({
+            success: true,
+            images: resultUrls,
+            generationId,
+            remainingCoins: user.coins - cost
+        });
 
     } catch (error) {
         console.error("Generation error:", error);

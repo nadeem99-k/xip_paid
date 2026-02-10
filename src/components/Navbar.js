@@ -17,9 +17,8 @@ export default function Navbar() {
     return (
         <nav className="fixed top-0 left-0 right-0 z-[60] glass border-b border-blue-100 px-6 py-4">
             <div className="container mx-auto flex justify-between items-center">
-                <Link href="/" className="text-2xl font-black tracking-tighter hover:opacity-80 transition-opacity">
-                    <span className="text-blue-950">XIP</span>
-                    <span className="text-blue-600">PRO</span>
+                <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <img src="/logo.png" alt="XIP AI" className="h-10 w-auto" />
                 </Link>
 
                 {/* Desktop Menu */}

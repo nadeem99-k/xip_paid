@@ -249,7 +249,7 @@ export default function DashboardPage() {
     }
 
     // Removal of Access Restricted gateway as per user request
-    // All authenticated users can now access the studio layout
+    // All authenticated users can now access XIP AI Studio layout
 
     const handleGenerate = async (e) => {
         if (e) e.preventDefault();
@@ -291,6 +291,20 @@ export default function DashboardPage() {
                 }
                 // Update navbar session coins
                 update({ coins: data.remainingCoins });
+
+                // Optimistically add to history state
+                const newGen = {
+                    id: data.generationId || Date.now(),
+                    image_url: data.images[0],
+                    prompt: prompt || "Visual transformation",
+                    mode: selectedMode,
+                    provider: provider,
+                    model: selectedModel,
+                    timestamp: new Date().toISOString()
+                };
+                setHistory(prev => [newGen, ...prev]);
+
+                // No redirection - User stays on Studio to see result
             } else {
                 setGenError(data.error || "Generation failed.");
             }
@@ -522,15 +536,21 @@ export default function DashboardPage() {
                                     </div>
 
                                     <div className="space-y-6 text-left">
-                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">{provider === 'deapi' ? '5' : '4'}. Synthesis Modifiers</label>
-                                        <div className="relative">
+                                        <div className="flex items-center gap-3 ml-1">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30">{provider === 'deapi' ? '5' : '4'}. Synthesis Modifiers</label>
+                                            <img src="/logo.png" alt="XIP AI" className="h-4 w-auto opacity-30" />
+                                        </div>
+                                        <div className="relative group">
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] group-focus-within:opacity-[0.05] transition-opacity">
+                                                <img src="/logo.png" alt="" className="w-1/2 grayscale" />
+                                            </div>
                                             <textarea
                                                 value={prompt}
                                                 onChange={(e) => setPrompt(e.target.value)}
-                                                className="w-full h-40 bg-white border border-blue-100 rounded-[2.5rem] p-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100/50 transition-all shadow-sm resize-none placeholder:text-blue-950/20 font-serif italic text-blue-950"
+                                                className="w-full h-40 bg-white/50 backdrop-blur-sm border border-blue-100 rounded-[2.5rem] p-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100/50 transition-all shadow-sm resize-none placeholder:text-blue-950/20 font-serif italic text-blue-950 relative z-10"
                                                 placeholder="Enter bespoke instructions for the AI..."
                                             ></textarea>
-                                            <div className="absolute bottom-6 right-8 text-[9px] font-black text-blue-950/20 uppercase tracking-widest">
+                                            <div className="absolute bottom-6 right-8 text-[9px] font-black text-blue-950/20 uppercase tracking-widest z-20">
                                                 Tokens: {prompt.length}/500
                                             </div>
                                         </div>
