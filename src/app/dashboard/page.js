@@ -596,7 +596,7 @@ export default function DashboardPage() {
                                             ) : generatedImages.length > 0 ? (
                                                 <>
                                                     <img src={generatedImages[0]} className="w-full h-full object-cover animate-fade-in" alt="Result" />
-                                                    <div className="absolute inset-x-12 bottom-12 flex gap-4 translate-y-20 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-700 ease-out">
+                                                    <div className="absolute inset-x-12 bottom-12 flex gap-4">
                                                         <button
                                                             onClick={() => handleDownload(generatedImages[0])}
                                                             className="flex-1 h-20 bg-blue-600 text-white rounded-3xl font-black text-xs flex items-center justify-center uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-blue-600/20"
