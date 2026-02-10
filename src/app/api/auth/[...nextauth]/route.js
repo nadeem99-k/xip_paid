@@ -45,7 +45,7 @@ export const authOptions = {
                     return {
                         id: user.id,
                         email: user.email,
-                        name: user.name,
+                        name: user.full_name || user.name || "", // Try full_name first
                         role: user.role,
                         package: user.package,
                         coins: user.coins,
@@ -61,6 +61,7 @@ export const authOptions = {
         async signIn({ user, account }) {
             if (account.provider === "google") {
                 const { email, name } = user;
+                console.log(`signIn callback: Attempting Google sign-in for ${email}`);
 
                 try {
                     // Check if user exists
@@ -71,33 +72,43 @@ export const authOptions = {
                         .maybeSingle();
 
                     if (fetchError) {
-                        console.error("Error fetching Google user:", fetchError);
-                        // Don't block sign-in if it's just a fetch error, but log it
+                        console.error(`signIn callback: Error fetching Google user (${email}):`, fetchError);
+                        // We don't return false here to avoid blocking sign-in if Supabase is temporarily flaky
+                        // but we will try to proceed. If it's a critical error, the insert will likely fail too.
                     }
 
                     if (!existingUser) {
+                        console.log(`signIn callback: Creating new Google user for ${email}`);
+
+                        // Check if we should use 'name' or 'full_name'
+                        // Since the error said 'name' is missing, we'll try 'full_name' or just omit for now
+                        const userData = {
+                            email,
+                            name: name || "",
+                            full_name: name || "",
+                            role: "user",
+                            package: "free",
+                            coins: 3,
+                            password: "",
+                        };
+
+                        // We will try to insert without 'name' first to see if it works, 
+                        // or we could try 'full_name' if that's the standard for this schema
                         const { error: insertError } = await supabase
                             .from("users")
-                            .insert([
-                                {
-                                    email,
-                                    name: name || "Google User",
-                                    role: "user",
-                                    package: "free",
-                                    coins: 3,
-                                    password: "", // Google users don't have a password, but field might be required
-                                },
-                            ]);
+                            .insert([userData]);
 
                         if (insertError) {
-                            console.error("Error creating Google user:", insertError);
-                            // If insert fails, we might want to return false to show Access Denied
-                            // but let's see if we can provide more info or at least not crash
+                            console.error(`signIn callback: Error creating Google user (${email}):`, insertError);
+                            if (insertError.code === '23505') return true;
                             return false;
                         }
+                        console.log(`signIn callback: Successfully created Google user for ${email}`);
+                    } else {
+                        console.log(`signIn callback: Existing user found for ${email}`);
                     }
                 } catch (err) {
-                    console.error("Sync error in signIn callback:", err);
+                    console.error(`signIn callback: Critical error for ${email}:`, err);
                     return false;
                 }
             }
@@ -117,9 +128,9 @@ export const authOptions = {
                 // Always fetch latest data from Supabase to keep token in sync
                 let { data: dbUser, error: dbError } = await supabase
                     .from("users")
-                    .select("id, role, package, coins, joined_whatsapp")
+                    .select("id, role, package, coins, joined_whatsapp, name, full_name") // Include name/full_name
                     .eq("email", token.email)
-                    .single();
+                    .maybeSingle(); // Use maybeSingle to avoid 406 errors if user deleted mid-session
 
                 // Handle missing column fallback
                 if (dbError && dbError.code === '42703') {
@@ -145,6 +156,7 @@ export const authOptions = {
                     token.package = dbUser.package;
                     token.coins = dbUser.coins;
                     token.joined_whatsapp = dbUser.joined_whatsapp;
+                    token.name = dbUser.full_name || dbUser.name || token.name; // Keep name synced
                 }
 
                 if (trigger === "update" && session?.package) {
@@ -166,6 +178,7 @@ export const authOptions = {
                 session.user.coins = token.coins;
                 session.user.id = token.id;
                 session.user.joined_whatsapp = token.joined_whatsapp;
+                session.user.name = token.name;
             }
             return session;
         },

@@ -27,6 +27,7 @@ export default function DashboardPage() {
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [paymentProof, setPaymentProof] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [paymentMessage, setPaymentMessage] = useState({ type: null, text: null });
 
     const COIN_PACKS = [
         {
@@ -182,15 +183,20 @@ export default function DashboardPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert("Payment proof uploaded! Admin will verify shortly.");
+                setPaymentMessage({
+                    type: 'success',
+                    text: "Payment details successfully submitted! Please allow some time for admin verification."
+                });
                 setSelectedPackage(null);
                 setPaymentProof(null);
-                setActiveTab('payments'); // Switch to logs to see pending
+
+                // Clear success message after 8 seconds
+                setTimeout(() => setPaymentMessage({ type: null, text: null }), 8000);
             } else {
-                alert("Upload failed: " + data.error);
+                setPaymentMessage({ type: 'error', text: "Upload failed: " + data.error });
             }
         } catch (err) {
-            alert("Upload error");
+            setPaymentMessage({ type: 'error', text: "An error occurred during upload. Please try again." });
         } finally {
             setIsUploading(false);
         }
@@ -328,7 +334,7 @@ export default function DashboardPage() {
                             <div className="p-6 rounded-3xl border border-blue-100 bg-blue-50/30 space-y-6">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-black">
-                                        {session?.user?.name?.[0].toUpperCase()}
+                                        {(session?.user?.name?.[0] || session?.user?.email?.[0] || 'U').toUpperCase()}
                                     </div>
                                     <div>
                                         <p className="text-blue-950 text-sm font-bold tracking-tight line-clamp-1">{session?.user?.name}</p>
@@ -737,6 +743,20 @@ export default function DashboardPage() {
                                     <button onClick={() => setSelectedPackage(null)} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all">← Back to Plans</button>
                                 )}
                             </header>
+
+                            {paymentMessage.text && (
+                                <div className={`max-w-7xl mx-auto p-6 rounded-[2rem] border animate-fade-in-down mb-8 ${paymentMessage.type === 'success' ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl ${paymentMessage.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
+                                            {paymentMessage.type === 'success' ? '✅' : '❌'}
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">System Notification</p>
+                                            <p className="text-sm font-bold tracking-tight">{paymentMessage.text}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {!selectedPackage ? (
                                 <div className="grid md:grid-cols-3 gap-8">

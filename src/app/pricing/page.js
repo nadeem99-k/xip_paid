@@ -9,6 +9,7 @@ export default function PricingPage() {
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [paymentProof, setPaymentProof] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [paymentMessage, setPaymentMessage] = useState({ type: null, text: null });
 
     const PAYMENT_INFO = {
         easypaisa: "03422168420",
@@ -65,13 +66,20 @@ export default function PricingPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert("Payment proof uploaded! Admin will verify shortly.");
+                setPaymentMessage({
+                    type: 'success',
+                    text: "Payment details successfully submitted! Please allow some time for admin verification."
+                });
                 setSelectedPackage(null);
+                setPaymentProof(null);
+
+                // Clear success message after 8 seconds
+                setTimeout(() => setPaymentMessage({ type: null, text: null }), 8000);
             } else {
-                alert("Upload failed: " + data.error);
+                setPaymentMessage({ type: 'error', text: "Upload failed: " + data.error });
             }
         } catch (err) {
-            alert("Upload error");
+            setPaymentMessage({ type: 'error', text: "An error occurred during upload. Please try again." });
         } finally {
             setIsUploading(false);
         }
@@ -87,6 +95,20 @@ export default function PricingPage() {
                     <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-blue-950">Fuel Your <span className="text-blue-600">Creativity</span></h1>
                     <p className="text-blue-950/40 font-bold uppercase tracking-widest text-[9px] md:text-[10px] leading-relaxed">Purchase coins to unlock advanced neural modes. <br className="hidden md:block" />Bikini (2 Coins) | Nude (6 Coins)</p>
                 </div>
+
+                {paymentMessage.text && (
+                    <div className={`max-w-2xl mx-auto p-6 rounded-[2rem] border animate-fade-in-down mb-8 ${paymentMessage.type === 'success' ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                        <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl ${paymentMessage.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
+                                {paymentMessage.type === 'success' ? '✅' : '❌'}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">System Notification</p>
+                                <p className="text-sm font-bold tracking-tight">{paymentMessage.text}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {!selectedPackage ? (
                     <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">

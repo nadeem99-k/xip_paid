@@ -40,7 +40,7 @@ export default function ProfilePage() {
                     <div className="md:col-span-1 space-y-8">
                         <div className="bg-white p-8 rounded-[2.5rem] border border-blue-50 shadow-2xl shadow-blue-900/[0.03] flex flex-col items-center text-center space-y-6">
                             <div className="w-32 h-32 rounded-full bg-blue-600 text-white flex items-center justify-center text-4xl font-black shadow-xl shadow-blue-600/20">
-                                {session.user.name?.[0].toUpperCase()}
+                                {(session?.user?.name?.[0] || session?.user?.email?.[0] || 'U').toUpperCase()}
                             </div>
                             <div className="space-y-1">
                                 <h2 className="text-xl font-black text-blue-950">{session.user.name}</h2>

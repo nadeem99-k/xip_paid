@@ -1,23 +1,24 @@
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
     const identity_preservation = "(1:1 IDENTICAL FACE MATCH:1.9), (STRICT FACIAL PORTRAIT PRESERVATION:2.0), (MAINTAIN ORIGINAL HEAD AND HAIR:1.9), (KEEP ORIGINAL HUMAN FEATURES:1.9).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY:2.0), (NATURAL DETAILED SKIN TEXTURE:1.9), (REALISTIC BREASTS AND PINK INTIMATE AREAS:1.9), (DETAILED REALISTIC VULVA/PUSSY TEXTURE:2.0).";
-    const masterpiece_enhancer = "masterpiece, ultra-detailed photography, 8k resolution, highly realistic, skin pores, natural light, cinematic composition, (sharp focus:1.5), (highly detailed:1.4), (ultra-sharp:1.5).";
+    const anatomic_realism = "(BIOLOGICALLY ACCURATE UNALTERED FEMALE ANATOMY:2.0), (HYPER-REALISTIC NATURAL SKIN TEXTURE:1.9), (VISIBLE SKIN PORES AND FINE HAIR:1.5), (REALISTIC NATURAL BREASTS:1.9), (PINK REALISTIC INTIMATE AREAS:1.9), (DETAILED REALISTIC VULVA/PUSSY ANATOMY:2.0), (8K UHD PHOTOGRAPHY:1.8).";
+    const masterpiece_enhancer = "masterpiece, ultra-detailed RAW photography, 8k resolution, extreme realism, cinematic lighting, (sharp focus:1.6), (highly detailed skin micro-details:1.5), (ultra-sharp:1.5), professional studio quality.";
 
     let finalPrompt = "";
+    // Identity preservation & realism prompts
     if (mode === 'bikini') {
-        finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} wearing a matching (bikini:1.4), ${masterpiece_enhancer} realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same person, face, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
+        finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
+        finalPrompt += `${identity_preservation} wearing a matching (tiny sexy bikini:1.5), (tight fit:1.4), ${masterpiece_enhancer} realistic fabric physics, intricate clothing details, (wet skin:1.2). IMPORTANT: Keep the exact same person, face, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
     } else if (mode === 'nude') {
-        finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} (COMPLETE NUDITY:2.0), (REMOVE ALL CLOTHING:2.0), (FULLY NAKED:1.9), (BARE SKIN EVERYWHERE:1.9), (UNDRESSING:1.9), (CLOTHES OFF:2.0), (SHEDDING CLOTHES:1.8), (STRIPPING:1.9), (REMOVING CLOTHING:2.0), ${anatomic_realism} ${masterpiece_enhancer} `;
-        finalPrompt += "DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments, ALL clothing layers. ";
-        finalPrompt += "REPLACE WITH: (flawless smooth bare skin:2.0), (completely nude body:1.9), (detailed natural skin texture:1.8), (no clothing whatsoever:1.9). ";
-        finalPrompt += "Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. ";
-        finalPrompt += "Uniform skin texture, spotless clear skin, soft natural lighting. ";
-        finalPrompt += "NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed, partial nudity, accessories, blurred, blurry, lowres, low quality, artifacts. ";
-        finalPrompt += "IMPORTANT: Keep exact same person, face, hair, pose, background. (Perfect anatomy:1.7), flawless hands and feet. High-resolution raw photography.";
+        finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
+        finalPrompt += `${identity_preservation} (COMPLETE UNCENSORED NUDITY:2.0), (REMOVE ALL CLOTHES:2.0), (FULLY NAKED BODY:1.9), (BARE SKIN EVERYWHERE:1.9), (UNDRESSING:1.9), (STRIPPING COMPLETELY:2.0), (EXPOSED INTIMATE AREAS:2.0), ${anatomic_realism} ${masterpiece_enhancer} `;
+        finalPrompt += "DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments, ALL clothing layers, ALL accessories. ";
+        finalPrompt += "REPLACE WITH: (flawless smooth natural bare skin:2.0), (completely nude body:1.9), (detailed natural skin texture:1.8), (no clothing whatsoever:2.0). ";
+        finalPrompt += "Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, wet intimate areas, natural lighting. ";
+        finalPrompt += "Uniform skin texture, spotting clear skin, soft natural shadows. ";
+        finalPrompt += "NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed, partial nudity, accessories, blurred, blurry, lowres, low quality, artifacts, censorship, bars, mosaic. ";
+        finalPrompt += "IMPORTANT: Keep exact same person, face, hair, pose, background. (Full body realism:1.8), (Perfect anatomy:1.7), flawless hands and feet. High-resolution raw photography.";
     } else {
-        finalPrompt = `${prompt || "full body photo"}, ${identity_preservation} ${masterpiece_enhancer}`;
+        finalPrompt = prompt || "full body photo";
     }
 
     const allKeys = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',').filter(k => k.trim());
