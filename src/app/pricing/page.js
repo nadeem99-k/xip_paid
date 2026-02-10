@@ -10,6 +10,13 @@ export default function PricingPage() {
     const [paymentProof, setPaymentProof] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [paymentMessage, setPaymentMessage] = useState({ type: null, text: null });
+    const [copiedField, setCopiedField] = useState(null);
+
+    const handleCopy = (text, field) => {
+        navigator.clipboard.writeText(text);
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 2000);
+    };
 
     const PAYMENT_INFO = {
         easypaisa: "03422168420",
@@ -170,14 +177,33 @@ export default function PricingPage() {
                                 <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Transmission Mode</span>
                                 <span className="px-3 py-1 bg-green-50 text-green-600 border border-green-100 rounded-full text-[9px] font-black uppercase tracking-widest">EasyPaisa</span>
                             </div>
-                            <div className="flex justify-between items-end border-b border-blue-100 pb-6">
-                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Node Identifier</span>
-                                <span className="text-3xl font-black text-blue-950 tracking-tighter font-mono">{PAYMENT_INFO.easypaisa}</span>
+
+                            <div className="space-y-2 border-b border-blue-100 pb-6">
+                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Node Identifier (Account No)</span>
+                                <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
+                                    <span className="flex-1 text-2xl md:text-3xl font-black text-blue-950 tracking-tighter font-mono">{PAYMENT_INFO.easypaisa}</span>
+                                    <button
+                                        onClick={() => handleCopy(PAYMENT_INFO.easypaisa, 'number')}
+                                        className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedField === 'number' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-50 hover:bg-blue-100'}`}
+                                    >
+                                        {copiedField === 'number' ? 'Copied!' : 'Copy'}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Account Key</span>
-                                <span className="text-sm font-black text-blue-950 uppercase tracking-widest">{PAYMENT_INFO.title}</span>
+
+                            <div className="space-y-2">
+                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Account Key (Title)</span>
+                                <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
+                                    <span className="flex-1 text-lg font-black text-blue-950 uppercase tracking-widest">{PAYMENT_INFO.title}</span>
+                                    <button
+                                        onClick={() => handleCopy(PAYMENT_INFO.title, 'title')}
+                                        className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedField === 'title' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-50 hover:bg-blue-100'}`}
+                                    >
+                                        {copiedField === 'title' ? 'Copied!' : 'Copy'}
+                                    </button>
+                                </div>
                             </div>
+
                             <div className="flex justify-between items-center pt-6 border-t border-blue-100">
                                 <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Total Payload</span>
                                 <span className="text-3xl font-black text-blue-600 tracking-tighter">Rs {COIN_PACKS.find(p => p.id === selectedPackage)?.price}</span>
