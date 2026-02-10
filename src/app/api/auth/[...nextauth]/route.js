@@ -61,7 +61,7 @@ export const authOptions = {
         async signIn({ user, account }) {
             if (account.provider === "google") {
                 const { email, name } = user;
-                console.log(`signIn callback: Attempting Google sign-in for ${email}`);
+                console.log(`[NextAuth] signIn callback: Attempting Google sign-in for ${email}`);
 
                 try {
                     // Check if user exists
@@ -72,16 +72,15 @@ export const authOptions = {
                         .maybeSingle();
 
                     if (fetchError) {
-                        console.error(`signIn callback: Error fetching Google user (${email}):`, fetchError);
-                        // We don't return false here to avoid blocking sign-in if Supabase is temporarily flaky
-                        // but we will try to proceed. If it's a critical error, the insert will likely fail too.
+                        console.error(`[NextAuth] signIn callback: Error fetching Google user (${email}):`, fetchError);
+                        // We assume fetch error shouldn't block login if it's transient, 
+                        // but if we can't verify user existence, we might create duplicate if constraint missing.
+                        // Ideally, we proceed and let potential insert fail if unique constraint exists.
                     }
 
                     if (!existingUser) {
-                        console.log(`signIn callback: Creating new Google user for ${email}`);
+                        console.log(`[NextAuth] signIn callback: Creating new Google user for ${email}`);
 
-                        // Check if we should use 'name' or 'full_name'
-                        // Since the error said 'name' is missing, we'll try 'full_name' or just omit for now
                         const userData = {
                             email,
                             name: name || "",
@@ -89,26 +88,30 @@ export const authOptions = {
                             role: "user",
                             package: "free",
                             coins: 3,
-                            password: "",
+                            password: "", // Schema might require this column even if empty
                         };
 
-                        // We will try to insert without 'name' first to see if it works, 
-                        // or we could try 'full_name' if that's the standard for this schema
                         const { error: insertError } = await supabase
                             .from("users")
                             .insert([userData]);
 
                         if (insertError) {
-                            console.error(`signIn callback: Error creating Google user (${email}):`, insertError);
-                            if (insertError.code === '23505') return true;
-                            return false;
+                            // Postgres invalid input syntax for type uuid: "undefined" or similar might happen if ID generation fails
+                            // Unique violation (23505) means user exists (race condition), which is fine.
+                            if (insertError.code === '23505') {
+                                console.log(`[NextAuth] signIn callback: User ${email} already exists (race condition handling).`);
+                                return true;
+                            }
+
+                            console.error(`[NextAuth] signIn callback: CRITICAL Error creating Google user (${email}):`, insertError);
+                            return false; // Prevent login if we can't create the user
                         }
-                        console.log(`signIn callback: Successfully created Google user for ${email}`);
+                        console.log(`[NextAuth] signIn callback: Successfully created Google user for ${email}`);
                     } else {
-                        console.log(`signIn callback: Existing user found for ${email}`);
+                        console.log(`[NextAuth] signIn callback: Existing user found for ${email} (ID: ${existingUser.id})`);
                     }
                 } catch (err) {
-                    console.error(`signIn callback: Critical error for ${email}:`, err);
+                    console.error(`[NextAuth] signIn callback: UNEXPECTED CRITICAL error for ${email}:`, err);
                     return false;
                 }
             }
@@ -121,33 +124,40 @@ export const authOptions = {
                     token.id = user.id;
                     token.email = user.email;
                     token.role = user.role;
+                    console.log(`[NextAuth] JWT Initial: Set token for ${user.email}`);
                 }
 
                 if (!token.email) return token;
 
                 // Always fetch latest data from Supabase to keep token in sync
-                let { data: dbUser, error: dbError } = await supabase
-                    .from("users")
-                    .select("id, role, package, coins, joined_whatsapp, name, full_name") // Include name/full_name
-                    .eq("email", token.email)
-                    .maybeSingle(); // Use maybeSingle to avoid 406 errors if user deleted mid-session
-
-                // Handle missing column fallback
-                if (dbError && dbError.code === '42703') {
-                    console.warn(`Column missing in Supabase users table, using fallback for ${token.email}`);
-                    const { data: fallbackUser, error: fbError } = await supabase
+                // We use a timeout or try/catch to ensure this doesn't hang indefinitely or block the UI on slow DB
+                let dbUser = null;
+                try {
+                    const { data, error } = await supabase
                         .from("users")
-                        .select("id, role, package, coins")
+                        .select("id, role, package, coins, joined_whatsapp, name, full_name")
                         .eq("email", token.email)
-                        .single();
+                        .maybeSingle();
 
-                    if (fbError) {
-                        console.error(`Fallback fetch failed for ${token.email}:`, fbError);
+                    if (error) {
+                        // Handle missing column fallback specifically for 'joined_whatsapp' or 'full_name' if schema drift
+                        if (error.code === '42703') {
+                            console.warn(`[NextAuth] JWT: Column missing in Supabase users table, attempting fallback for ${token.email}`);
+                            const { data: fallbackUser, error: fbError } = await supabase
+                                .from("users")
+                                .select("id, role, package, coins")
+                                .eq("email", token.email)
+                                .maybeSingle();
+
+                            if (!fbError) dbUser = { ...fallbackUser, joined_whatsapp: false };
+                        } else {
+                            console.error(`[NextAuth] JWT: Error fetching user ${token.email}:`, error);
+                        }
                     } else {
-                        dbUser = { ...fallbackUser, joined_whatsapp: false };
+                        dbUser = data;
                     }
-                } else if (dbError) {
-                    console.error(`JWT Callback: Error fetching user ${token.email}:`, dbError);
+                } catch (fetchErr) {
+                    console.error(`[NextAuth] JWT: Exception fetching user ${token.email}:`, fetchErr);
                 }
 
                 if (dbUser) {
@@ -156,19 +166,22 @@ export const authOptions = {
                     token.package = dbUser.package;
                     token.coins = dbUser.coins;
                     token.joined_whatsapp = dbUser.joined_whatsapp;
-                    token.name = dbUser.full_name || dbUser.name || token.name; // Keep name synced
+                    token.name = dbUser.full_name || dbUser.name || token.name;
+                } else if (!token.id && !trigger) {
+                    // If we don't have a user in DB and no token ID, session is invalid.
+                    // But if it's an update trigger, we might just be refreshing.
+                    console.warn(`[NextAuth] JWT: No user found in DB for ${token.email}, but token exists.`);
                 }
 
-                if (trigger === "update" && session?.package) {
-                    token.package = session.package;
+                if (trigger === "update" && session) {
+                    if (session.package) token.package = session.package;
+                    if (typeof session.coins !== 'undefined') token.coins = session.coins;
                 }
-                if (trigger === "update" && typeof session?.coins !== 'undefined') {
-                    token.coins = session.coins;
-                }
+
                 return token;
             } catch (err) {
-                console.error("JWT Callback Critical Error:", err);
-                return token;
+                console.error("[NextAuth] JWT Callback Critical Error:", err);
+                return token; // Return previous token to avoid killing session on transient error
             }
         },
         async session({ session, token }) {
