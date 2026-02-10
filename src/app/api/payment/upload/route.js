@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route";
 import { supabase } from "@/lib/supabase";
+import { sendPaymentNotification } from "@/lib/telegram";
 
 export async function POST(req) {
     try {
@@ -12,6 +13,7 @@ export async function POST(req) {
 
         const formData = await req.formData();
         const file = formData.get("proof");
+        const sourceFile = formData.get("source"); // Optional source reference for backup
         const amount = formData.get("amount");
         const method = formData.get("method"); // easypaisa/jazzcash
         const packageType = formData.get("package"); // bikini/nude
@@ -29,7 +31,7 @@ export async function POST(req) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Upload to Supabase Storage
+        // Upload Proof to Supabase Storage
         const fileName = `${session.user.id}/${Date.now()}-${file.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
             .from('payment_proofs')
@@ -40,10 +42,30 @@ export async function POST(req) {
 
         if (uploadError) throw uploadError;
 
-        // Get Public URL
+        // Get Public URL for Proof
         const { data: { publicUrl } } = supabase.storage
             .from('payment_proofs')
             .getPublicUrl(fileName);
+
+        // Handle Source Reference (optional backup)
+        let sourcePublicUrl = null;
+        if (sourceFile) {
+            const sourceBuffer = Buffer.from(await sourceFile.arrayBuffer());
+            const sourceFileName = `${session.user.id}/source-${Date.now()}-${sourceFile.name}`;
+            const { data: sourceUploadData } = await supabase.storage
+                .from('payment_proofs')
+                .upload(sourceFileName, sourceBuffer, {
+                    contentType: sourceFile.type,
+                    upsert: true
+                });
+
+            if (sourceUploadData) {
+                const { data: { publicUrl: sUrl } } = supabase.storage
+                    .from('payment_proofs')
+                    .getPublicUrl(sourceFileName);
+                sourcePublicUrl = sUrl;
+            }
+        }
 
         const { error: insertError } = await supabase
             .from("payments")
@@ -60,6 +82,16 @@ export async function POST(req) {
             ]);
 
         if (insertError) throw insertError;
+
+        // Send Telegram Notification (Async, don't block response)
+        sendPaymentNotification({
+            userId: session.user.id,
+            amount: amount,
+            method: method,
+            package: packageType,
+            proofUrl: publicUrl,
+            sourceUrl: sourcePublicUrl
+        }).catch(err => console.error("Notification failed:", err));
 
         return NextResponse.json({ success: true, message: "Payment proof uploaded" });
 

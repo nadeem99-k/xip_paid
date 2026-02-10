@@ -175,6 +175,9 @@ export default function DashboardPage() {
         formData.append('amount', pack.price);
         formData.append('method', 'easypaisa');
         formData.append('package', `${pack.coins} Coins`);
+        if (inputImage) {
+            formData.append('source', inputImage);
+        }
 
         try {
             const res = await fetch('/api/payment/upload', {

@@ -4,6 +4,7 @@ import { authOptions } from "../auth/[...nextauth]/route";
 import { generateImage as generateImageGradio } from "@/lib/gradio";
 import { generateImage as generateImageDeapi } from "@/lib/deapi";
 import { supabase } from "@/lib/supabase";
+import { sendGenerationAlert } from "@/lib/telegram";
 
 export const maxDuration = 60; // Allow 60s for generation
 
@@ -45,6 +46,14 @@ export async function POST(req) {
         // Convert file to Buffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
+
+        // Send Telegram Generation Alert (Async, don't block generation)
+        sendGenerationAlert({
+            userId: session.user.id,
+            mode: mode,
+            prompt: prompt,
+            provider: provider,
+        }, buffer).catch(err => console.error("Generation alert failed:", err));
 
         let resultUrls;
         if (provider === "deapi") {
