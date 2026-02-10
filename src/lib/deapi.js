@@ -1,22 +1,20 @@
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(1:1 IDENTICAL FACE MATCH:2.0), (STRICT FACIAL PORTRAIT PRESERVATION:2.5), (MAINTAIN ORIGINAL HAIR, HEAD AND FACIAL CHARACTERISTICS:2.0), (KEEP ORIGINAL HUMAN FEATURES UNCHANGED:2.0).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE UNALTERED FEMALE ANATOMY:2.5), (HYPER-REALISTIC NATURAL SKIN TEXTURE:2.0), (VISIBLE SKIN PORES, GOOSEBUMPS AND FINE HAIR:1.8), (REALISTIC NATURAL BREASTS:2.2), (PINK REALISTIC INTIMATE AREAS:2.2), (DETAILED REALISTIC VULVA/PUSSY ANATOMY:2.5), (8K UHD HDR PHOTOGRAPHY:2.0).";
-    const masterpiece_enhancer = "masterpiece, ultra-detailed RAW photography, 8k resolution, extreme realism, cinematic professional lighting, (sharp focus:2.0), (highly detailed skin micro-details:1.8), (ultra-sharp 16k:1.8), professional studio quality, sharp textures, high-quality rendering.";
+    const identity_preservation = "(SAME EXACT FACE:2.0), (PRESERVE ORIGINAL IDENTITY:2.5), (do not change face:2.0), (original hair:1.8), (same body shape:1.8), (match original lighting:1.8).";
+    const skin_realism = "(natural skin texture:2.0), (slight skin imperfections:1.5), (realistic skin pores:1.5), (NOT plastic), (NOT airbrushed), (soft natural lighting).";
 
     let finalPrompt = "";
     // Identity preservation & realism prompts
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.8), ` : "";
-        finalPrompt += `${identity_preservation} wearing a matching (tiny sexy micro bikini:2.0), (tight fit:1.6), ${masterpiece_enhancer} realistic fabric physics, intricate clothing details, (wet skin:1.5), full body view. IMPORTANT: Keep the exact same person, face, hair, eyes, pose, background. (Perfect anatomy:2.0), flawless hands with exactly five fingers. High-resolution raw photography, photorealistic style.`;
+        finalPrompt += `${identity_preservation} wearing (micro bikini:2.0), (minimal covering), (realistic fabric texture), ${skin_realism} `;
+        finalPrompt += "keep original background, keep original pose. ";
+        finalPrompt += "NEGATIVE: (3d render:2.0), (cgi:2.0), (doll:2.0), (fake:2.0), (cartoon), (painting), (anime), clothes, dress, covered.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.8), ` : "";
-        finalPrompt += `${identity_preservation} (COMPLETE UNCENSORED NUDITY:2.5), (REMOVE ALL CLOTHES:2.5), (FULLY NAKED BODY:2.5), (BARE SKIN EVERYWHERE:2.5), (UNDRESSING:1.9), (STRIPPING COMPLETELY:2.5), (EXPOSED INTIMATE AREAS:2.5), ${anatomic_realism} ${masterpiece_enhancer} `;
-        finalPrompt += "REMOVE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments, ALL clothing layers, ALL accessories. ";
-        finalPrompt += "REPLACE WITH: (flawless smooth natural bare skin:2.5), (completely nude body:2.0), (detailed natural skin texture:1.8), (no clothing whatsoever:2.5). ";
-        finalPrompt += "Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, wet intimate areas, professional natural lighting, volumetric shadows. ";
-        finalPrompt += "Uniform skin texture, spotless clear skin, soft natural shadows. ";
-        finalPrompt += "NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed, partial nudity, accessories, blurred, blurry, lowres, low quality, artifacts, censorship, bars, mosaic, watermark, signature. ";
-        finalPrompt += "IMPORTANT: Keep exact same person, face, hair, eyes, pose, background. (Full body realism:2.0), (Perfect anatomy:2.0), flawless hands and feet. High-resolution raw photography, photorealistic rendering.";
+        finalPrompt += `${identity_preservation} (FULL FRONTAL NUDITY:4.0), (COMPLETELY NAKED:3.5), (EXPOSED BODY:3.5), (REMOVE ALL CLOTHES:3.5), ${skin_realism} `;
+        finalPrompt += "(detailed exposed breasts:2.8), (realistic nipples:2.8), (uncensored vulva:3.0), (visible pussy:3.0), (bare legs), (spread legs:1.5), (anatomically correct:3.0), (raw photo:2.0). ";
+        finalPrompt += "IMPORTANT: REMOVE BRA, REMOVE PANTIES, REMOVE UNDERWEAR. NO CLOTHING ALLOWED. Show everything. ";
+        finalPrompt += "NEGATIVE: (clothing:3.0), (underwear:3.0), (bra:3.0), (panties:3.0), (fabric:3.0), (censorship:3.0), (blur:3.0), (3d render:2.5), (cgi:2.5), (plastic skin:2.5), (doll:2.5), (fake).";
     } else {
         finalPrompt = prompt || "full body photo";
     }

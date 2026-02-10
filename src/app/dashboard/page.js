@@ -22,7 +22,7 @@ export default function DashboardPage() {
     const [userPayments, setUserPayments] = useState([]);
     const [isLoadingPayments, setIsLoadingPayments] = useState(false);
     const [selectedMode, setSelectedMode] = useState('bikini');
-    const [provider, setProvider] = useState('gradio');
+    const [provider, setProvider] = useState('deapi');
     const [selectedModel, setSelectedModel] = useState('Flux_2_Klein_4B_BF16');
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [paymentProof, setPaymentProof] = useState(null);
@@ -414,7 +414,7 @@ export default function DashboardPage() {
                         <div className="space-y-16">
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
                                 <div className="space-y-2">
-                                    <h1 className="text-4xl font-black tracking-tighter text-blue-950">AI Synthesis <span className="text-blue-600">Studio</span></h1>
+                                    <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-blue-950">AI Synthesis <span className="text-blue-600">Studio</span></h1>
                                     <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Identity-Preserving Generative Engine</p>
                                 </div>
                                 <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
@@ -423,7 +423,7 @@ export default function DashboardPage() {
                                 </div>
                             </header>
 
-                            <div className="grid lg:grid-cols-11 gap-16">
+                            <div className="grid lg:grid-cols-11 gap-8 md:gap-16">
                                 {/* Left Side: Controls */}
                                 <div className="lg:col-span-5 space-y-12">
                                     {/* Buy Coins Info */}

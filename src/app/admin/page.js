@@ -1,6 +1,6 @@
 'use client';
 import { useSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
@@ -12,9 +12,21 @@ export default function AdminDashboard() {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('payments');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+    const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
+
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
 
     useEffect(() => {
         const init = async () => {
+            setLoading(true);
             await Promise.all([
                 fetchPayments(),
                 fetchUsers(),
@@ -22,8 +34,14 @@ export default function AdminDashboard() {
             ]);
             setLoading(false);
         };
-        init();
-    }, [session]);
+        if (status === 'authenticated') {
+            init();
+        }
+    }, [status]);
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+    };
 
     const fetchPayments = async () => {
         try {
@@ -35,6 +53,7 @@ export default function AdminDashboard() {
             }
         } catch (e) {
             console.error("Failed to fetch payments");
+            showToast("Failed to fetch payments", 'error');
         }
     };
 
@@ -45,8 +64,10 @@ export default function AdminDashboard() {
             if (data.success) {
                 setUsers(data.users);
             }
+            // Ensure stats are updated if they come from users endpoint too, or keep existing
         } catch (e) {
             console.error("Failed to fetch users");
+            showToast("Failed to fetch users", 'error');
         }
     };
 
@@ -59,6 +80,7 @@ export default function AdminDashboard() {
             }
         } catch (e) {
             console.error("Failed to fetch tickets");
+            showToast("Failed to fetch tickets", 'error');
         }
     };
 
@@ -66,7 +88,10 @@ export default function AdminDashboard() {
         const amount = prompt("Enter amount to add (e.g., 10) or remove (e.g., -5):", "10");
         if (amount === null) return;
         const coinAmount = parseInt(amount);
-        if (isNaN(coinAmount)) return alert("Please enter a valid number");
+        if (isNaN(coinAmount)) {
+            showToast("Please enter a valid number", 'error');
+            return;
+        }
 
         try {
             const res = await fetch('/api/admin/users/update-coins', {
@@ -76,13 +101,13 @@ export default function AdminDashboard() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(data.message);
+                showToast(data.message);
                 fetchUsers(); // Refresh list
             } else {
-                alert("Error: " + data.error);
+                showToast("Error: " + data.error, 'error');
             }
         } catch (e) {
-            alert("Network error");
+            showToast("Network error", 'error');
         }
     };
 
@@ -95,11 +120,11 @@ export default function AdminDashboard() {
             });
             const data = await res.json();
             if (data.success) {
-                alert("Ticket status updated");
+                showToast("Ticket status updated");
                 fetchTickets();
             }
         } catch (e) {
-            alert("Update error");
+            showToast("Update error", 'error');
         }
     };
 
@@ -114,15 +139,57 @@ export default function AdminDashboard() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(data.message);
+                showToast(data.message);
                 fetchPayments(); // Refresh list
             } else {
-                alert("Error: " + data.error);
+                showToast("Error: " + data.error, 'error');
             }
         } catch (e) {
-            alert("Network error");
+            showToast("Network error", 'error');
         }
     };
+
+    // --- Filtering & Pagination Logic ---
+
+    const filteredData = useMemo(() => {
+        const query = searchQuery.toLowerCase();
+        let data = [];
+
+        if (activeTab === 'payments') {
+            data = payments.filter(p =>
+                (p.userEmail && p.userEmail.toLowerCase().includes(query)) ||
+                (p.user_id && p.user_id.toLowerCase().includes(query)) ||
+                (p.amount && p.amount.toString().includes(query)) ||
+                (p.method && p.method.toLowerCase().includes(query))
+            );
+        } else if (activeTab === 'users') {
+            data = users.filter(u =>
+                (u.email && u.email.toLowerCase().includes(query)) ||
+                (u.id && u.id.toLowerCase().includes(query)) ||
+                (u.role && u.role.toLowerCase().includes(query))
+            );
+        } else if (activeTab === 'support') {
+            data = tickets.filter(t =>
+                (t.email && t.email.toLowerCase().includes(query)) ||
+                (t.message && t.message.toLowerCase().includes(query)) ||
+                (t.name && t.name.toLowerCase().includes(query))
+            );
+        }
+        return data;
+    }, [activeTab, payments, users, tickets, searchQuery]);
+
+    const paginatedData = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredData.slice(start, start + itemsPerPage);
+    }, [filteredData, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+    // Reset page on tab/search change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchQuery]);
+
 
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -130,7 +197,7 @@ export default function AdminDashboard() {
         }
     }, [status, router]);
 
-    if (status === "loading") return (
+    if (status === "loading" || loading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">
             <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
         </div>
@@ -148,228 +215,316 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-white pt-32 pb-20 px-6">
-            <div className="max-w-7xl mx-auto space-y-12 animate-slide-up">
-                <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-10 border-b border-blue-50">
+        <div className="min-h-screen bg-white pt-24 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto">
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-600 text-white'
+                    }`}>
+                    <span className="text-xl">{toast.type === 'error' ? '⚠️' : '✅'}</span>
+                    <p className="font-bold text-sm tracking-wide">{toast.message}</p>
+                </div>
+            )}
+
+            <div className="space-y-8 animate-slide-up">
+                {/* Header Section */}
+                <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 pb-8 border-b border-blue-50">
                     <div className="space-y-4">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-500 rounded-full border border-red-100">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-500 rounded-full border border-red-100 w-fit">
                             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
                             <span className="text-[9px] font-black uppercase tracking-widest">Admin Control</span>
                         </div>
-                        <h1 className="text-5xl font-black tracking-tighter text-blue-950">Payment <span className="text-blue-600">Verification</span></h1>
-                        <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Processing manual approvals for Neural Access</p>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-blue-950">Dashboard <span className="text-blue-600">Overview</span></h1>
+                        <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">System Management Center</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 min-w-[140px]">
-                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-1">Total Revenue</p>
-                            <p className="text-2xl font-black text-blue-950 tracking-tighter">Rs {stats?.totalVolume || 0}</p>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full xl:w-auto">
+                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Revenue</p>
+                            <div className="flex items-end justify-between">
+                                <p className="text-3xl font-black text-blue-950 tracking-tighter">Rs {stats?.totalVolume || 0}</p>
+                                <span className="text-2xl">💰</span>
+                            </div>
                         </div>
-                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 min-w-[140px]">
-                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-1">Total Users</p>
-                            <p className="text-2xl font-black text-blue-950 tracking-tighter">{stats?.totalUsers || 0}</p>
+                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Users</p>
+                            <div className="flex items-end justify-between">
+                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{stats?.totalUsers || 0}</p>
+                                <span className="text-2xl">👥</span>
+                            </div>
                         </div>
-                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 min-w-[140px]">
-                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-1">Pending Orders</p>
-                            <p className="text-2xl font-black text-blue-950 tracking-tighter">{payments.length}</p>
+                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Pending Orders</p>
+                            <div className="flex items-end justify-between">
+                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{payments.length}</p>
+                                <span className="text-2xl">⏳</span>
+                            </div>
                         </div>
                     </div>
                 </header>
 
-                <div className="flex gap-4 border-b border-blue-50">
-                    <button
-                        onClick={() => setActiveTab('payments')}
-                        className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'payments' ? 'border-blue-600 text-blue-600' : 'border-transparent text-blue-900/30 hover:text-blue-950'}`}
-                    >
-                        Pending Payments ({payments.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('users')}
-                        className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-blue-900/30 hover:text-blue-950'}`}
-                    >
-                        User Directory ({users.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('support')}
-                        className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'support' ? 'border-blue-600 text-blue-600' : 'border-transparent text-blue-900/30 hover:text-blue-950'}`}
-                    >
-                        Support Tickets ({tickets.filter(t => t.status === 'pending').length})
-                    </button>
+                {/* Controls Section */}
+                <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center sticky top-20 z-30 bg-white/80 backdrop-blur-xl p-4 -mx-4 rounded-3xl border border-blue-50/50 shadow-sm">
+                    {/* Use overflow-x-auto for scrollable tabs on small screens */}
+                    <div className="flex gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
+                        {['payments', 'users', 'support'].map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-shrink-0 ${activeTab === tab
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 scale-105'
+                                        : 'bg-blue-50 text-blue-400 hover:bg-blue-100 hover:text-blue-600'
+                                    }`}
+                            >
+                                {tab === 'payments' && `Payments (${payments.length})`}
+                                {tab === 'users' && `Users (${users.length})`}
+                                {tab === 'support' && `Support (${tickets.filter(t => t.status === 'pending').length})`}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="w-full lg:w-auto relative group">
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                            <svg className="w-4 h-4 text-blue-300 group-focus-within:text-blue-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search data..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full lg:w-80 pl-12 pr-6 py-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all"
+                        />
+                    </div>
                 </div>
 
-                <div className="bg-white border border-blue-50 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-950/[0.02]">
-                    {activeTab === 'payments' ? (
-                        payments.length === 0 ? (
-                            <div className="p-32 text-center space-y-6">
-                                <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center mx-auto text-4xl opacity-50 grayscale">✅</div>
-                                <div className="space-y-2">
-                                    <p className="text-xs font-black uppercase tracking-[0.4em] text-blue-950 opacity-40">Queue Cleared</p>
-                                    <p className="text-[10px] text-blue-950/20 font-bold uppercase tracking-widest">No pending orders found in the central repository.</p>
-                                </div>
+                {/* Main Content Area */}
+                <div className="bg-white border border-blue-50 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-950/[0.02] min-h-[400px]">
+                    {paginatedData.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-32 space-y-6">
+                            <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center text-4xl opacity-50 grayscale animate-pulse">
+                                {activeTab === 'payments' ? '✅' : activeTab === 'users' ? '👥' : '📬'}
                             </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-blue-50/50 border-b border-blue-50">
-                                        <tr>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Identity</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Module</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Value</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Gateway</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Timestamp</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Proof</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Operations</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-blue-50/50">
-                                        {payments.map(p => (
-                                            <tr key={p.id} className="hover:bg-blue-50/30 transition-colors group">
-                                                <td className="p-6">
-                                                    <div className="font-bold text-blue-950 text-sm tracking-tight">{p.userEmail || 'Unknown'}</div>
-                                                    <div className="text-[9px] text-blue-900/30 font-black tracking-widest uppercase mt-1">{p.user_id?.slice(-8)}</div>
-                                                </td>
-                                                <td className="p-6">
-                                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${p.package === 'nude' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
-                                                        {p.package}
-                                                    </span>
-                                                </td>
-                                                <td className="p-6">
-                                                    <div className="font-black text-blue-950 text-sm">Rs {p.amount}</div>
-                                                </td>
-                                                <td className="p-6">
-                                                    <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">{p.method}</span>
-                                                </td>
-                                                <td className="p-6">
-                                                    <div className="text-[10px] font-bold text-blue-950/40 uppercase">{new Date(p.timestamp).toLocaleDateString()}</div>
-                                                </td>
-                                                <td className="p-6">
-                                                    <a href={p.proof_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-black text-[10px] uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-                                                        Open Document ↗
-                                                    </a>
-                                                </td>
-                                                <td className="p-6 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => handleAction(p.id, 'approve')}
-                                                            className="px-5 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/10"
-                                                        >
-                                                            Finalize
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleAction(p.id, 'reject')}
-                                                            className="px-5 py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                                                        >
-                                                            Discard
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div className="text-center space-y-2">
+                                <p className="text-xs font-black uppercase tracking-[0.4em] text-blue-950 opacity-40">No Data Found</p>
+                                <p className="text-[10px] text-blue-950/20 font-bold uppercase tracking-widest">Try adjusting your search filters.</p>
                             </div>
-                        )
-                    ) : activeTab === 'users' ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-blue-50/50 border-b border-blue-50">
-                                    <tr>
-                                        <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">User Identity</th>
-                                        <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Role</th>
-                                        <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Active Pack</th>
-                                        <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Coin Balance</th>
-                                        <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Registered</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-blue-50/50">
-                                    {users.map(u => (
-                                        <tr key={u.id} className="hover:bg-blue-50/30 transition-colors">
-                                            <td className="p-6">
-                                                <div className="font-bold text-blue-950 text-sm">{u.email}</div>
-                                                <div className="text-[9px] text-blue-900/30 font-black tracking-widest uppercase mt-1">{u.id.slice(-12)}</div>
-                                            </td>
-                                            <td className="p-6">
-                                                <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${u.role === 'admin' ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-500'}`}>
-                                                    {u.role}
-                                                </span>
-                                            </td>
-                                            <td className="p-6">
-                                                <div className="text-[10px] font-bold text-blue-950/60 uppercase">{u.package || 'None'}</div>
-                                            </td>
-                                            <td className="p-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xl">🪙</span>
-                                                        <span className="font-black text-blue-950">{u.coins || 0}</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleUpdateCoins(u.id, u.coins)}
-                                                        className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                </div>
-                                            </td>
-                                            <td className="p-6">
-                                                <div className="text-[10px] font-bold text-blue-950/40 uppercase">{new Date(u.created_at).toLocaleDateString()}</div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
                         </div>
-                    ) : activeTab === 'support' ? (
-                        tickets.length === 0 ? (
-                            <div className="p-32 text-center space-y-6">
-                                <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center mx-auto text-4xl opacity-50 grayscale">📬</div>
-                                <div className="space-y-2">
-                                    <p className="text-xs font-black uppercase tracking-[0.4em] text-blue-950 opacity-40">Inbox Empty</p>
-                                    <p className="text-[10px] text-blue-950/20 font-bold uppercase tracking-widest">No active support requests found.</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
+                    ) : (
+                        <>
+                            {/* Desktop View (Table) - Hidden on Mobile */}
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead className="bg-blue-50/50 border-b border-blue-50">
                                         <tr>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Sender</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Message</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Status</th>
-                                            <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Action</th>
+                                            {activeTab === 'payments' && (
+                                                <>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Identity</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Module</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Value</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Date</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Proof</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Actions</th>
+                                                </>
+                                            )}
+                                            {activeTab === 'users' && (
+                                                <>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">User</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Role</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Coins</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Joined</th>
+                                                </>
+                                            )}
+                                            {activeTab === 'support' && (
+                                                <>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Sender</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Message</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Status</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Action</th>
+                                                </>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-blue-50/50">
-                                        {tickets.map(t => (
-                                            <tr key={t.id} className="hover:bg-blue-50/30 transition-colors">
-                                                <td className="p-6">
-                                                    <div className="font-bold text-blue-950 text-sm">{t.name}</div>
-                                                    <div className="text-[10px] text-blue-900/40 font-bold">{t.email}</div>
-                                                </td>
-                                                <td className="p-6">
-                                                    <div className="text-xs text-blue-950/80 max-w-md line-clamp-2">{t.message}</div>
-                                                </td>
-                                                <td className="p-6">
-                                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${t.status === 'pending' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600'}`}>
-                                                        {t.status}
-                                                    </span>
-                                                </td>
-                                                <td className="p-6 text-right">
-                                                    {t.status === 'pending' && (
-                                                        <button
-                                                            onClick={() => handleTicketStatus(t.id, 'resolved')}
-                                                            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest"
-                                                        >
-                                                            Resolve
-                                                        </button>
-                                                    )}
-                                                </td>
+                                        {paginatedData.map((item) => (
+                                            <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
+                                                {/* Payment Rows */}
+                                                {activeTab === 'payments' && (
+                                                    <>
+                                                        <td className="p-6">
+                                                            <div className="font-bold text-blue-950 text-sm tracking-tight">{item.userEmail || 'Unknown'}</div>
+                                                            <div className="text-[9px] text-blue-900/30 font-black tracking-widest uppercase mt-1">{item.user_id?.slice(-8)}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${item.package === 'nude' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                                                                {item.package}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="font-black text-blue-950 text-sm">Rs {item.amount}</div>
+                                                            <div className="text-[9px] text-green-600 uppercase tracking-widest font-bold mt-1">{item.method}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="text-[10px] font-bold text-blue-950/40 uppercase">{new Date(item.timestamp).toLocaleDateString()}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <a href={item.proof_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-black text-[10px] uppercase tracking-widest group-hover:underline">
+                                                                View ↗
+                                                            </a>
+                                                        </td>
+                                                        <td className="p-6 text-right">
+                                                            <div className="flex justify-end gap-2">
+                                                                <button onClick={() => handleAction(item.id, 'approve')} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/20">A</button>
+                                                                <button onClick={() => handleAction(item.id, 'reject')} className="px-4 py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white">R</button>
+                                                            </div>
+                                                        </td>
+                                                    </>
+                                                )}
+
+                                                {/* Users Rows */}
+                                                {activeTab === 'users' && (
+                                                    <>
+                                                        <td className="p-6">
+                                                            <div className="font-bold text-blue-950 text-sm">{item.email}</div>
+                                                            <div className="text-[9px] text-blue-900/30 font-black tracking-widest uppercase mt-1">{item.id.slice(-8)}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.role === 'admin' ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-500'}`}>
+                                                                {item.role}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="font-black text-blue-950">{item.coins || 0}</span>
+                                                                <button onClick={() => handleUpdateCoins(item.id, item.coins)} className="text-blue-400 hover:text-blue-600">✏️</button>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="text-[10px] font-bold text-blue-950/40 uppercase">{new Date(item.created_at).toLocaleDateString()}</div>
+                                                        </td>
+                                                    </>
+                                                )}
+
+                                                {/* Support Rows */}
+                                                {activeTab === 'support' && (
+                                                    <>
+                                                        <td className="p-6">
+                                                            <div className="font-bold text-blue-950 text-sm">{item.name}</div>
+                                                            <div className="text-[9px] text-blue-900/40 font-bold">{item.email}</div>
+                                                        </td>
+                                                        <td className="p-6 w-1/3">
+                                                            <div className="text-xs text-blue-950/80 line-clamp-2">{item.message}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.status === 'pending' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600'}`}>
+                                                                {item.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-6 text-right">
+                                                            {item.status === 'pending' && (
+                                                                <button onClick={() => handleTicketStatus(item.id, 'resolved')} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700">Resolve</button>
+                                                            )}
+                                                        </td>
+                                                    </>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                        )
-                    ) : null}
+
+                            {/* Mobile View (Cards) - Visible on Mobile */}
+                            <div className="md:hidden p-4 space-y-4">
+                                {paginatedData.map((item) => (
+                                    <div key={item.id} className="bg-white p-5 rounded-3xl border border-blue-50 shadow-sm space-y-4">
+                                        {/* Payment Cards */}
+                                        {activeTab === 'payments' && (
+                                            <>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h3 className="font-bold text-blue-950 text-sm">{item.userEmail}</h3>
+                                                        <p className="text-[9px] text-blue-400 font-bold mt-1 uppercase tracking-wider">{item.method}</p>
+                                                    </div>
+                                                    <span className="px-3 py-1 bg-green-50 text-green-600 font-black text-[10px] rounded-lg">Rs {item.amount}</span>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.package === 'nude' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                        {item.package}
+                                                    </span>
+                                                    <a href={item.proof_url} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-gray-50 text-gray-600 rounded-lg text-[9px] font-black uppercase tracking-widest">Proof ↗</a>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                                    <button onClick={() => handleAction(item.id, 'approve')} className="py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">Approve</button>
+                                                    <button onClick={() => handleAction(item.id, 'reject')} className="py-3 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest">Reject</button>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* User Cards */}
+                                        {activeTab === 'users' && (
+                                            <>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h3 className="font-bold text-blue-950 text-sm break-all">{item.email}</h3>
+                                                        <span className={`mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${item.role === 'admin' ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-500'}`}>{item.role}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between bg-blue-50/50 p-3 rounded-2xl">
+                                                    <span className="text-[10px] font-bold text-blue-900/50 uppercase tracking-widest">Balance</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-black text-blue-950">{item.coins} Coins</span>
+                                                        <button onClick={() => handleUpdateCoins(item.id, item.coins)} className="w-6 h-6 flex items-center justify-center bg-white rounded-full text-blue-600 shadow-sm">✏️</button>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* Support Cards */}
+                                        {activeTab === 'support' && (
+                                            <>
+                                                <div className="flex justify-between items-start">
+                                                    <h3 className="font-bold text-blue-950 text-sm">{item.name}</h3>
+                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${item.status === 'pending' ? 'bg-yellow-50 text-yellow-600' : 'bg-green-50 text-green-600'}`}>{item.status}</span>
+                                                </div>
+                                                <p className="text-xs text-blue-950/70">{item.email}</p>
+                                                <div className="p-3 bg-blue-50/30 rounded-xl text-xs text-blue-950 leading-relaxed">
+                                                    {item.message}
+                                                </div>
+                                                {item.status === 'pending' && (
+                                                    <button onClick={() => handleTicketStatus(item.id, 'resolved')} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Mark Resolved</button>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-4 py-8">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="w-10 h-10 rounded-xl bg-white border border-blue-100 flex items-center justify-center text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-blue-50 transition-colors"
+                        >
+                            ←
+                        </button>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-950/40">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="w-10 h-10 rounded-xl bg-white border border-blue-100 flex items-center justify-center text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-blue-50 transition-colors"
+                        >
+                            →
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
