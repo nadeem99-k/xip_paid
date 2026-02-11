@@ -7,9 +7,10 @@ export default function AdminDashboard() {
     const { user, isLoading, refreshUser } = useUser();
     const router = useRouter();
     const [payments, setPayments] = useState([]);
-    const [stats, setStats] = useState({ totalUsers: 0, totalVolume: 0 });
+    const [stats, setStats] = useState({ totalUsers: 0, totalVolume: 0, revenueToday: 0, monthlyVolume: 0 });
     const [users, setUsers] = useState([]);
     const [tickets, setTickets] = useState([]);
+    const [generations, setGenerations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('payments');
     const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +77,20 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchGenerations = async (signal) => {
+        try {
+            const res = await fetch('/api/admin/generations', { signal });
+            const data = await res.json();
+            if (data.success) {
+                setGenerations(data.generations);
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+            console.error("Failed to fetch generations", e);
+            showToast("Failed to fetch generations", 'error');
+        }
+    };
+
     useEffect(() => {
         const controller = new AbortController();
         const init = async () => {
@@ -84,7 +99,8 @@ export default function AdminDashboard() {
                 await Promise.all([
                     fetchPayments(controller.signal),
                     fetchUsers(controller.signal),
-                    fetchTickets(controller.signal)
+                    fetchTickets(controller.signal),
+                    fetchGenerations(controller.signal)
                 ]);
             } finally {
                 setLoading(false);
@@ -194,9 +210,15 @@ export default function AdminDashboard() {
                 (t.message && t.message.toLowerCase().includes(query)) ||
                 (t.name && t.name.toLowerCase().includes(query))
             );
+        } else if (activeTab === 'generations') {
+            data = generations.filter(g =>
+                (g.users?.email && g.users.email.toLowerCase().includes(query)) ||
+                (g.prompt && g.prompt.toLowerCase().includes(query)) ||
+                (g.mode && g.mode.toLowerCase().includes(query))
+            );
         }
         return data;
-    }, [activeTab, payments, users, tickets, searchQuery]);
+    }, [activeTab, payments, users, tickets, generations, searchQuery]);
 
     const paginatedData = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -262,12 +284,15 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full xl:w-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full xl:w-auto">
                         <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
                             <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Revenue</p>
                             <div className="flex items-end justify-between">
                                 <p className="text-3xl font-black text-blue-950 tracking-tighter">Rs {stats?.totalVolume || 0}</p>
-                                <span className="text-2xl">💰</span>
+                                <div className="text-right">
+                                    <p className="text-[9px] font-black text-green-600 uppercase tracking-tighter">Rs {stats?.revenueToday || 0} Today</p>
+                                    <p className="text-[8px] font-bold text-blue-400">Rs {stats?.monthlyVolume || 0} Month</p>
+                                </div>
                             </div>
                         </div>
                         <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
@@ -275,6 +300,13 @@ export default function AdminDashboard() {
                             <div className="flex items-end justify-between">
                                 <p className="text-3xl font-black text-blue-950 tracking-tighter">{stats?.totalUsers || 0}</p>
                                 <span className="text-2xl">👥</span>
+                            </div>
+                        </div>
+                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Creations</p>
+                            <div className="flex items-end justify-between">
+                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{generations.length}</p>
+                                <span className="text-2xl">🎨</span>
                             </div>
                         </div>
                         <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
@@ -291,7 +323,7 @@ export default function AdminDashboard() {
                 <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center sticky top-20 z-30 bg-white/80 backdrop-blur-xl p-4 -mx-4 rounded-3xl border border-blue-50/50 shadow-sm">
                     {/* Use overflow-x-auto for scrollable tabs on small screens */}
                     <div className="flex gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
-                        {['payments', 'users', 'support'].map((tab) => (
+                        {['payments', 'users', 'generations', 'support'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -302,6 +334,7 @@ export default function AdminDashboard() {
                             >
                                 {tab === 'payments' && `Payments (${payments.length})`}
                                 {tab === 'users' && `Users (${users.length})`}
+                                {tab === 'generations' && `History (${generations.length})`}
                                 {tab === 'support' && `Support (${tickets.filter(t => t.status === 'pending').length})`}
                             </button>
                         ))}
@@ -366,6 +399,15 @@ export default function AdminDashboard() {
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Message</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Status</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Action</th>
+                                                </>
+                                            )}
+                                            {activeTab === 'generations' && (
+                                                <>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">User</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Prompt</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Mode</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Creation</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Timestamp</th>
                                                 </>
                                             )}
                                         </tr>
@@ -452,6 +494,34 @@ export default function AdminDashboard() {
                                                         </td>
                                                     </>
                                                 )}
+
+                                                {/* Generations Rows */}
+                                                {activeTab === 'generations' && (
+                                                    <>
+                                                        <td className="p-6">
+                                                            <div className="font-bold text-blue-950 text-sm tracking-tight">{item.users?.email || 'Unknown'}</div>
+                                                            <div className="text-[9px] text-blue-950/20 font-black tracking-widest uppercase mt-1">UID: {item.user_id?.slice(-8)}</div>
+                                                        </td>
+                                                        <td className="p-6 max-w-xs">
+                                                            <div className="text-xs text-blue-950 line-clamp-2">{item.prompt}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-100">
+                                                                {item.mode}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <a href={item.image_url} target="_blank" rel="noopener noreferrer" className="block w-12 h-12 rounded-xl overflow-hidden border border-blue-100 hover:scale-110 transition-transform shadow-sm">
+                                                                <img src={item.image_url} className="w-full h-full object-cover" alt="Gen" />
+                                                            </a>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="text-[10px] font-bold text-blue-950/40 uppercase whitespace-nowrap">
+                                                                {new Date(item.created_at || item.timestamp).toLocaleString()}
+                                                            </div>
+                                                        </td>
+                                                    </>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -518,6 +588,30 @@ export default function AdminDashboard() {
                                                 {item.status === 'pending' && (
                                                     <button onClick={() => handleTicketStatus(item.id, 'resolved')} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Mark Resolved</button>
                                                 )}
+                                            </>
+                                        )}
+
+                                        {/* Generation Cards */}
+                                        {activeTab === 'generations' && (
+                                            <>
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-bold text-blue-950 text-sm truncate">{item.users?.email}</h3>
+                                                        <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest mt-1">{item.mode} Mode</p>
+                                                    </div>
+                                                    <div className="w-16 h-16 shrink-0 rounded-2xl overflow-hidden border border-blue-50 shadow-sm">
+                                                        <img src={item.image_url} className="w-full h-full object-cover" alt="Gen" />
+                                                    </div>
+                                                </div>
+                                                <div className="p-3 bg-blue-50/30 rounded-xl text-xs text-blue-950 italic line-clamp-3">
+                                                    "{item.prompt}"
+                                                </div>
+                                                <div className="flex justify-between items-center pt-2">
+                                                    <span className="text-[9px] font-bold text-blue-950/20 uppercase tracking-widest">
+                                                        {new Date(item.created_at || item.timestamp).toLocaleString()}
+                                                    </span>
+                                                    <a href={item.image_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-black text-[10px] uppercase tracking-widest underline decoration-blue-200 underline-offset-4">Open ↗</a>
+                                                </div>
                                             </>
                                         )}
                                     </div>

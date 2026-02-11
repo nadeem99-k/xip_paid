@@ -36,12 +36,28 @@ export async function GET(req) {
 
         const totalVolume = approvedPayments?.reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
 
+        // Calculate Today's Revenue and Monthly Volume
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        const revenueToday = approvedPayments
+            ?.filter(p => new Date(p.timestamp) >= today)
+            ?.reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
+
+        const monthlyVolume = approvedPayments
+            ?.filter(p => new Date(p.timestamp) >= firstDayOfMonth)
+            ?.reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
+
         return NextResponse.json({
             success: true,
             payments: formattedPayments,
             stats: {
                 totalUsers: allUsersCount || 0,
                 totalVolume: totalVolume,
+                revenueToday: revenueToday,
+                monthlyVolume: monthlyVolume,
                 pendingCount: formattedPayments.length
             }
         });
