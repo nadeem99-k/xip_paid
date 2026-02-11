@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase as adminDb } from "@/lib/supabase"; // For DB inserts
 import { getAuthenticatedUser } from "@/lib/auth-helpers";
-import { sendPaymentAlert } from "@/lib/telegram";
+import { sendPaymentNotification } from "@/lib/telegram";
 
 export async function POST(req) {
     try {
@@ -85,7 +85,7 @@ export async function POST(req) {
 
         // Send Telegram Alert
         try {
-            await sendPaymentAlert({
+            await sendPaymentNotification({
                 userId: user.id,
                 userName: user.full_name || user.name || user.email,
                 amount: amount,
