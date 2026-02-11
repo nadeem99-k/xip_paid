@@ -95,7 +95,7 @@ export default function Navbar() {
                         </div>
                     ) : (
                         <div className="hidden md:flex items-center gap-4">
-                            <Link href="/login" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Login</Link>
+                            <Link href="/login" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Sign In</Link>
                             <Link href="/signup" className="px-6 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all active:scale-95 shadow-lg hover:shadow-blue-200">
                                 Get Started
                             </Link>
@@ -137,7 +137,7 @@ export default function Navbar() {
                             </>
                         ) : (
                             <>
-                                <Link href="/login" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Login</Link>
+                                <Link href="/login" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Sign In</Link>
                                 <Link href="/signup" onClick={toggleMenu} className="w-full py-4 bg-blue-600 text-white text-center rounded-2xl font-black text-sm uppercase tracking-[0.2em]">Get Started</Link>
                             </>
                         )}

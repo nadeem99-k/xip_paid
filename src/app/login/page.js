@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 function LoginContent() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
@@ -45,29 +43,6 @@ function LoginContent() {
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-        setIsLoading(true);
-
-        try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-
-            if (error) {
-                setError(error.message);
-                setIsLoading(false);
-            } else {
-                router.replace(callbackUrl);
-            }
-        } catch (err) {
-            setError("Connection failed. Please retry.");
-            setIsLoading(false);
-        }
-    };
-
     return (
         <div className="flex flex-col justify-center items-center min-h-screen pt-20 px-6 bg-white">
             <div className="w-full max-w-md space-y-10 animate-fade-in-up">
@@ -80,6 +55,12 @@ function LoginContent() {
                 </div>
 
                 <div className="bg-white p-10 rounded-[3rem] border border-blue-50 space-y-8 shadow-2xl shadow-blue-950/[0.03]">
+                    {error && (
+                        <div className="bg-red-50 border border-red-100 text-red-500 p-4 rounded-2xl text-[10px] font-black text-center uppercase tracking-widest animate-shake">
+                            {error}
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         <button
                             disabled={isLoading}
@@ -89,64 +70,17 @@ function LoginContent() {
                             <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" className="w-6 h-6" alt="Google" />
                             {isLoading ? "Launching..." : "Continue with Google"}
                         </button>
-
-                        <div className="flex items-center gap-4 text-[9px] font-black text-blue-950/20 uppercase tracking-widest">
-                            <div className="h-px bg-blue-50 flex-1"></div>
-                            <span>Or Secure Login</span>
-                            <div className="h-px bg-blue-50 flex-1"></div>
-                        </div>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-8">
-                        {error && (
-                            <div className="bg-red-50 border border-red-100 text-red-500 p-4 rounded-2xl text-[10px] font-black text-center uppercase tracking-widest animate-shake">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="space-y-6">
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900/30 ml-2">Access ID (Email)</label>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full h-16 bg-blue-50/50 rounded-2xl border border-blue-100 focus:border-blue-500 focus:outline-none px-6 text-sm transition-all text-blue-950 placeholder:text-blue-950/20"
-                                    placeholder="name@domain.com"
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900/30 ml-2">Security Key (Password)</label>
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full h-16 bg-blue-50/50 rounded-2xl border border-blue-100 focus:border-blue-500 focus:outline-none px-6 text-sm transition-all text-blue-950 placeholder:text-blue-950/20"
-                                    placeholder="••••••••"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <button
-                            disabled={isLoading}
-                            type="submit"
-                            className="group relative w-full h-16 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 overflow-hidden shadow-xl shadow-blue-600/10"
-                        >
-                            <span className="relative z-10">{isLoading ? "Validating..." : "Initialize Session"}</span>
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1000ms]"></div>
-                        </button>
-
-                        <p className="text-center text-xs font-bold text-blue-600 hover:text-blue-700 mt-4">
-                            <Link href="/support">Forgot Password? Contact Support</Link>
+                    <div className="pt-4 text-center">
+                        <p className="text-[10px] font-black text-blue-950/20 uppercase tracking-[0.2em]">
+                            Secure OAuth 2.0 Encryption Active
                         </p>
-                    </form>
+                    </div>
                 </div>
 
                 <p className="text-center text-[10px] font-black text-blue-950/20 uppercase tracking-[0.2em] mt-8">
-                    New to XIP PRO? <Link href={`/signup${callbackUrl !== '/dashboard' ? `?callbackUrl=${callbackUrl}` : ''}`} className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">Register Node</Link>
+                    Need technical help? <Link href="/support" className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">Contact Support</Link>
                 </p>
             </div>
         </div>

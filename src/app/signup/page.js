@@ -5,74 +5,11 @@ import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
 function SignupContent() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
-
-
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-        setIsLoading(true);
-
-        const safeCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
-            ? callbackUrl
-            : '/dashboard';
-
-        try {
-            const supabase = createClient();
-            const { data, error: signUpError } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    emailRedirectTo: `${location.origin}/auth/callback?next=${safeCallbackUrl}`,
-                    data: {
-                        name: email.split('@')[0],
-                    }
-                }
-            });
-
-            if (signUpError) {
-                setError(signUpError.message);
-                setIsLoading(false);
-                return;
-            }
-
-            // Sync with public.users
-            if (data?.user) {
-                // Try to insert into public.users. If it fails (e.g. trigger exists), we ignore.
-                // We use upsert to be safe.
-                const { error: dbError } = await supabase
-                    .from('users')
-                    .upsert({
-                        id: data.user.id,
-                        email: email,
-                        name: email.split('@')[0],
-                        role: 'user',
-                        package: 'free',
-                        coins: 3
-                    }, { onConflict: 'id', ignoreDuplicates: true }); // If trigger exists, this might be redundant but safe
-            }
-
-            // If session is established (auto-confirm enabled), redirect
-            if (data?.session) {
-                router.replace(safeCallbackUrl);
-            } else {
-                setError("Please check your email to confirm your account.");
-                setIsLoading(false);
-            }
-
-        } catch (err) {
-            console.error(err);
-            setError("Connection failed. Please retry.");
-            setIsLoading(false);
-        }
-    };
 
     const handleGoogleSignUp = async () => {
         setIsLoading(true);
@@ -80,16 +17,20 @@ function SignupContent() {
             ? callbackUrl
             : '/dashboard';
 
-        const supabase = createClient();
-        await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${location.origin}/auth/callback?next=${safeCallbackUrl}`,
-            }
-        });
+        try {
+            const supabase = createClient();
+            const { error: signInError } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${location.origin}/auth/callback?next=${safeCallbackUrl}`,
+                }
+            });
+            if (signInError) throw signInError;
+        } catch (err) {
+            setError(err.message);
+            setIsLoading(false);
+        }
     };
-
-
 
     return (
         <div className="flex flex-col justify-center items-center min-h-screen pt-20 px-6 bg-white">
@@ -99,10 +40,16 @@ function SignupContent() {
                         <span className="text-[9px] font-black uppercase tracking-widest">Network Registration</span>
                     </div>
                     <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-blue-950">Join <span className="text-blue-600">XIP PRO</span></h1>
-                    <p className="text-blue-950/40 font-bold uppercase tracking-widest text-[9px] md:text-[10px]">Create your secure generative node.</p>
+                    <p className="text-blue-950/40 font-bold uppercase tracking-widest text-[9px] md:text-[10px]">Create your secure generative node via Google.</p>
                 </div>
 
                 <div className="bg-white p-10 rounded-[3rem] border border-blue-50 space-y-8 shadow-2xl shadow-blue-950/[0.03]">
+                    {error && (
+                        <div className="bg-red-50 border border-red-100 text-red-500 p-4 rounded-2xl text-[10px] font-black text-center uppercase tracking-widest animate-shake">
+                            {error}
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         <button
                             disabled={isLoading}
@@ -112,60 +59,17 @@ function SignupContent() {
                             <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" className="w-6 h-6" alt="Google" />
                             {isLoading ? "Launching..." : "Continue with Google"}
                         </button>
-
-                        <div className="flex items-center gap-4 text-[9px] font-black text-blue-950/20 uppercase tracking-widest">
-                            <div className="h-px bg-blue-50 flex-1"></div>
-                            <span>Or Secure Registration</span>
-                            <div className="h-px bg-blue-50 flex-1"></div>
-                        </div>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-8">
-                        {error && (
-                            <div className="bg-red-50 border border-red-100 text-red-500 p-4 rounded-2xl text-[10px] font-black text-center uppercase tracking-widest animate-shake">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="space-y-6 text-left">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900/30 ml-2">Email Address</label>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full h-16 bg-blue-50/50 rounded-2xl border border-blue-100 focus:border-blue-500 focus:outline-none px-6 text-sm transition-all text-blue-950 placeholder:text-blue-950/20"
-                                    placeholder="name@example.com"
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900/30 ml-2">Secure Password</label>
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full h-16 bg-blue-50/50 rounded-2xl border border-blue-100 focus:border-blue-500 focus:outline-none px-6 text-sm transition-all text-blue-950 placeholder:text-blue-950/20"
-                                    placeholder="Min. 8 characters"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <button
-                            disabled={isLoading}
-                            type="submit"
-                            className="group relative w-full h-16 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 overflow-hidden shadow-xl shadow-blue-600/10"
-                        >
-                            <span className="relative z-10">{isLoading ? "Registering..." : "Create Generative Node"}</span>
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1000ms]"></div>
-                        </button>
-                    </form>
+                    <div className="pt-4 text-center">
+                        <p className="text-[10px] font-black text-blue-950/20 uppercase tracking-[0.2em]">
+                            Direct Neural Link with OAuth 2.0
+                        </p>
+                    </div>
                 </div>
 
                 <p className="text-center text-[10px] font-black text-blue-950/20 uppercase tracking-[0.2em] mt-8">
-                    Already registered? <Link href={`/login${callbackUrl !== '/dashboard' ? `?callbackUrl=${callbackUrl}` : ''}`} className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">SignIn Access</Link>
+                    Already have an account? <Link href={`/login${callbackUrl !== '/dashboard' ? `?callbackUrl=${callbackUrl}` : ''}`} className="text-blue-600 hover:text-blue-700 ml-2 transition-colors">SignIn Access</Link>
                 </p>
             </div>
         </div>
