@@ -213,16 +213,14 @@ export default function DashboardPage() {
 
     const handleDownload = async (url, filename = 'xip-pro-render.png') => {
         try {
-            const res = await fetch(url);
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
+            // Use our proxy API to force download and avoid CORS issues
+            const downloadUrl = `/api/download?url=${encodeURIComponent(url)}`;
             const a = document.createElement('a');
-            a.href = blobUrl;
+            a.href = downloadUrl;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
         } catch (err) {
             console.error("Download failed:", err);
             window.open(url, '_blank');

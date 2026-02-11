@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
-    const { user, isLoading } = useUser();
+    const { user, isLoading, refreshUser } = useUser();
     const router = useRouter();
     const [payments, setPayments] = useState([]);
     const [stats, setStats] = useState({ totalUsers: 0, totalVolume: 0 });
@@ -17,6 +17,15 @@ export default function AdminDashboard() {
     const [itemsPerPage] = useState(10);
     const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
 
+    // Admin email whitelist - add your admin emails here
+    const ADMIN_EMAILS = [
+        'nadeemalikalhoro310@gmail.com',
+        // Add more admin emails here
+    ];
+
+    // Simple check: is user's email in the admin list?
+    const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+
     useEffect(() => {
         if (toast) {
             const timer = setTimeout(() => setToast(null), 3000);
@@ -24,64 +33,75 @@ export default function AdminDashboard() {
         }
     }, [toast]);
 
-    useEffect(() => {
-        const init = async () => {
-            setLoading(true);
-            await Promise.all([
-                fetchPayments(),
-                fetchUsers(),
-                fetchTickets()
-            ]);
-            setLoading(false);
-        };
-        if (user && user.role === 'admin') {
-            init();
-        }
-    }, [user]);
-
-    const showToast = (message, type = 'success') => {
-        setToast({ message, type });
-    };
-
-    const fetchPayments = async () => {
+    const fetchPayments = async (signal) => {
         try {
-            const res = await fetch('/api/admin/payments');
+            const res = await fetch('/api/admin/payments', { signal });
             const data = await res.json();
             if (data.success) {
                 setPayments(data.payments);
                 setStats(data.stats);
             }
         } catch (e) {
-            console.error("Failed to fetch payments");
+            if (e.name === 'AbortError') return;
+            console.error("Failed to fetch payments", e);
             showToast("Failed to fetch payments", 'error');
         }
     };
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (signal) => {
         try {
-            const res = await fetch('/api/admin/users');
+            const res = await fetch('/api/admin/users', { signal });
             const data = await res.json();
             if (data.success) {
                 setUsers(data.users);
             }
-            // Ensure stats are updated if they come from users endpoint too, or keep existing
         } catch (e) {
-            console.error("Failed to fetch users");
+            if (e.name === 'AbortError') return;
+            console.error("Failed to fetch users", e);
             showToast("Failed to fetch users", 'error');
         }
     };
 
-    const fetchTickets = async () => {
+    const fetchTickets = async (signal) => {
         try {
-            const res = await fetch('/api/admin/support');
+            const res = await fetch('/api/admin/support', { signal });
             const data = await res.json();
             if (data.success) {
                 setTickets(data.tickets);
             }
         } catch (e) {
-            console.error("Failed to fetch tickets");
+            if (e.name === 'AbortError') return;
+            console.error("Failed to fetch tickets", e);
             showToast("Failed to fetch tickets", 'error');
         }
+    };
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const init = async () => {
+            setLoading(true);
+            try {
+                await Promise.all([
+                    fetchPayments(controller.signal),
+                    fetchUsers(controller.signal),
+                    fetchTickets(controller.signal)
+                ]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (isAdmin) {
+            init();
+        } else if (!isLoading && user) {
+            setLoading(false);
+        }
+
+        return () => controller.abort();
+    }, [isAdmin, isLoading]);
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
     };
 
     const handleUpdateCoins = async (userId, currentCoins) => {
@@ -191,26 +211,29 @@ export default function AdminDashboard() {
     }, [activeTab, searchQuery]);
 
 
-    useEffect(() => {
-        if (!isLoading && (!user || user.role !== 'admin')) {
-            // router.replace('/login?callbackUrl=/admin'); 
-            // Better to show access denied or redirect home if logged in but not admin
-        }
-    }, [isLoading, user, router]);
-
-    if (isLoading || loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-white">
-            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+    if ((isLoading || loading) && !isAdmin) return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6">
+            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-6"></div>
+            <p className="text-sm font-bold text-blue-950 mb-2">Loading admin panel...</p>
+            <p className="text-xs text-blue-900/40">Checking authentication...</p>
         </div>
     );
 
-    if (!user || user.role !== 'admin') {
+    if (!user || !isAdmin) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center text-center space-y-6 bg-white px-6">
                 <div className="text-6xl animate-bounce">⚠️</div>
                 <h1 className="text-3xl font-black text-blue-950">Access <span className="text-red-500">Denied</span></h1>
                 <p className="text-blue-900/40 font-bold uppercase tracking-widest text-[10px]">Restricted Administrative Zone</p>
-                <button onClick={() => router.push('/')} className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all">Back to Safety</button>
+                {user && (
+                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl max-w-md">
+                        <p className="text-xs text-yellow-800 font-bold">Your email: {user.email}</p>
+                        <p className="text-[10px] text-yellow-600 mt-2">This email is not in the admin whitelist.</p>
+                    </div>
+                )}
+                <div className="flex gap-3">
+                    <button onClick={() => router.push('/')} className="px-8 py-3 bg-gray-100 text-blue-950 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Back to Home</button>
+                </div>
             </div>
         );
     }

@@ -1,17 +1,26 @@
 'use client';
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export function useUser() {
     const [user, setUser] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
     const supabase = createClient()
+
+    // Force refresh function that can be called externally
+    const refreshUser = useCallback(() => {
+        console.log('[useUser] Manual refresh triggered');
+        setRefreshTrigger(prev => prev + 1);
+    }, []);
 
     useEffect(() => {
         let mounted = true;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
 
         async function getUserDetails(sessionUser) {
-            if (!sessionUser?.email) return null;
+            if (!sessionUser?.email || !mounted) return;
 
             try {
                 const { data: dbUser, error } = await supabase
@@ -21,33 +30,49 @@ export function useUser() {
                     .single();
 
                 if (error) {
-                    // PGRST116 is "Row not found" - this is expected for new users not yet synced
                     if (error.code !== 'PGRST116') {
-                        console.warn("Error fetching user details:", error.message);
+                        console.warn(`[useUser] Note: Database profile fetch error:`, error.message);
                     }
-                    return sessionUser;
+                    return;
                 }
-                return { ...sessionUser, ...dbUser };
+
+                if (mounted) {
+                    console.log(`[useUser] Profile details loaded for ${sessionUser.email}, role: ${dbUser.role}`);
+                    setUser(prev => ({ ...prev, ...dbUser }));
+                }
             } catch (err) {
-                console.warn("Exception fetching user details:", err);
-                return sessionUser;
+                // Ignore background fetch errors
+                if (err.name !== 'AbortError' && !err.message?.includes('aborted')) {
+                    console.warn(`[useUser] Background fetch exception:`, err);
+                }
             }
         }
 
         const initUser = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession()
+                const { data: { session }, error } = await supabase.auth.getSession()
+
+                if (error) throw error;
+
                 if (mounted) {
                     if (session?.user) {
-                        const fullUser = await getUserDetails(session.user);
-                        if (mounted) setUser(fullUser);
+                        console.log(`[useUser] Session found: ${session.user.email}`);
+                        setUser(session.user);
+                        setIsLoading(false); // SET LOADING FALSE IMMEDIATELY
+                        getUserDetails(session.user); // Fetch profile in background
                     } else {
                         setUser(null);
+                        setIsLoading(false);
                     }
-                    setIsLoading(false);
                 }
             } catch (e) {
-                if (mounted) setIsLoading(false);
+                if (e.name !== 'AbortError' && !e.message?.includes('aborted')) {
+                    console.error('[useUser] Initialization error:', e);
+                }
+                if (mounted) {
+                    setUser(null);
+                    setIsLoading(false);
+                }
             }
         }
 
@@ -56,23 +81,58 @@ export function useUser() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (!mounted) return;
 
-            if (session?.user) {
-                // Optimistically set session user while fetching details
-                // setUser(prev => prev?.email === session.user.email ? prev : session.user); 
-                // But better to fetch details
-                const fullUser = await getUserDetails(session.user);
-                if (mounted) setUser(fullUser);
-            } else {
-                setUser(null)
+            console.log(`[useUser] Auth state changed: ${event}`);
+
+            if (event === 'SIGNED_OUT') {
+                console.log('[useUser] User signed out, clearing state');
+                setUser(null);
+                setIsLoading(false);
+                return;
             }
-            setIsLoading(false)
+
+            if (session?.user) {
+                // Determine if we should set or merge
+                setUser(prev => {
+                    // If it's the same user, just merge the session data into what we have
+                    if (prev && prev.id === session.user.id) {
+                        return { ...prev, ...session.user };
+                    }
+                    // If it's a new login or it was null, set the session user
+                    return session.user;
+                });
+                setIsLoading(false);
+                getUserDetails(session.user);
+            } else {
+                setUser(null);
+                setIsLoading(false);
+            }
         })
 
         return () => {
+            console.log('[useUser] Cleanup: unsubscribing');
             mounted = false;
             subscription.unsubscribe()
         }
-    }, [])
+    }, [refreshTrigger])
 
-    return { user, isLoading, signOut: () => supabase.auth.signOut() }
+    const signOut = useCallback(async () => {
+        console.log('[useUser] Signing out...');
+        setIsLoading(true);
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('[useUser] Sign out error:', error);
+            } else {
+                console.log('[useUser] Successfully signed out');
+            }
+            // Clear user state immediately
+            setUser(null);
+        } catch (err) {
+            console.error('[useUser] Exception during sign out:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [supabase]);
+
+    return { user, isLoading, signOut, refreshUser }
 }

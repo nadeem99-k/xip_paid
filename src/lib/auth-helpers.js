@@ -13,28 +13,27 @@ export async function getAuthenticatedUser() {
         .eq("email", authUser.email)
         .single();
 
+    // Admin emails whitelist
+    const ADMIN_EMAILS = ['nadeemalikalhoro310@gmail.com'];
+
     if (error && error.code !== 'PGRST116') {
-        console.error("Database user fetch error:", error);
-        return null; // DB Error
+        console.warn("[Auth Helpers] Database user fetch error, using whitelist fallback:", error.message);
+        const isAdmin = authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase());
+        if (isAdmin) {
+            return { ...authUser, role: 'admin', bypassDb: true };
+        }
+        return null;
     }
 
     if (!dbUser) {
-        // User exists in Auth but not in public.users.
-        // This logic handles new Google Sign-ups or discrepancies.
-        // We create the user record using the email from Auth.
-        // We attempt to use the same ID as Auth if possible, but if that ID is taken (unlikely if new),
-        // or if we rely on auto-gen ID for public.users, we let the DB decide.
-        // However, standard Supabase pattern is ID matching.
-        // But here we are migrating, so we just want A record.
-
         const newUserData = {
             email: authUser.email,
             name: authUser.user_metadata?.name || authUser.email.split('@')[0],
             full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || "",
-            role: "user",
+            role: (authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase())) ? "admin" : "user",
             package: "free",
-            coins: 3, // Default starting coins
-            id: authUser.id // Try to sync ID if possible. If table has auto-gen, this might be ignored or cause conflict if not UUID type.
+            coins: 3,
+            id: authUser.id
         };
 
         const { data: newUser, error: createError } = await adminDb
@@ -45,7 +44,8 @@ export async function getAuthenticatedUser() {
 
         if (createError) {
             console.error("Failed to create user record:", createError);
-            // If ID conflict (race condition?), try fetching again?
+            const isAdmin = authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase());
+            if (isAdmin) return { ...authUser, role: 'admin', bypassDb: true };
             return null;
         }
         dbUser = newUser;

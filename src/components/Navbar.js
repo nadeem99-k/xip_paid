@@ -1,30 +1,56 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/useUser';
-import { createClient } from '@/lib/supabase/client';
 
 export default function Navbar() {
-    const { user, isLoading } = useUser();
+    const { user, isLoading, signOut } = useUser();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
-    const supabase = createClient();
+
+    // Debugging coins
+    useEffect(() => {
+        if (user) {
+            console.log(`[Navbar] User detected: ${user.email}, Coins: ${user.coins}`);
+        }
+    }, [user]);
 
     const isAuthPage = pathname === '/login' || pathname === '/signup';
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
     const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        router.refresh(); // Update client state
-        // creating a new client instance in useUser hook might not update immediately if we don't reload or re-render
-        // router.refresh() re-runs server components. 
-        // We might want to clear local state too? 
-        // The useUser hook subscribes to onAuthStateChange, so it should update automatically.
+        if (isSigningOut) return; // Prevent double-clicks
+
+        setIsSigningOut(true);
+        setIsMenuOpen(false); // Close menu if open
+
+        try {
+            console.log('[Navbar] Starting logout process...');
+            await signOut();
+
+            // Force clear any stale state
+            console.log('[Navbar] Redirecting to login...');
+            router.push('/login');
+            router.refresh();
+        } catch (error) {
+            console.error('[Navbar] Logout error:', error);
+        } finally {
+            setIsSigningOut(false);
+        }
     };
+
+    // Admin email whitelist - must match admin page
+    const ADMIN_EMAILS = [
+        'nadeemalikalhoro310@gmail.com',
+        // Add more admin emails here
+    ];
+
+    const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-[60] glass border-b border-blue-100 px-6 py-4">
@@ -53,14 +79,15 @@ export default function Navbar() {
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">
                                 🪙 {user.coins || 0}
                             </div>
-                            {user.role === 'admin' && (
+                            {isAdmin && (
                                 <Link href="/admin" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">Admin</Link>
                             )}
                             <button
                                 onClick={handleSignOut}
-                                className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors"
+                                disabled={isSigningOut}
+                                className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Sign Out
+                                {isSigningOut ? 'Signing out...' : 'Sign Out'}
                             </button>
                             <Link href="/dashboard" className="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all active:scale-95 shadow-lg">
                                 Dashboard
@@ -102,9 +129,10 @@ export default function Navbar() {
                                 <Link href="/profile" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest text-blue-600">My Profile ({user.coins || 0} 🪙)</Link>
                                 <button
                                     onClick={() => { handleSignOut(); toggleMenu(); }}
-                                    className="text-left text-lg font-black text-red-500 uppercase tracking-widest"
+                                    disabled={isSigningOut}
+                                    className="text-left text-lg font-black text-red-500 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Sign Out
+                                    {isSigningOut ? 'Signing out...' : 'Sign Out'}
                                 </button>
                             </>
                         ) : (
