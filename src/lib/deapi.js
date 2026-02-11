@@ -1,6 +1,6 @@
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(SAME EXACT FACE:2.0), (PRESERVE ORIGINAL IDENTITY:2.5), (do not change face:2.0), (original hair:1.8), (same body shape:1.8), (match original lighting:1.8).";
-    const skin_realism = "(natural skin texture:2.0), (slight skin imperfections:1.5), (realistic skin pores:1.5), (NOT plastic), (NOT airbrushed), (soft natural lighting).";
+    const identity_preservation = "(1:1 EXACT SAME FACE MATCH:2.8), (STRICT FACIAL IDENTITY PRESERVATION:3.0), (DO NOT ALTER FACE FEATURES:2.5), (ORIGINAL HAIR AND HEAD CHARACTERISTICS:2.2), (MAINTAIN ORIGINAL PERSON IDENTITY:2.8), (match original lighting and skin tone:1.8).";
+    const skin_realism = "(natural skin texture:2.5), (realistic skin pores:1.8), (slight skin imperfections:1.5), (raw photo quality:2.0), (ultra-high resolution:1.8), (NOT plastic), (NOT airbrushed), (soft natural studio lighting).";
 
     let finalPrompt = "";
     // Identity preservation & realism prompts
@@ -11,10 +11,10 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         finalPrompt += "NEGATIVE: (3d render:2.0), (cgi:2.0), (doll:2.0), (fake:2.0), (cartoon), (painting), (anime), clothes, dress, covered.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.8), ` : "";
-        finalPrompt += `${identity_preservation} (FULL FRONTAL NUDITY:4.0), (COMPLETELY NAKED:3.5), (EXPOSED BODY:3.5), (REMOVE ALL CLOTHES:3.5), ${skin_realism} `;
-        finalPrompt += "(detailed exposed breasts:2.8), (realistic nipples:2.8), (uncensored vulva:3.0), (visible pussy:3.0), (bare legs), (spread legs:1.5), (anatomically correct:3.0), (raw photo:2.0). ";
-        finalPrompt += "IMPORTANT: REMOVE BRA, REMOVE PANTIES, REMOVE UNDERWEAR. NO CLOTHING ALLOWED. Show everything. ";
-        finalPrompt += "NEGATIVE: (clothing:3.0), (underwear:3.0), (bra:3.0), (panties:3.0), (fabric:3.0), (censorship:3.0), (blur:3.0), (3d render:2.5), (cgi:2.5), (plastic skin:2.5), (doll:2.5), (fake).";
+        finalPrompt += `${identity_preservation} (FULL FRONTAL NUDITY:4.5), (COMPLETELY BARE SKIN:4.0), (EXPOSED BODY:3.5), (REMOVE ALL CLOTHING LAYERS:4.0), ${skin_realism} `;
+        finalPrompt += "(detailed realistic bare breasts:3.0), (perfectly rendered nipples:3.0), (anatomically correct uncensored pussy:3.5), (exposed vulva:3.5), (natural pubic area), (bare legs), (8k UHD photography:2.0). ";
+        finalPrompt += "IMPORTANT: NO BRA, NO PANTIES, NO UNDERWEAR. REMOVE EVERY PIECE OF FABRIC. Show the full uncensored body. Preserve original pose and background. ";
+        finalPrompt += "NEGATIVE: (clothing:4.0), (underwear:4.0), (bra:4.0), (panties:4.0), (fabric:4.0), (censorship:4.0), (blur:3.5), (3d render:3.0), (cgi:3.0), (plastic skin:3.0), (doll:3.0), (fake), clothes, apparel, accessories.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
@@ -41,7 +41,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                 formData.append('steps', '4');
                 formData.append('width', '1024');
                 formData.append('height', '1024');
-                formData.append('guidance_scale', '3.5');
+                formData.append('guidance_scale', '4.5'); // Slightly higher for better prompt adherence
+                formData.append('strength', '0.75'); // Keep core features
+                formData.append('image_strength', '0.75'); // Maintain identity
                 formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
 
                 const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
