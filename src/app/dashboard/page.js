@@ -100,58 +100,65 @@ export default function DashboardPage() {
     }, [inputImage]);
 
     useEffect(() => {
+        const controller = new AbortController();
         if (authUser) {
-            fetchUser();
+            fetchUser(controller.signal);
         }
+        return () => controller.abort();
     }, [authUser]);
 
     useEffect(() => {
+        const controller = new AbortController();
         if (activeTab === 'history') {
-            fetchHistory();
+            fetchHistory(controller.signal);
         } else if (activeTab === 'payments') {
-            fetchUserPayments();
+            fetchUserPayments(controller.signal);
         }
+        return () => controller.abort();
     }, [activeTab]);
 
-    const fetchUser = async () => {
+    const fetchUser = async (signal) => {
         try {
-            const res = await fetch('/api/history');
+            const res = await fetch('/api/history', { signal });
             const data = await res.json();
             if (data.success) {
                 setUser(data.user);
             }
         } catch (err) {
+            if (err.name === 'AbortError') return;
             console.error("Fetch user error:", err);
         }
     };
 
-    const fetchHistory = async () => {
+    const fetchHistory = async (signal) => {
         setIsLoadingHistory(true);
         try {
-            const res = await fetch('/api/history');
+            const res = await fetch('/api/history', { signal });
             const data = await res.json();
             if (data.success) {
                 setHistory(data.history);
             }
         } catch (err) {
+            if (err.name === 'AbortError') return;
             console.error("Fetch history error:", err);
         } finally {
-            setIsLoadingHistory(false);
+            if (!signal?.aborted) setIsLoadingHistory(false);
         }
     };
 
-    const fetchUserPayments = async () => {
+    const fetchUserPayments = async (signal) => {
         setIsLoadingPayments(true);
         try {
-            const res = await fetch('/api/user/payments');
+            const res = await fetch('/api/user/payments', { signal });
             const data = await res.json();
             if (data.success) {
                 setUserPayments(data.payments);
             }
         } catch (err) {
+            if (err.name === 'AbortError') return;
             console.error("Fetch payments error:", err);
         } finally {
-            setIsLoadingPayments(false);
+            if (!signal?.aborted) setIsLoadingPayments(false);
         }
     };
 
