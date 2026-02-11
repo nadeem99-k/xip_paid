@@ -1,11 +1,10 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
-import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 function LoginContent() {
-    const { data: session, status } = useSession();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -14,38 +13,17 @@ function LoginContent() {
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
+    const supabase = createClient();
+
     useEffect(() => {
-        if (status === 'authenticated') {
-            router.replace(callbackUrl);
-        }
-    }, [status, router, callbackUrl]);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-        setIsLoading(true);
-
-        const safeCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
-            ? callbackUrl
-            : '/dashboard';
-
-        try {
-            const result = await signIn("credentials", {
-                email,
-                password,
-                callbackUrl: safeCallbackUrl,
-                redirect: true,
-            });
-
-            if (result?.error) {
-                setError("Invalid email or password");
-                setIsLoading(false);
+        const checkUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                router.replace(callbackUrl);
             }
-        } catch (err) {
-            setError("Connection failed. Please retry.");
-            setIsLoading(false);
-        }
-    };
+        };
+        checkUser();
+    }, [router, callbackUrl, supabase]);
 
     const handleGoogleSignIn = async () => {
         setIsLoading(true);
@@ -53,16 +31,42 @@ function LoginContent() {
             ? callbackUrl
             : '/dashboard';
 
-        await signIn("google", { callbackUrl: safeCallbackUrl });
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback?next=${safeCallbackUrl}`,
+                },
+            });
+            if (error) throw error;
+        } catch (err) {
+            setError(err.message);
+            setIsLoading(false);
+        }
     };
 
-    if (status === 'loading') {
-        return (
-            <div className="flex justify-center items-center min-h-screen bg-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        setIsLoading(true);
+
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error) {
+                setError(error.message);
+                setIsLoading(false);
+            } else {
+                router.replace(callbackUrl);
+            }
+        } catch (err) {
+            setError("Connection failed. Please retry.");
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="flex flex-col justify-center items-center min-h-screen pt-20 px-6 bg-white">

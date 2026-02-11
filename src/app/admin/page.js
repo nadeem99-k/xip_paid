@@ -1,10 +1,10 @@
 'use client';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@/hooks/useUser';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
-    const { data: session, status } = useSession();
+    const { user, isLoading } = useUser();
     const router = useRouter();
     const [payments, setPayments] = useState([]);
     const [stats, setStats] = useState({ totalUsers: 0, totalVolume: 0 });
@@ -34,10 +34,10 @@ export default function AdminDashboard() {
             ]);
             setLoading(false);
         };
-        if (status === 'authenticated') {
+        if (user && user.role === 'admin') {
             init();
         }
-    }, [status]);
+    }, [user]);
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -192,18 +192,19 @@ export default function AdminDashboard() {
 
 
     useEffect(() => {
-        if (status === "unauthenticated") {
-            router.replace('/login?callbackUrl=/admin');
+        if (!isLoading && (!user || user.role !== 'admin')) {
+            // router.replace('/login?callbackUrl=/admin'); 
+            // Better to show access denied or redirect home if logged in but not admin
         }
-    }, [status, router]);
+    }, [isLoading, user, router]);
 
-    if (status === "loading" || loading) return (
+    if (isLoading || loading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">
             <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
         </div>
     );
 
-    if (!session || session?.user?.role !== 'admin') {
+    if (!user || user.role !== 'admin') {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center text-center space-y-6 bg-white px-6">
                 <div className="text-6xl animate-bounce">⚠️</div>
@@ -272,8 +273,8 @@ export default function AdminDashboard() {
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-shrink-0 ${activeTab === tab
-                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 scale-105'
-                                        : 'bg-blue-50 text-blue-400 hover:bg-blue-100 hover:text-blue-600'
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 scale-105'
+                                    : 'bg-blue-50 text-blue-400 hover:bg-blue-100 hover:text-blue-600'
                                     }`}
                             >
                                 {tab === 'payments' && `Payments (${payments.length})`}

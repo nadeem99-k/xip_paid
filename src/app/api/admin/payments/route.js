@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function GET(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'admin') {
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
-        const { data: payments, error } = await supabase
+        const { data: payments, error } = await adminDb
             .from("payments")
             .select(`
                 *,
@@ -26,11 +25,11 @@ export async function GET(req) {
             userEmail: p.users?.email
         }));
 
-        const { data: allUsersCount, error: usersError } = await supabase
+        const { data: allUsersCount, error: usersError } = await adminDb
             .from("users")
             .select("id", { count: 'exact', head: true });
 
-        const { data: approvedPayments, error: volumeError } = await supabase
+        const { data: approvedPayments, error: volumeError } = await adminDb
             .from("payments")
             .select("amount")
             .eq("status", "approved");

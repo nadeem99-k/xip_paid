@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function POST(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !session.user || !session.user.email) {
+        const user = await getAuthenticatedUser();
+
+        if (!user || !user.email) {
             return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
         }
 
-        const { error } = await supabase
+        const { error } = await adminDb
             .from("users")
             .update({ joined_whatsapp: true })
-            .eq("email", session.user.email);
+            .eq("email", user.email);
 
         if (error) {
             console.error("Supabase update error:", error);

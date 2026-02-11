@@ -1,25 +1,18 @@
-import { getToken } from "next-auth/jwt";
-import { NextResponse } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(req) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    const { pathname } = req.nextUrl;
-
-    // Allow requests if the following is true:
-    // 1) It's a request for next-auth session & provider fetching
-    // 2) The token exists
-    if (pathname.startsWith("/api/auth") || token) {
-        return NextResponse.next();
-    }
-
-    // Redirect them to login if they don't have a token AND are requesting a protected route
-    if (!token && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
-        return NextResponse.redirect(new URL("/login", req.url));
-    }
-
-    return NextResponse.next();
+export async function middleware(request) {
+    return await updateSession(request);
 }
 
 export const config = {
-    matcher: ["/dashboard/:path*", "/admin/:path*", "/api/((?!auth).*)"],
+    matcher: [
+        /*
+         * Match all request paths except for the ones starting with:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         * Feel free to modify this pattern to include more paths.
+         */
+        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    ],
 };

@@ -1,28 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
 import { generateImage as generateImageGradio } from "@/lib/gradio";
 import { generateImage as generateImageDeapi } from "@/lib/deapi";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
 import { sendGenerationAlert } from "@/lib/telegram";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export const maxDuration = 60; // Allow 60s for generation
 
 export async function POST(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
+        const user = await getAuthenticatedUser();
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const { data: user, error: userError } = await supabase
-            .from("users")
-            .select("id, package, coins")
-            .eq("id", session.user.id)
-            .single();
-
-        if (userError || !user) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
         const formData = await req.formData();
@@ -49,7 +38,7 @@ export async function POST(req) {
 
         // Send Telegram Generation Alert (Async, don't block generation)
         sendGenerationAlert({
-            userId: session.user.id,
+            userId: user.id,
             mode: mode,
             prompt: prompt,
             provider: provider,
@@ -66,7 +55,7 @@ export async function POST(req) {
         // Log generation and deduct coins
         if (resultUrls && resultUrls.length > 0) {
             // Log generation
-            const { data: genData, error: genError } = await supabase
+            const { data: genData, error: genError } = await adminDb
                 .from("generations")
                 .insert([
                     {
@@ -83,17 +72,15 @@ export async function POST(req) {
 
             if (genError) {
                 console.error("Critical: Database log failed for generation:", genError);
-                // We still return success:true because the image was generated, 
-                // but we log the error for debugging.
             } else {
                 generationId = genData?.id;
             }
 
             // Deduct coins
-            const { error: deductError } = await supabase
+            const { error: deductError } = await adminDb
                 .from("users")
                 .update({ coins: user.coins - cost })
-                .eq("id", session.user.id);
+                .eq("id", user.id);
 
             if (deductError) {
                 console.error("Critical: Coin deduction failed:", deductError);

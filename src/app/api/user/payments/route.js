@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
+        const user = await getAuthenticatedUser();
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: payments, error } = await supabase
+        const { data: payments, error } = await adminDb
             .from("payments")
             .select("*")
-            .eq("user_id", session.user.id)
+            .eq("user_id", user.id)
             .order("timestamp", { ascending: false });
 
         if (error) throw error;

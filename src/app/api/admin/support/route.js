@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'admin') {
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: tickets, error } = await supabase
+        const { data: tickets, error } = await adminDb
             .from("support_tickets")
             .select("*")
             .order("created_at", { ascending: false });
@@ -26,14 +25,14 @@ export async function GET() {
 
 export async function PATCH(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'admin') {
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const { ticketId, status } = await req.json();
 
-        const { error } = await supabase
+        const { error } = await adminDb
             .from("support_tickets")
             .update({ status })
             .eq("id", ticketId);

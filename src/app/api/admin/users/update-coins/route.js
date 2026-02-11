@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../auth/[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function POST(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'admin') {
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -17,7 +16,7 @@ export async function POST(req) {
         }
 
         // Fetch current coins
-        const { data: user, error: fetchError } = await supabase
+        const { data: targetUser, error: fetchError } = await adminDb
             .from("users")
             .select("coins")
             .eq("id", userId)
@@ -25,9 +24,9 @@ export async function POST(req) {
 
         if (fetchError) throw fetchError;
 
-        const newBalance = (user.coins || 0) + coinAmount;
+        const newBalance = (targetUser.coins || 0) + coinAmount;
 
-        const { error: updateError } = await supabase
+        const { error: updateError } = await adminDb
             .from("users")
             .update({ coins: newBalance })
             .eq("id", userId);

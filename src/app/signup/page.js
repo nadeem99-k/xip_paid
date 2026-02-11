@@ -1,11 +1,10 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
 function SignupContent() {
-    const { data: session, status } = useSession();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -14,11 +13,7 @@ function SignupContent() {
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
-    useEffect(() => {
-        if (status === 'authenticated') {
-            router.replace(callbackUrl);
-        }
-    }, [status, router, callbackUrl]);
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -30,32 +25,51 @@ function SignupContent() {
             : '/dashboard';
 
         try {
-            const res = await fetch("/api/auth/signup", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+            const supabase = createClient();
+            const { data, error: signUpError } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: `${location.origin}/auth/callback?next=${safeCallbackUrl}`,
+                    data: {
+                        name: email.split('@')[0],
+                    }
+                }
             });
 
-            const data = await res.json();
-
-            if (res.ok) {
-                const loginResult = await signIn("credentials", {
-                    email,
-                    password,
-                    redirect: false,
-                });
-
-                if (loginResult.error) {
-                    setError("Account created, but auto-login failed. Please sign in.");
-                } else {
-                    router.replace(safeCallbackUrl);
-                }
-            } else {
-                setError(data.error || "Signup failed");
+            if (signUpError) {
+                setError(signUpError.message);
+                setIsLoading(false);
+                return;
             }
+
+            // Sync with public.users
+            if (data?.user) {
+                // Try to insert into public.users. If it fails (e.g. trigger exists), we ignore.
+                // We use upsert to be safe.
+                const { error: dbError } = await supabase
+                    .from('users')
+                    .upsert({
+                        id: data.user.id,
+                        email: email,
+                        name: email.split('@')[0],
+                        role: 'user',
+                        package: 'free',
+                        coins: 3
+                    }, { onConflict: 'id', ignoreDuplicates: true }); // If trigger exists, this might be redundant but safe
+            }
+
+            // If session is established (auto-confirm enabled), redirect
+            if (data?.session) {
+                router.replace(safeCallbackUrl);
+            } else {
+                setError("Please check your email to confirm your account.");
+                setIsLoading(false);
+            }
+
         } catch (err) {
+            console.error(err);
             setError("Connection failed. Please retry.");
-        } finally {
             setIsLoading(false);
         }
     };
@@ -65,16 +79,17 @@ function SignupContent() {
         const safeCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')
             ? callbackUrl
             : '/dashboard';
-        await signIn("google", { callbackUrl: safeCallbackUrl });
+
+        const supabase = createClient();
+        await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${location.origin}/auth/callback?next=${safeCallbackUrl}`,
+            }
+        });
     };
 
-    if (status === 'loading') {
-        return (
-            <div className="flex justify-center items-center min-h-screen bg-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
+
 
     return (
         <div className="flex flex-col justify-center items-center min-h-screen pt-20 px-6 bg-white">

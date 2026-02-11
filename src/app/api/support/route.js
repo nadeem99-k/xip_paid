@@ -1,26 +1,29 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function POST(req) {
     try {
-        const session = await getServerSession(authOptions);
-        const { name, email, message } = await req.json();
-
-        if (!name || !email || !message) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { error } = await supabase
+        const { subject, message, priority } = await req.json();
+
+        if (!subject || !message) {
+            return NextResponse.json({ error: "Subject and message are required" }, { status: 400 });
+        }
+
+        const { error } = await adminDb
             .from("support_tickets")
             .insert([
                 {
-                    user_id: session?.user?.id || null,
-                    name,
-                    email,
+                    user_id: user.id,
+                    subject,
                     message,
-                    status: 'pending'
+                    priority: priority || 'normal',
+                    status: 'open'
                 }
             ]);
 
@@ -28,7 +31,7 @@ export async function POST(req) {
 
         return NextResponse.json({ success: true, message: "Ticket submitted successfully" });
     } catch (error) {
-        console.error("Support submission error:", error);
+        console.error("Support ticket error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

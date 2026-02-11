@@ -1,21 +1,21 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useUser } from '@/hooks/useUser';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
 
 export default function ProfilePage() {
-    const { data: session, status } = useSession();
+    const { user, isLoading } = useUser();
     const router = useRouter();
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
+        if (!isLoading && !user) {
             router.push('/login');
         }
-    }, [status, router]);
+    }, [user, isLoading, router]);
 
-    if (status === 'loading') {
+    if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
                 <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
@@ -23,7 +23,7 @@ export default function ProfilePage() {
         );
     }
 
-    if (!session) return null;
+    if (!user) return null;
 
     return (
         <div className="min-h-screen bg-white pt-32 pb-20 px-6">
@@ -40,16 +40,16 @@ export default function ProfilePage() {
                     <div className="md:col-span-1 space-y-8">
                         <div className="bg-white p-8 rounded-[2.5rem] border border-blue-50 shadow-2xl shadow-blue-900/[0.03] flex flex-col items-center text-center space-y-6">
                             <div className="w-32 h-32 rounded-full bg-blue-600 text-white flex items-center justify-center text-4xl font-black shadow-xl shadow-blue-600/20">
-                                {(session?.user?.name?.[0] || session?.user?.email?.[0] || 'U').toUpperCase()}
+                                {(user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
                             </div>
                             <div className="space-y-1">
-                                <h2 className="text-xl font-black text-blue-950">{session.user.name}</h2>
-                                <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">{session.user.role} Status</p>
+                                <h2 className="text-xl font-black text-blue-950">{user.name}</h2>
+                                <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">{user.role} Status</p>
                             </div>
                             <div className="w-full pt-6 border-t border-blue-50">
                                 <div className="p-4 bg-yellow-50 rounded-2xl border border-yellow-100 flex justify-between items-center">
                                     <span className="text-[10px] font-black uppercase text-yellow-700 tracking-widest">Available Credits</span>
-                                    <span className="text-xl font-black text-yellow-700">🪙 {session.user.coins || 0}</span>
+                                    <span className="text-xl font-black text-yellow-700">🪙 {user.coins || 0}</span>
                                 </div>
                             </div>
                         </div>
@@ -63,11 +63,11 @@ export default function ProfilePage() {
                                 <div className="grid gap-8">
                                     <div className="space-y-2">
                                         <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Network ID (Email)</p>
-                                        <p className="text-sm font-bold text-blue-950">{session.user.email}</p>
+                                        <p className="text-sm font-bold text-blue-950">{user.email}</p>
                                     </div>
                                     <div className="space-y-2">
                                         <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Subscription Module</p>
-                                        <p className="text-sm font-bold text-blue-950 uppercase tracking-tight">{session.user.package || 'Neutral'}</p>
+                                        <p className="text-sm font-bold text-blue-950 uppercase tracking-tight">{user.package || 'Neutral'}</p>
                                     </div>
                                     <div className="space-y-2">
                                         <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Account Created</p>

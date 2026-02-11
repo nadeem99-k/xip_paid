@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSession } from "next-auth/react";
+import { useUser } from "@/hooks/useUser";
 import { useRouter } from 'next/navigation';
 
 const slides = [
@@ -26,7 +26,7 @@ const slides = [
 ];
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const { user, isLoading } = useUser();
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -37,7 +37,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  if (status === 'loading') {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
@@ -83,7 +83,7 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full sm:w-auto">
-              {session ? (
+              {user ? (
                 <Link href="/dashboard" className="px-10 md:px-12 py-4 md:py-5 bg-blue-600 text-white rounded-2xl text-lg font-bold hover:bg-blue-700 transition-all shadow-[0_20px_40px_rgba(37,99,235,0.2)] hover:-translate-y-1 text-center">
                   Enter Studio
                 </Link>

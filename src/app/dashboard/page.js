@@ -1,11 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useUser } from '@/hooks/useUser';
 
 export default function DashboardPage() {
-    const { data: session, status, update } = useSession();
+    const { user: authUser, isLoading: authLoading } = useUser();
     const router = useRouter();
 
     // UI State
@@ -100,8 +100,10 @@ export default function DashboardPage() {
     }, [inputImage]);
 
     useEffect(() => {
-        fetchUser();
-    }, []);
+        if (authUser) {
+            fetchUser();
+        }
+    }, [authUser]);
 
     useEffect(() => {
         if (activeTab === 'history') {
@@ -117,9 +119,6 @@ export default function DashboardPage() {
             const data = await res.json();
             if (data.success) {
                 setUser(data.user);
-                update({
-                    coins: data.user.coins
-                });
             }
         } catch (err) {
             console.error("Fetch user error:", err);
@@ -231,12 +230,12 @@ export default function DashboardPage() {
     };
 
     useEffect(() => {
-        if (status === "unauthenticated") {
+        if (!authLoading && !authUser) {
             router.replace('/login?callbackUrl=/dashboard');
         }
-    }, [status, router]);
+    }, [authLoading, authUser, router]);
 
-    if (status === "loading") {
+    if (authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
                 <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
@@ -244,7 +243,8 @@ export default function DashboardPage() {
         );
     }
 
-    if (!session && status !== "loading") {
+    if (!authUser) {
+        // Should be redirected by useEffect, but render fallback just in case
         return (
             <div className="pt-32 pb-20 px-6 text-center space-y-8 animate-slide-up bg-white min-h-screen">
                 <div className="text-6xl">👤</div>
@@ -255,15 +255,16 @@ export default function DashboardPage() {
         );
     }
 
-    // Removal of Access Restricted gateway as per user request
-    // All authenticated users can now access XIP AI Studio layout
+    // Use `user` state for coins display if available (fetched from API), else fallback to `authUser` (from session/db hook)
+    // Note: useUser hook merges DB data, so authUser might already have coins.
+    const displayUser = user || authUser;
 
     const handleGenerate = async (e) => {
         if (e) e.preventDefault();
 
         // Check for sufficient coins
         const cost = selectedMode === 'nude' ? 6 : 2;
-        if ((user?.coins || 0) < cost) {
+        if ((displayUser?.coins || 0) < cost) {
             alert(`Insufficient credits. ${selectedMode === 'nude' ? 'Nude' : 'Bikini'} mode requires ${cost} coins. Redirecting to plans...`);
             router.push('/pricing');
             return;
@@ -293,11 +294,9 @@ export default function DashboardPage() {
             if (data.success) {
                 setGeneratedImages(data.images);
                 // Update coins locally
-                if (user) {
-                    setUser({ ...user, coins: data.remainingCoins });
+                if (displayUser) {
+                    setUser({ ...displayUser, coins: data.remainingCoins });
                 }
-                // Update navbar session coins
-                update({ coins: data.remainingCoins });
 
                 // Optimistically add to history state
                 const newGen = {
@@ -358,10 +357,10 @@ export default function DashboardPage() {
                             <div className="p-6 rounded-3xl border border-blue-100 bg-blue-50/30 space-y-6">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-black">
-                                        {(session?.user?.name?.[0] || session?.user?.email?.[0] || 'U').toUpperCase()}
+                                        {(displayUser?.name?.[0] || displayUser?.email?.[0] || 'U').toUpperCase()}
                                     </div>
                                     <div>
-                                        <p className="text-blue-950 text-sm font-bold tracking-tight line-clamp-1">{session?.user?.name}</p>
+                                        <p className="text-blue-950 text-sm font-bold tracking-tight line-clamp-1">{displayUser?.name || 'User'}</p>
                                         <p className="text-[9px] font-black uppercase tracking-widest text-blue-600">Elite Account</p>
                                     </div>
                                 </div>
@@ -425,8 +424,8 @@ export default function DashboardPage() {
                                     <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Identity-Preserving Generative Engine</p>
                                 </div>
                                 <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
-                                    <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {user?.coins || 0} Coins</div>
-                                    <span className="text-xs font-black uppercase tracking-widest text-blue-950">{user?.package || session?.user?.package || 'Starter'} Plan</span>
+                                    <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
+                                    <span className="text-xs font-black uppercase tracking-widest text-blue-950">{displayUser?.package || 'Starter'} Plan</span>
                                 </div>
                             </header>
 
@@ -497,8 +496,8 @@ export default function DashboardPage() {
                                             </button>
                                             <button
                                                 onClick={() => setSelectedMode('nude')}
-                                                disabled={(user?.coins || 0) < 6}
-                                                className={`p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 ${(user?.coins || 0) < 6 ? 'opacity-40 cursor-not-allowed bg-gray-50 border-gray-100' : selectedMode === 'nude' ? 'border-blue-600 bg-blue-50/50' : 'border-blue-50 bg-white hover:border-blue-200'}`}
+                                                disabled={(displayUser?.coins || 0) < 6}
+                                                className={`p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 ${(displayUser?.coins || 0) < 6 ? 'opacity-40 cursor-not-allowed bg-gray-50 border-gray-100' : selectedMode === 'nude' ? 'border-blue-600 bg-blue-50/50' : 'border-blue-50 bg-white hover:border-blue-200'}`}
                                             >
                                                 <span className="text-2xl">🔞</span>
                                                 <div className="text-center">
@@ -527,7 +526,7 @@ export default function DashboardPage() {
                                                     <input
                                                         type="file"
                                                         onChange={(e) => {
-                                                            if ((user?.coins || 0) === 0) {
+                                                            if ((displayUser?.coins || 0) === 0) {
                                                                 alert("You have 0 coins. Redirecting to plans to recharge...");
                                                                 router.push('/pricing');
                                                                 return;
@@ -798,24 +797,23 @@ export default function DashboardPage() {
                                         >
                                             <div className="space-y-8 relative z-10">
                                                 <div className="flex justify-between items-start">
-                                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl ${pack.name === 'Pro Pack' ? 'bg-white/10' : 'bg-blue-50'}`}>{pack.icon}</div>
-                                                    <div className="text-right">
-                                                        <p className={`text-[10px] font-black uppercase tracking-widest ${pack.name === 'Pro Pack' ? 'text-white/40' : 'text-blue-900/30'}`}>{pack.name}</p>
-                                                        <div className="flex flex-col items-end">
-                                                            {pack.originalPrice && <span className="text-[10px] line-through opacity-40 font-black italic">Rs {pack.originalPrice}</span>}
-                                                            <p className="text-3xl font-black tracking-tighter">Rs {pack.price}</p>
-                                                            {pack.originalPrice && <span className="text-[8px] font-black bg-white text-blue-600 px-2 py-0.5 rounded-full mt-1 animate-pulse">SAVE 33%</span>}
-                                                        </div>
+                                                    <div className="text-[9px] font-black uppercase tracking-widest opacity-50">{pack.name}</div>
+                                                    {pack.name === 'Pro Pack' && <div className="px-3 py-1 bg-white/20 rounded-full text-[8px] font-black uppercase tracking-widest text-white">Best Value</div>}
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <div className="text-5xl font-black tracking-tighter flex items-baseline gap-2">
+                                                        <span className="text-2xl opacity-50">Rs</span>
+                                                        {pack.price}
+                                                        {pack.originalPrice && (
+                                                            <span className="text-lg opacity-40 line-through decoration-2">Rs {pack.originalPrice}</span>
+                                                        )}
                                                     </div>
+                                                    <div className="text-sm font-bold opacity-60">For {pack.coins} Coins</div>
                                                 </div>
-                                                <div>
-                                                    <h3 className="text-2xl font-black tracking-tight">{pack.coins} Coins</h3>
-                                                    <p className={`text-xs font-bold mt-2 ${pack.name === 'Pro Pack' ? 'text-white/40' : 'text-blue-950/40'}`}>{pack.description}</p>
-                                                </div>
-                                                <ul className="space-y-4">
-                                                    {pack.features.map((feature) => (
-                                                        <li key={feature} className={`flex items-center gap-3 text-[11px] font-black uppercase tracking-widest ${pack.name === 'Pro Pack' ? 'text-white/60' : 'text-blue-950/60'}`}>
-                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] ${pack.name === 'Pro Pack' ? 'bg-white/10 text-white' : 'bg-blue-50 text-blue-600'}`}>✓</span>
+                                                <ul className="space-y-3">
+                                                    {pack.features.map((feature, i) => (
+                                                        <li key={i} className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider opacity-80">
+                                                            <span className="w-1 h-1 rounded-full bg-current"></span>
                                                             {feature}
                                                         </li>
                                                     ))}
@@ -825,88 +823,69 @@ export default function DashboardPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="max-w-2xl mx-auto bg-white border border-blue-50 p-12 rounded-[3.5rem] space-y-10 shadow-2xl shadow-blue-950/[0.03] animate-fade-in-up">
-                                    <div className="space-y-4 text-center">
-                                        <h2 className="text-4xl font-black text-blue-950 tracking-tighter">Complete <span className="text-blue-600">Sync</span></h2>
-                                        <p className="text-blue-950/40 text-[10px] font-black uppercase tracking-widest">Verify via EasyPaisa to activate your Neural Node.</p>
-                                    </div>
-
-                                    <div className="bg-blue-50/50 p-8 rounded-[2.5rem] border border-blue-50 space-y-6">
-                                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em] text-blue-950/30">
-                                            <span>Method</span>
-                                            <span className="text-green-600">EasyPaisa</span>
+                                <div className="max-w-2xl mx-auto space-y-12 animate-slide-up">
+                                    <div className="p-10 bg-blue-50 rounded-[3rem] border border-blue-100 text-center space-y-6">
+                                        <div className="w-20 h-20 mx-auto bg-white rounded-3xl flex items-center justify-center text-4xl shadow-sm text-blue-600">
+                                            {COIN_PACKS.find(p => p.id === selectedPackage)?.icon}
                                         </div>
-
-                                        <div className="space-y-2 border-b border-blue-100 pb-6">
-                                            <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Node Identifier (Account No)</span>
-                                            <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
-                                                <span className="flex-1 text-2xl md:text-3xl font-black text-blue-950 tracking-tighter font-mono">{PAYMENT_INFO.easypaisa}</span>
-                                                <button
-                                                    onClick={() => handleCopy(PAYMENT_INFO.easypaisa, 'number')}
-                                                    className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedField === 'number' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-50 hover:bg-blue-100'}`}
-                                                >
-                                                    {copiedField === 'number' ? 'Copied!' : 'Copy'}
-                                                </button>
-                                            </div>
-                                        </div>
-
                                         <div className="space-y-2">
-                                            <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Account Key (Title)</span>
-                                            <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
-                                                <span className="flex-1 text-lg font-black text-blue-950 uppercase tracking-widest">{PAYMENT_INFO.title}</span>
-                                                <button
-                                                    onClick={() => handleCopy(PAYMENT_INFO.title, 'title')}
-                                                    className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedField === 'title' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-50 hover:bg-blue-100'}`}
-                                                >
-                                                    {copiedField === 'title' ? 'Copied!' : 'Copy'}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-between items-center pt-6 border-t border-blue-100 font-black tracking-tighter">
-                                            <span className="text-blue-950/30 text-[9px] uppercase tracking-[0.2em]">Total Payload</span>
-                                            <span className="text-3xl text-blue-600">Rs {COIN_PACKS.find(p => p.id === selectedPackage)?.price}</span>
+                                            <h2 className="text-2xl font-black text-blue-950">{COIN_PACKS.find(p => p.id === selectedPackage)?.name}</h2>
+                                            <p className="text-blue-900/40 text-[10px] font-black uppercase tracking-widest">
+                                                {COIN_PACKS.find(p => p.id === selectedPackage)?.coins} Coins • Rs {COIN_PACKS.find(p => p.id === selectedPackage)?.price}
+                                            </p>
                                         </div>
                                     </div>
 
-                                    <form onSubmit={handlePaymentUpload} className="space-y-8">
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] font-black text-blue-950/30 uppercase tracking-[0.3em] ml-2">Upload Visual Logs (Screenshot)</label>
-                                            <div className="relative h-20 bg-blue-50 border border-blue-100 rounded-2xl flex items-center px-6 group hover:border-blue-300 transition-colors">
-                                                <input
-                                                    type="file"
-                                                    onChange={(e) => setPaymentProof(e.target.files[0])}
-                                                    accept="image/*"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                                                    required
-                                                />
-                                                <div className="flex items-center justify-between w-full">
-                                                    <span className="text-xs font-black text-blue-950/60 uppercase tracking-widest">{paymentProof ? paymentProof.name : "Select Log File..."}</span>
-                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm transition-transform group-hover:-rotate-6">📎</div>
+                                    <form onSubmit={handlePaymentUpload} className="space-y-8 bg-white p-10 rounded-[3rem] border border-blue-100 shadow-2xl shadow-blue-950/[0.03]">
+                                        <div className="space-y-6">
+                                            <div className="p-6 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-4">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-900/40">Easypaisa Account</span>
+                                                    <button type="button" onClick={() => handleCopy(PAYMENT_INFO.easypaisa, 'number')} className="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700">
+                                                        {copiedField === 'number' ? 'Copied!' : 'Copy'}
+                                                    </button>
+                                                </div>
+                                                <div className="text-xl font-mono font-bold text-blue-950 tracking-widest">{PAYMENT_INFO.easypaisa}</div>
+                                                <div className="text-[10px] font-black uppercase tracking-widest text-blue-900/30">Account Title: {PAYMENT_INFO.title}</div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-900/30 ml-2">Upload Payment Proof</label>
+                                                <div className={`relative h-32 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${paymentProof ? 'border-green-400 bg-green-50' : 'border-blue-100 hover:border-blue-300 hover:bg-blue-50'}`}>
+                                                    <input
+                                                        type="file"
+                                                        onChange={(e) => setPaymentProof(e.target.files[0])}
+                                                        accept="image/*"
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                        required
+                                                    />
+                                                    {paymentProof ? (
+                                                        <div className="flex items-center gap-2 text-green-700">
+                                                            <span className="text-xl">✅</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest">{paymentProof.name}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center space-y-2">
+                                                            <span className="text-2xl block mb-2 opacity-50">📤</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-900/30">Tap to upload screenshot</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
 
                                         <button
-                                            disabled={isUploading}
+                                            disabled={isUploading || !paymentProof}
                                             type="submit"
-                                            className="w-full h-20 bg-blue-600 text-white font-black rounded-3xl text-sm uppercase tracking-[0.4em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 shadow-2xl shadow-blue-600/20"
+                                            className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-600/10"
                                         >
-                                            {isUploading ? "Transmitting..." : "Authorize Access"}
+                                            {isUploading ? "Verifying Transaction..." : "Submit Payment"}
                                         </button>
                                     </form>
                                 </div>
                             )}
                         </div>
-                    ) : (
-                        <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8 animate-slide-up bg-white">
-                            <div className="text-8xl opacity-10">⚙️</div>
-                            <div className="text-center space-y-2">
-                                <h2 className="text-3xl font-black uppercase tracking-tighter text-blue-950 opacity-20">{activeTab} Module</h2>
-                                <p className="text-[10px] font-black text-blue-900/10 uppercase tracking-[0.3em]">Optimizing segment for production...</p>
-                            </div>
-                        </div>
-                    )}
+                    ) : null}
                 </div>
             </main>
         </div>

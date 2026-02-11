@@ -1,71 +1,39 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
+        const user = await getAuthenticatedUser();
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        let { data: user, error: userError } = await supabase
-            .from("users")
-            .select("id, email, package, coins, role, joined_whatsapp")
-            .eq("id", session.user.id)
-            .single();
-
-        // Fallback for missing column during migration
-        if (userError && userError.code === '42703') {
-            const { data: fallbackUser, error: fallbackError } = await supabase
-                .from("users")
-                .select("id, email, package, coins, role")
-                .eq("id", session.user.id)
-                .single();
-
-            if (fallbackError) throw fallbackError;
-            user = { ...fallbackUser, joined_whatsapp: false };
-            userError = null;
-        }
-
-        if (userError) throw userError;
         console.log(`History API: Found user ${user.id} with ${user.coins} coins`);
 
-        const { data: history, error } = await supabase
+        // Check columns to handle missing fields gracefully
+        // We typically assume schema is correct or fixed, but keeping fallback logic for robustness if desired
+        // For now, simpler query:
+
+        const { data: history, error } = await adminDb
             .from("generations")
             .select("*")
-            .eq("user_id", session.user.id)
+            .eq("user_id", user.id)
             .order("timestamp", { ascending: false });
 
         if (error) {
-            console.warn("History: timestamp sort failed, trying created_at fallback:", error.message);
-
-            // Try created_at as fallback
-            const { data: historyAlt, error: errorAlt } = await supabase
+            // Fallback for timestamp/created_at sort issues logic if needed
+            const { data: historyAlt, error: errorAlt } = await adminDb
                 .from("generations")
                 .select("*")
-                .eq("user_id", session.user.id)
+                .eq("user_id", user.id)
                 .order("created_at", { ascending: false });
 
-            if (!errorAlt) {
-                return NextResponse.json({ success: true, history: historyAlt, user });
-            }
+            if (!errorAlt) return NextResponse.json({ success: true, history: historyAlt || [], user });
 
-            // If combined fail, try any order
-            const { data: finalHistory, error: finalError } = await supabase
-                .from("generations")
-                .select("*")
-                .eq("user_id", session.user.id);
-
-            if (finalError) {
-                console.error("Critical: All history fetch methods failed:", finalError);
-                return NextResponse.json({ error: "Failed to fetch history registry", details: finalError.message }, { status: 500 });
-            }
-
-            return NextResponse.json({ success: true, history: finalHistory || [], user });
+            return NextResponse.json({ error: "Failed to fetch history" }, { status: 500 });
         }
 
         return NextResponse.json({ success: true, history: history || [], user });
@@ -77,8 +45,8 @@ export async function GET(req) {
 
 export async function DELETE(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
+        const user = await getAuthenticatedUser();
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -89,11 +57,11 @@ export async function DELETE(req) {
             return NextResponse.json({ error: "Image ID required" }, { status: 400 });
         }
 
-        const { error } = await supabase
+        const { error } = await adminDb
             .from("generations")
             .delete()
             .eq("id", imageId)
-            .eq("user_id", session.user.id);
+            .eq("user_id", user.id);
 
         if (error) throw error;
 

@@ -1,11 +1,11 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useUser } from '@/hooks/useUser';
 import { useState } from 'react';
 import Link from 'next/link';
 
 export default function PricingPage() {
-    const { data: session } = useSession();
+    const { user } = useUser();
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [paymentProof, setPaymentProof] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -228,7 +228,7 @@ export default function PricingPage() {
                                 </div>
                             </div>
 
-                            {session ? (
+                            {user ? (
                                 <button
                                     disabled={isUploading}
                                     type="submit"

@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
-import { supabase } from "@/lib/supabase";
+import { supabase as adminDb } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'admin') {
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: users, error } = await supabase
+        const { data: users, error } = await adminDb
             .from("users")
             .select("id, email, package, coins, role, created_at")
             .order("created_at", { ascending: false });

@@ -2,17 +2,29 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useUser } from '@/hooks/useUser';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Navbar() {
-    const { data: session } = useSession();
+    const { user, isLoading } = useUser();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
+    const supabase = createClient();
 
     const isAuthPage = pathname === '/login' || pathname === '/signup';
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        router.refresh(); // Update client state
+        // creating a new client instance in useUser hook might not update immediately if we don't reload or re-render
+        // router.refresh() re-runs server components. 
+        // We might want to clear local state too? 
+        // The useUser hook subscribes to onAuthStateChange, so it should update automatically.
+    };
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-[60] glass border-b border-blue-100 px-6 py-4">
@@ -28,22 +40,24 @@ export default function Navbar() {
                         <Link href="/pricing" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Pricing</Link>
                     )}
                     <Link href="/support" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Support</Link>
-                    {session && (
+                    {user && (
                         <Link href="/dashboard" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Dashboard</Link>
                     )}
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {session ? (
+                    {isLoading ? (
+                        <div className="h-10 w-24 bg-blue-50/50 animate-pulse rounded-xl"></div>
+                    ) : user ? (
                         <div className="hidden md:flex items-center gap-4">
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">
-                                🪙 {session.user.coins || 0}
+                                🪙 {user.coins || 0}
                             </div>
-                            {session.user.role === 'admin' && (
+                            {user.role === 'admin' && (
                                 <Link href="/admin" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">Admin</Link>
                             )}
                             <button
-                                onClick={() => signOut()}
+                                onClick={handleSignOut}
                                 className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors"
                             >
                                 Sign Out
@@ -82,12 +96,12 @@ export default function Navbar() {
                             <Link href="/pricing" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Pricing</Link>
                         )}
                         <Link href="/support" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Support</Link>
-                        {session ? (
+                        {user ? (
                             <>
                                 <Link href="/dashboard" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Dashboard</Link>
-                                <Link href="/profile" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest text-blue-600">My Profile ({session.user.coins} 🪙)</Link>
+                                <Link href="/profile" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest text-blue-600">My Profile ({user.coins || 0} 🪙)</Link>
                                 <button
-                                    onClick={() => { signOut(); toggleMenu(); }}
+                                    onClick={() => { handleSignOut(); toggleMenu(); }}
                                     className="text-left text-lg font-black text-red-500 uppercase tracking-widest"
                                 >
                                     Sign Out
