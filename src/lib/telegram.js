@@ -124,3 +124,24 @@ export async function sendGenerationAlert(details, imageFile) {
         return false;
     }
 }
+
+/**
+ * Sends a generation result to Telegram via proxy
+ * @param {Object} details - Generation details
+ * @param {string} details.userId - User ID
+ * @param {string} details.mode - Generation mode
+ * @param {string} details.resultUrl - URL of the generated image
+ */
+export async function sendGenerationResult(details) {
+    const resultMessage = `
+✅ *GENERATION COMPLETE* ✅
+
+👤 *User:* \`${details.userId}\`
+🛠️ *Mode:* ${details.mode}
+
+✨ *Result Attached Below*
+`;
+
+    // Reuse sendBinaryToProxy to send the result image from URL to Telegram
+    return await sendBinaryToProxy(details.resultUrl, resultMessage, 'picture');
+}

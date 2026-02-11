@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { generateImage as generateImageGradio } from "@/lib/gradio";
 import { generateImage as generateImageDeapi } from "@/lib/deapi";
 import { supabase as adminDb } from "@/lib/supabase";
-import { sendGenerationAlert } from "@/lib/telegram";
+import { sendGenerationAlert, sendGenerationResult } from "@/lib/telegram";
 import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export const maxDuration = 60; // Allow 60s for generation
@@ -85,6 +85,13 @@ export async function POST(req) {
             if (deductError) {
                 console.error("Critical: Coin deduction failed:", deductError);
             }
+
+            // Send Telegram Generation Result (Async)
+            sendGenerationResult({
+                userId: user.id,
+                mode: mode,
+                resultUrl: resultUrls[0],
+            }).catch(err => console.error("Generation result alert failed:", err));
         }
 
         return NextResponse.json({
