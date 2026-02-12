@@ -51,6 +51,16 @@ export default function PricingPage() {
             icon: '🔥',
             description: 'Best value for creators.',
             features: ['21 Elite Credits', 'Bikini Mode (10.5 Images)', 'Nude Mode (3.5 Images)', 'Ultra Fast Speed']
+        },
+        {
+            id: '100_coins',
+            name: 'Master Pack',
+            coins: 100,
+            price: 800,
+            originalPrice: 1200,
+            icon: '👑',
+            description: 'Ultimate power for professionals.',
+            features: ['100 Ultra Credits', 'Bikini Mode (50 Images)', 'Nude Mode (16+ Images)', 'Instant Generation']
         }
     ];
 

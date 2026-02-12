@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { usePathname } from "next/navigation";
 import WhatsappFloatingIcon from "@/components/WhatsappFloatingIcon";
+import BroadcastBanner from "@/components/BroadcastBanner";
 import Head from 'next/head';
 
 export default function RootLayout({ children }) {
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="antialiased selection:bg-white/10 selection:text-white pb-10">
         <Providers>
+          <BroadcastBanner />
           <Navbar />
           <main className="min-h-screen">
             {children}
