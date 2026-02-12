@@ -10,9 +10,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // Identity, Structure, Anatomy & Realism preservation
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.8), ` : "";
-        finalPrompt += `${identity_preservation} ${structure_preservation} ${anatomical_integrity} wearing (high-end micro bikini:3.8), (luxurious minimalist bikini:3.2), (realistic fabric-to-skin contact and soft shadows:2.5), ${skin_realism} `;
-        finalPrompt += "STRICTLY keep original background, keep original pose, keep original style, keep original hands and fingers. ";
-        finalPrompt += "NEGATIVE: (3d render:3.5), (cgi:3.5), (doll:3.5), (fake:3.8), (cartoon:3.0), (anime), (zoom:4.5), (close-up:4.5), (extra fingers:4.8), (mutated hands:4.8), (fused fingers:4.8), (cut parts:4.8), (missing limbs:4.8), (deformed extremities:4.8), (plastic skin:4.0), clothes, apparel.";
+        finalPrompt += `${identity_preservation} ${structure_preservation} ${anatomical_integrity} (REMOVE ALL ORIGINAL CLOTHING:4.8), (REPLACE WITH HIGH-END MICRO BIKINI:4.8), (LUXURIOUS MINIMALIST BIKINI:4.5), (EXPOSED SKIN:4.0), ${skin_realism} `;
+        finalPrompt += "IMPORTANT: REMOVE EVERY PIECE OF ORIGINAL FABRIC. Show the body wearing a high-end bikini. Change ONLY the clothes. Keep original pose, hands, and background identical. ";
+        finalPrompt += "NEGATIVE: (original clothes:4.8), (dress:4.8), (bra:4.8), (panties:4.8), (fabric:4.8), (censorship:4.8), (extra fingers:4.8), (mutated hands:4.8), (fused fingers:4.8), (cut parts:4.8), (missing limbs:4.8), (deformed extremities:4.8), (zoomed in:4.8), (plastic skin:4.0), (fake body:4.5), (3d render:3.5), (cgi:3.5).";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.8), ` : "";
         finalPrompt += `${identity_preservation} ${structure_preservation} ${anatomical_integrity} (COMPLETELY UNDRESSED:4.8), (CLOTHES REMOVED:4.5), (NATURAL NAKED STATE:4.8), (EXPOSED FULL BODY:3.8), ${skin_realism} `;
