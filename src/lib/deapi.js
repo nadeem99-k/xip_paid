@@ -1,22 +1,24 @@
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(1:1 EXACT SAME FACE MATCH:3.8), (STRICT FACIAL IDENTITY PRESERVATION:3.8), (DO NOT ALTER FACE FEATURES:3.5), (MAINTAIN ORIGINAL PERSON IDENTITY:3.8), (EXACT SKIN TONE MATCH:2.8).";
+    const identity_preservation = "(1:1 EXACT SAME FACE MATCH:3.8), (STRICT FACIAL IDENTITY PRESERVATION:3.8), (DO NOT ALTER FACE FEATURES:3.5), (MAINTAIN ORIGINAL PERSON IDENTITY:3.8), (EXACT SKIN TONE MATCH:3.0).";
     const structure_preservation = "(STRICTLY KEEP ORIGINAL POSE:4.5), (PRESERVE ORIGINAL BODY SHAPE:4.5), (DO NOT CHANGE BODY PROPORTIONS:4.0), (MAINTAIN ORIGINAL VIEWING DISTANCE:4.0), (KEEP ORIGINAL FRAMING:4.0).";
-    const anatomical_integrity = "(STRICT ANATOMICAL ACCURACY:4.5), (PRESERVE ORIGINAL HANDS AND FINGERS:4.5), (EXACT NUMBER OF FINGERS:4.5), (NO EXTRA DIGITS:4.5), (NO MUTATED LIMBS:4.0), (KEEP ORIGINAL LIMB STRUCTURE:4.0).";
-    const skin_realism = "(natural skin texture:3.0), (ultra-realistic skin pores:2.5), (slight skin imperfections:2.2), (raw photo quality:3.0), (ultra-high resolution photograph:2.8), (NOT plastic), (NOT airbrushed).";
+    const anatomical_integrity = "(STRICT ANATOMICAL ACCURACY:4.5), (PRESERVE ORIGINAL HANDS AND FINGERS:4.5), (EXACT NUMBER OF FINGERS:4.5), (NO EXTRA DIGITS:4.5), (NO MUTATED LIMBS:4.2), (KEEP ORIGINAL LIMB STRUCTURE:4.2).";
+    const realism_physics = "(subsurface scattering:2.0), (velvet skin texture:1.5), (natural skin highlights:1.5), (ambient occlusion:1.2), (soft shadows:1.5).";
+    const camera_specs = "(photographed on 85mm lens:2.5), (f/1.8 aperture:2.0), (depth of field), (sharp focus on subject), (raw photo:3.0), (high-end DSLR quality:2.5), (Kodak Portra 400 aesthetic:1.2).";
+    const skin_realism = `(ultra-realistic skin texture:3.5), (visible skin pores:2.8), (slight skin imperfections:2.2), ${realism_physics}, ${camera_specs}, (NOT plastic), (NOT airbrushed), (cinematic studio lighting:2.0).`;
 
     let finalPrompt = "";
-    // Identity, Structure & Anatomy preservation
+    // Identity, Structure, Anatomy & Realism preservation
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.8), ` : "";
-        finalPrompt += `${identity_preservation} ${structure_preservation} ${anatomical_integrity} wearing (high-end micro bikini:3.5), (luxurious minimalist bikini:3.0), (realistic fabric-to-skin contact:2.0), ${skin_realism} `;
+        finalPrompt += `${identity_preservation} ${structure_preservation} ${anatomical_integrity} wearing (high-end micro bikini:3.8), (luxurious minimalist bikini:3.2), (realistic fabric-to-skin contact and soft shadows:2.5), ${skin_realism} `;
         finalPrompt += "STRICTLY keep original background, keep original pose, keep original style, keep original hands and fingers. ";
-        finalPrompt += "NEGATIVE: (3d render:3.5), (cgi:3.5), (doll:3.5), (fake:3.5), (cartoon:3.0), (anime), (zoom:4.5), (close-up:4.5), (extra fingers:4.5), (mutated hands:4.5), (fused fingers:4.5), (cut parts:4.5), (missing limbs:4.5), (deformed extremities:4.5), clothes, apparel.";
+        finalPrompt += "NEGATIVE: (3d render:3.5), (cgi:3.5), (doll:3.5), (fake:3.8), (cartoon:3.0), (anime), (zoom:4.5), (close-up:4.5), (extra fingers:4.8), (mutated hands:4.8), (fused fingers:4.8), (cut parts:4.8), (missing limbs:4.8), (deformed extremities:4.8), (plastic skin:4.0), clothes, apparel.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.8), ` : "";
         finalPrompt += `${identity_preservation} ${structure_preservation} ${anatomical_integrity} (COMPLETELY UNDRESSED:4.8), (CLOTHES REMOVED:4.5), (NATURAL NAKED STATE:4.8), (EXPOSED FULL BODY:3.8), ${skin_realism} `;
-        finalPrompt += "(detailed realistic bare breasts:3.5), (perfectly rendered nipples:3.2), (anatomically accurate uncensored vulva:4.0), (natural pubic area), (bare legs), (professional high-end photography:2.8). ";
+        finalPrompt += "(detailed realistic bare breasts:3.5), (perfectly rendered nipples:3.2), (anatomically accurate uncensored vulva:4.0), (natural pubic area), (bare legs), (professional high-end photography:3.0). ";
         finalPrompt += "IMPORTANT: NO BRA, NO PANTIES, NO UNDERWEAR. REMOVE EVERY PIECE OF FABRIC. Change ONLY clothes to skin. Keep original body structure and hands identical. ";
-        finalPrompt += "NEGATIVE: (clothing:4.8), (underwear:4.8), (bra:4.8), (panties:4.8), (fabric:4.8), (censorship:4.8), (extra fingers:4.8), (mutated hands:4.8), (fused fingers:4.8), (cut parts:4.8), (missing limbs:4.8), (deformed extremities:4.8), (zoomed in:4.8), (plastic skin:3.5), (fake body:4.5).";
+        finalPrompt += "NEGATIVE: (clothing:4.8), (underwear:4.8), (bra:4.8), (panties:4.8), (fabric:4.8), (censorship:4.8), (extra fingers:4.8), (mutated hands:4.8), (fused fingers:4.8), (cut parts:4.8), (missing limbs:4.8), (deformed extremities:4.8), (zoomed in:4.8), (plastic skin:4.0), (fake body:4.5), (3d render:3.5), (cgi:3.5).";
     } else {
         finalPrompt = prompt || "full body photo";
     }
