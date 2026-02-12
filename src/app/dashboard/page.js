@@ -64,6 +64,16 @@ export default function DashboardPage() {
             icon: '🔥',
             description: 'Best value for creators.',
             features: ['21 Elite Credits', 'Bikini Mode (10.5 Images)', 'Nude Mode (3.5 Images)', 'Ultra Fast Speed']
+        },
+        {
+            id: '100_coins',
+            name: 'Master Pack',
+            coins: 100,
+            price: 800,
+            originalPrice: 1200,
+            icon: '👑',
+            description: 'Ultimate power for professionals.',
+            features: ['100 Ultra Credits', 'Bikini Mode (50 Images)', 'Nude Mode (16+ Images)', 'Instant Generation']
         }
     ];
 
@@ -150,6 +160,12 @@ export default function DashboardPage() {
         setIsLoadingPayments(true);
         try {
             const res = await fetch('/api/user/payments', { signal });
+            if (!res.ok) {
+                const text = await res.text();
+                console.error(`[fetchUserPayments] API Error ${res.status}: ${text.substring(0, 100)}`);
+                setIsLoadingHistory(false);
+                return;
+            }
             const data = await res.json();
             if (data.success) {
                 setUserPayments(data.payments);
@@ -438,12 +454,12 @@ export default function DashboardPage() {
                                 {/* Left Side: Controls */}
                                 <div className="lg:col-span-5 space-y-12">
                                     {/* Buy Coins Info */}
-                                    <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 flex items-center justify-between">
+                                    <div className="p-6 bg-blue-600 rounded-3xl border border-blue-400 flex items-center justify-between text-white shadow-xl shadow-blue-600/20">
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Pricing Offer</p>
-                                            <p className="text-xs font-bold text-blue-950">3 Coins for RS 50</p>
+                                            <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">Master Offer</p>
+                                            <p className="text-xl font-black text-white tracking-tighter">100 Coins for RS 800</p>
                                         </div>
-                                        <Link href="/pricing" className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all">Buy Now</Link>
+                                        <Link href="/pricing" className="px-6 py-3 bg-white text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-lg">Buy Now</Link>
                                     </div>
 
                                     <div className="space-y-6">

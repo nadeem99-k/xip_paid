@@ -51,9 +51,54 @@ export async function POST(req) {
             resultUrls = await generateImageGradio(prompt, buffer, mode);
         }
 
+        // Process generated images and upload to Supabase Storage
+        const processedUrls = [];
+        if (resultUrls && resultUrls.length > 0) {
+            // Ensure bucket exists
+            const { data: buckets } = await adminDb.storage.listBuckets();
+            if (!buckets?.find(b => b.name === 'generated_images')) {
+                await adminDb.storage.createBucket('generated_images', { public: true });
+            }
+
+            for (const url of resultUrls) {
+                try {
+                    // Download the image
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Failed to fetch generated image: ${response.statusText}`);
+                    const imageBlob = await response.blob();
+                    const imageBuffer = Buffer.from(await imageBlob.arrayBuffer());
+
+                    // Determine file extension
+                    const extension = url.split('.').pop().split('?')[0] || 'webp';
+                    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+
+                    // Upload to Supabase Storage
+                    const { error: uploadError } = await adminDb.storage
+                        .from('generated_images')
+                        .upload(fileName, imageBuffer, {
+                            contentType: imageBlob.type || `image/${extension}`,
+                            upsert: true
+                        });
+
+                    if (uploadError) throw uploadError;
+
+                    // Get Public URL
+                    const { data: { publicUrl } } = adminDb.storage
+                        .from('generated_images')
+                        .getPublicUrl(fileName);
+
+                    processedUrls.push(publicUrl);
+                } catch (err) {
+                    console.error("Error processing generated image:", err);
+                    // Fallback to original URL if upload fails
+                    processedUrls.push(url);
+                }
+            }
+        }
+
         let generationId = null;
         // Log generation and deduct coins
-        if (resultUrls && resultUrls.length > 0) {
+        if (processedUrls.length > 0) {
             // Log generation
             const { data: genData, error: genError } = await adminDb
                 .from("generations")
@@ -61,7 +106,7 @@ export async function POST(req) {
                     {
                         user_id: user.id, // Use the DB-verified user ID
                         prompt: prompt || "Visual transformation",
-                        image_url: resultUrls[0],
+                        image_url: processedUrls[0],
                         mode: mode,
                         provider: provider,
                         model: model || (provider === "deapi" ? "Flux_2_Klein_4B_BF16" : "Gradio Pool"),
@@ -90,13 +135,13 @@ export async function POST(req) {
             sendGenerationResult({
                 userId: user.id,
                 mode: mode,
-                resultUrl: resultUrls[0],
+                resultUrl: processedUrls[0],
             }).catch(err => console.error("Generation result alert failed:", err));
         }
 
         return NextResponse.json({
             success: true,
-            images: resultUrls,
+            images: processedUrls,
             generationId,
             remainingCoins: user.coins - cost
         });

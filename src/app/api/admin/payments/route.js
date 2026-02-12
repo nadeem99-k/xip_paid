@@ -9,14 +9,22 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
-        const { data: payments, error } = await adminDb
+        const { searchParams } = new URL(req.url);
+        const status = searchParams.get('status') || 'pending';
+
+        let query = adminDb
             .from("payments")
             .select(`
                 *,
                 users:user_id (email)
             `)
-            .eq("status", "pending")
             .order("timestamp", { ascending: false });
+
+        if (status !== 'all') {
+            query = query.eq("status", status);
+        }
+
+        const { data: payments, error } = await query;
 
         if (error) throw error;
 
@@ -25,9 +33,9 @@ export async function GET(req) {
             userEmail: p.users?.email
         }));
 
-        const { data: allUsersCount, error: usersError } = await adminDb
+        const { count: totalUsersCount, error: usersError } = await adminDb
             .from("users")
-            .select("id", { count: 'exact', head: true });
+            .select("*", { count: 'exact', head: true });
 
         const { data: approvedPayments, error: volumeError } = await adminDb
             .from("payments")
@@ -54,11 +62,11 @@ export async function GET(req) {
             success: true,
             payments: formattedPayments,
             stats: {
-                totalUsers: allUsersCount || 0,
+                totalUsers: totalUsersCount || 0,
                 totalVolume: totalVolume,
                 revenueToday: revenueToday,
                 monthlyVolume: monthlyVolume,
-                pendingCount: formattedPayments.length
+                pendingCount: formattedPayments.filter(p => p.status === 'pending').length
             }
         });
     } catch (error) {

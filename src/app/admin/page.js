@@ -15,7 +15,8 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('payments');
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(10);
+    const [itemsPerPage] = useState(25);
+    const [showAllPayments, setShowAllPayments] = useState(false);
     const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
 
     // Admin email whitelist - add your admin emails here
@@ -36,11 +37,12 @@ export default function AdminDashboard() {
 
     const fetchPayments = async (signal) => {
         try {
-            const res = await fetch('/api/admin/payments', { signal });
+            const url = showAllPayments ? '/api/admin/payments?status=all' : '/api/admin/payments?status=pending';
+            const res = await fetch(url, { signal });
             const data = await res.json();
             if (data.success) {
                 setPayments(data.payments);
-                setStats(data.stats);
+                if (data.stats) setStats(data.stats);
             }
         } catch (e) {
             if (e.name === 'AbortError') return;
@@ -93,28 +95,14 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         const controller = new AbortController();
-        const init = async () => {
-            setLoading(true);
-            try {
-                await Promise.all([
-                    fetchPayments(controller.signal),
-                    fetchUsers(controller.signal),
-                    fetchTickets(controller.signal),
-                    fetchGenerations(controller.signal)
-                ]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         if (isAdmin) {
-            init();
-        } else if (!isLoading && user) {
-            setLoading(false);
+            fetchPayments(controller.signal);
+            fetchUsers(controller.signal);
+            fetchTickets(controller.signal);
+            fetchGenerations(controller.signal);
         }
-
         return () => controller.abort();
-    }, [isAdmin, isLoading]);
+    }, [isAdmin, showAllPayments]);
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -319,6 +307,22 @@ export default function AdminDashboard() {
                     </div>
                 </header>
 
+                {/* Status Bar for History Toggle */}
+                {activeTab === 'payments' && (
+                    <div className="flex justify-end pr-4">
+                        <button
+                            onClick={() => setShowAllPayments(!showAllPayments)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showAllPayments ? 'bg-blue-600 text-white' : 'bg-gray-100 text-blue-950'
+                                }`}
+                        >
+                            <span>{showAllPayments ? 'Showing All' : 'Showing Pending'}</span>
+                            <div className={`w-8 h-4 rounded-full relative transition-colors ${showAllPayments ? 'bg-blue-400' : 'bg-gray-300'}`}>
+                                <div className={`absolute top-1 w-2.5 h-2.5 rounded-full bg-white transition-all ${showAllPayments ? 'left-5' : 'left-1'}`}></div>
+                            </div>
+                        </button>
+                    </div>
+                )}
+
                 {/* Controls Section */}
                 <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center sticky top-20 z-30 bg-white/80 backdrop-blur-xl p-4 -mx-4 rounded-3xl border border-blue-50/50 shadow-sm">
                     {/* Use overflow-x-auto for scrollable tabs on small screens */}
@@ -382,6 +386,7 @@ export default function AdminDashboard() {
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Value</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Date</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Proof</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Status</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Actions</th>
                                                 </>
                                             )}
@@ -439,11 +444,21 @@ export default function AdminDashboard() {
                                                                 View ↗
                                                             </a>
                                                         </td>
+                                                        <td className="p-6">
+                                                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${item.status === 'approved' ? 'bg-green-50 text-green-600 border border-green-100' :
+                                                                    item.status === 'rejected' ? 'bg-red-50 text-red-600 border border-red-100' :
+                                                                        'bg-yellow-50 text-yellow-600 border border-yellow-100'
+                                                                }`}>
+                                                                {item.status}
+                                                            </span>
+                                                        </td>
                                                         <td className="p-6 text-right">
-                                                            <div className="flex justify-end gap-2">
-                                                                <button onClick={() => handleAction(item.id, 'approve')} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/20">A</button>
-                                                                <button onClick={() => handleAction(item.id, 'reject')} className="px-4 py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white">R</button>
-                                                            </div>
+                                                            {item.status === 'pending' && (
+                                                                <div className="flex justify-end gap-2">
+                                                                    <button onClick={() => handleAction(item.id, 'approve')} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/20">A</button>
+                                                                    <button onClick={() => handleAction(item.id, 'reject')} className="px-4 py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white">R</button>
+                                                                </div>
+                                                            )}
                                                         </td>
                                                     </>
                                                 )}
