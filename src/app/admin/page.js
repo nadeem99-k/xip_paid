@@ -601,11 +601,6 @@ export default function AdminDashboard() {
                                                         <td className="p-6 text-right">
                                                             <div className="flex justify-end gap-2">
                                                                 <button onClick={() => fetchUserProfile(item.id)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all" title="View Profile">👁️</button>
-                                                                {item.role === 'admin' ? (
-                                                                    <button onClick={() => handleUserAction(item.id, 'demote')} className="p-2 bg-yellow-50 text-yellow-600 rounded-xl hover:bg-yellow-600 hover:text-white transition-all" title='Demote to User'>👤</button>
-                                                                ) : (
-                                                                    <button onClick={() => handleUserAction(item.id, 'promote')} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all" title='Promote to Admin'>🛡️</button>
-                                                                )}
                                                                 {item.role === 'banned' ? (
                                                                     <button onClick={() => handleUserAction(item.id, 'unban')} className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all" title='Unban User'>🔓</button>
                                                                 ) : (
@@ -1003,7 +998,14 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            <div className="p-8 border-t border-blue-50 bg-blue-50/10 flex justify-end gap-3">
+                            <div className="p-8 border-t border-blue-50 bg-blue-50/10 flex flex-wrap justify-between gap-4">
+                                <div className="flex gap-2">
+                                    {selectedUser.profile.role === 'admin' ? (
+                                        <button onClick={() => { handleUserAction(selectedUser.profile.id, 'demote'); setSelectedUser(null); }} className="px-6 py-3 bg-yellow-50 text-yellow-600 border border-yellow-100 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-yellow-600 hover:text-white transition-all">Demote to User</button>
+                                    ) : (
+                                        <button onClick={() => { handleUserAction(selectedUser.profile.id, 'promote'); setSelectedUser(null); }} className="px-6 py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">Promote to Admin</button>
+                                    )}
+                                </div>
                                 <button onClick={() => setSelectedUser(null)} className="px-8 py-3 bg-gray-100 text-blue-950 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Close Profile</button>
                             </div>
                         </div>
