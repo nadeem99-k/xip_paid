@@ -84,6 +84,20 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchGenerations = async (signal) => {
+        try {
+            const res = await fetch('/api/admin/generations', { signal });
+            const data = await res.json();
+            if (data.success) {
+                setGenerations(data.generations);
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+            console.error("Failed to fetch generations", e);
+            showToast("Failed to fetch generations", 'error');
+        }
+    };
+
     const fetchGrowthStats = async (signal) => {
         try {
             const res = await fetch('/api/admin/stats/growth', { signal });
