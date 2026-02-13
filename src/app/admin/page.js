@@ -270,6 +270,26 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleDeleteGeneration = async (genId) => {
+        if (!confirm("Are you sure you want to PERMANENTLY delete this generation? This cannot be undone.")) return;
+        try {
+            const res = await fetch('/api/admin/generations/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ generationId: genId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message);
+                fetchGenerations(); // Refresh logs
+            } else {
+                showToast("Error: " + data.error, 'error');
+            }
+        } catch (e) {
+            showToast("Network error", 'error');
+        }
+    };
+
     const handleExportPayments = () => {
         window.location.href = '/api/admin/payments/export';
     };
@@ -372,9 +392,9 @@ export default function AdminDashboard() {
                         <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">System Management Center</p>
                     </div>
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full xl:w-auto">
-                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                    {/* Stats Grid - Now scrollable on mobile */}
+                    <div className="flex xl:grid xl:grid-cols-4 gap-4 w-full xl:w-auto overflow-x-auto pb-4 xl:pb-0 scrollbar-hide snap-x">
+                        <div className="min-w-[280px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
                             <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Revenue</p>
                             <div className="flex items-end justify-between">
                                 <p className="text-3xl font-black text-blue-950 tracking-tighter">Rs {stats?.totalVolume || 0}</p>
@@ -384,21 +404,21 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         </div>
-                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                        <div className="min-w-[200px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
                             <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Users</p>
                             <div className="flex items-end justify-between">
                                 <p className="text-3xl font-black text-blue-950 tracking-tighter">{stats?.totalUsers || 0}</p>
                                 <span className="text-2xl">👥</span>
                             </div>
                         </div>
-                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                        <div className="min-w-[200px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
                             <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Creations</p>
                             <div className="flex items-end justify-between">
                                 <p className="text-3xl font-black text-blue-950 tracking-tighter">{generations.length}</p>
                                 <span className="text-2xl">🎨</span>
                             </div>
                         </div>
-                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
+                        <div className="min-w-[200px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
                             <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Pending Orders</p>
                             <div className="flex items-end justify-between">
                                 <p className="text-3xl font-black text-blue-950 tracking-tighter">{payments.length}</p>
@@ -430,10 +450,9 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* Controls Section */}
+                {/* Controls Section - Hidden Navigation on Mobile (moved to bottom nav) */}
                 <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center sticky top-20 z-30 bg-white/80 backdrop-blur-xl p-4 -mx-4 rounded-3xl border border-blue-50/50 shadow-sm">
-                    {/* Use overflow-x-auto for scrollable tabs on small screens */}
-                    <div className="flex gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
+                    <div className="hidden md:flex gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
                         {['payments', 'users', 'generations', 'gallery', 'analytics', 'settings', 'support'].map((tab) => (
                             <button
                                 key={tab}
@@ -452,6 +471,11 @@ export default function AdminDashboard() {
                                 {tab === 'support' && `Support (${tickets.filter(t => t.status === 'pending').length})`}
                             </button>
                         ))}
+                    </div>
+
+                    <div className="md:hidden w-full flex items-center justify-between mb-2 px-2">
+                        <h2 className="text-lg font-black text-blue-950 uppercase tracking-tighter">{activeTab}</h2>
+                        <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Admin Panel</span>
                     </div>
 
                     <div className="w-full lg:w-auto relative group">
@@ -768,10 +792,21 @@ export default function AdminDashboard() {
                                                 alt="Generation"
                                                 loading="lazy"
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                                            <div className="absolute inset-x-0 top-0 p-3 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => { e.preventDefault(); handleDeleteGeneration(gen.id); }}
+                                                    className="w-8 h-8 bg-red-500/80 backdrop-blur-md text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
+                                                    title="Delete Generation"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 pointer-events-none">
                                                 <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest truncate">{gen.users?.email}</p>
                                                 <p className="text-[8px] font-black text-blue-400 uppercase mt-1 italic line-clamp-2">"{gen.prompt}"</p>
-                                                <a href={gen.image_url} target="_blank" rel="noopener noreferrer" className="mt-3 w-full py-2 bg-white/20 backdrop-blur-md rounded-lg text-center text-[8px] font-black text-white uppercase tracking-widest hover:bg-white hover:text-blue-950 transition-all">View Full</a>
+                                                <div className="pointer-events-auto">
+                                                    <a href={gen.image_url} target="_blank" rel="noopener noreferrer" className="mt-3 block w-full py-2 bg-white/20 backdrop-blur-md rounded-lg text-center text-[8px] font-black text-white uppercase tracking-widest hover:bg-white hover:text-blue-950 transition-all">View Full</a>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -783,39 +818,80 @@ export default function AdminDashboard() {
                                 <div className="p-8 space-y-12 animate-slide-up">
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                         {/* User Growth Chart */}
-                                        <div className="bg-blue-50/30 p-8 rounded-[2rem] border border-blue-50">
+                                        <div className="bg-blue-50/30 p-8 rounded-[2rem] border border-blue-50 overflow-hidden">
                                             <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest mb-8">User Growth (30 Days)</h3>
-                                            <div className="flex items-end gap-1 h-48">
-                                                {growthStats.users.map((count, i) => (
-                                                    <div key={i} className="flex-1 bg-blue-600 rounded-t-lg transition-all hover:bg-blue-700 relative group" style={{ height: `${(count / Math.max(...growthStats.users, 1)) * 100}%` }}>
-                                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-blue-950 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                                                            {count} Users
+                                            <div className="overflow-x-auto pb-4 scrollbar-hide">
+                                                <div className="flex items-end gap-1 h-48 min-w-[600px]">
+                                                    {growthStats.users.map((count, i) => (
+                                                        <div key={i} className="flex-1 bg-blue-600 rounded-t-lg transition-all hover:bg-blue-700 relative group" style={{ height: `${(count / Math.max(...growthStats.users, 1)) * 100}%` }}>
+                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-blue-950 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                                                {count} Users
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
                                             <div className="flex justify-between mt-4 text-[8px] font-bold text-blue-900/30 uppercase">
                                                 <span>30 Days Ago</span>
+                                                <span className="md:hidden">← Swipe to view →</span>
                                                 <span>Today</span>
                                             </div>
                                         </div>
 
                                         {/* Revenue Growth Chart */}
-                                        <div className="bg-green-50/30 p-8 rounded-[2rem] border border-green-50">
+                                        <div className="bg-green-50/30 p-8 rounded-[2rem] border border-green-50 overflow-hidden">
                                             <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest mb-8">Revenue Trends (30 Days)</h3>
-                                            <div className="flex items-end gap-1 h-48">
-                                                {growthStats.revenue.map((amount, i) => (
-                                                    <div key={i} className="flex-1 bg-green-600 rounded-t-lg transition-all hover:bg-green-700 relative group" style={{ height: `${(amount / Math.max(...growthStats.revenue, 1)) * 100}%` }}>
-                                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-950 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                                                            Rs {amount}
+                                            <div className="overflow-x-auto pb-4 scrollbar-hide">
+                                                <div className="flex items-end gap-1 h-48 min-w-[600px]">
+                                                    {growthStats.revenue.map((amount, i) => (
+                                                        <div key={i} className="flex-1 bg-green-600 rounded-t-lg transition-all hover:bg-green-700 relative group" style={{ height: `${(amount / Math.max(...growthStats.revenue, 1)) * 100}%` }}>
+                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-950 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                                                Rs {amount}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
                                             <div className="flex justify-between mt-4 text-[8px] font-bold text-green-900/30 uppercase">
                                                 <span>30 Days Ago</span>
+                                                <span className="md:hidden">← Swipe to view →</span>
                                                 <span>Today</span>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Recent Activity Widget */}
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm space-y-8">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Live Activity</h3>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Real-time system events</p>
+                                            </div>
+                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Live"></div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {[...users.slice(0, 5).map(u => ({ type: 'signup', email: u.email, date: u.created_at })),
+                                            ...payments.slice(0, 5).map(p => ({ type: 'payment', email: p.userEmail, amount: p.amount, date: p.timestamp }))]
+                                                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                                .map((item, i) => (
+                                                    <div key={i} className="flex items-center justify-between p-4 bg-blue-50/30 rounded-2xl hover:bg-blue-50 transition-colors">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${item.type === 'signup' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                                                                {item.type === 'signup' ? '👤' : '💰'}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] font-black text-blue-950 uppercase tracking-tight">{item.email}</p>
+                                                                <p className="text-[8px] font-bold text-blue-400 uppercase mt-0.5">
+                                                                    {item.type === 'signup' ? 'Joined the platform' : `Purchased for Rs ${item.amount}`}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[8px] font-black text-blue-900/20 uppercase whitespace-nowrap">
+                                                            {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                ))}
                                         </div>
                                     </div>
                                 </div>
@@ -933,19 +1009,19 @@ export default function AdminDashboard() {
                 selectedUser && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-950/20 backdrop-blur-md animate-fade-in">
                         <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-scale-up">
-                            <div className="p-8 border-b border-blue-50 flex items-center justify-between bg-blue-50/30">
-                                <div className="flex items-center gap-6">
-                                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-2xl text-white font-black">
+                            <div className="p-5 md:p-8 border-b border-blue-50 flex items-center justify-between bg-blue-50/30">
+                                <div className="flex items-center gap-4 md:gap-6">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-xl md:text-2xl text-white font-black">
                                         {selectedUser.profile.email[0].toUpperCase()}
                                     </div>
-                                    <div>
-                                        <h2 className="text-2xl font-black text-blue-950 tracking-tighter">{selectedUser.profile.email}</h2>
-                                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1">
-                                            ID: {selectedUser.profile.id} • Joined {new Date(selectedUser.profile.created_at).toLocaleDateString()}
+                                    <div className="min-w-0">
+                                        <h2 className="text-lg md:text-2xl font-black text-blue-950 tracking-tighter truncate">{selectedUser.profile.email}</h2>
+                                        <p className="text-[8px] md:text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1">
+                                            ID: {selectedUser.profile.id.slice(-8)} • Joined {new Date(selectedUser.profile.created_at).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </div>
-                                <button onClick={() => setSelectedUser(null)} className="w-12 h-12 rounded-2xl bg-white border border-blue-100 flex items-center justify-center text-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">✕</button>
+                                <button onClick={() => setSelectedUser(null)} className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-white border border-blue-100 flex items-center justify-center text-lg md:text-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm shrink-0 ml-2">✕</button>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
@@ -1012,6 +1088,25 @@ export default function AdminDashboard() {
                     </div>
                 )
             }
-        </div >
+            {/* Mobile Bottom Navigation */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-white/80 backdrop-blur-2xl border-t border-blue-50 px-6 py-4 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                {[
+                    { id: 'payments', icon: '💳', label: 'Pay' },
+                    { id: 'users', icon: '👥', label: 'Users' },
+                    { id: 'gallery', icon: '🖼️', label: 'Gallery' },
+                    { id: 'analytics', icon: '📈', label: 'Stats' },
+                    { id: 'settings', icon: '⚙️', label: 'Set' }
+                ].map((item) => (
+                    <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`flex flex-col items-center gap-1 transition-all ${activeTab === item.id ? 'text-blue-600 scale-110' : 'text-blue-300'}`}
+                    >
+                        <span className="text-xl">{item.icon}</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 }
