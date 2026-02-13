@@ -370,7 +370,7 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-white pt-24 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto">
+        <div className="min-h-screen bg-white pt-24 pb-28 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto">
             {/* Toast Notification */}
             {toast && (
                 <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-600 text-white'
@@ -1088,24 +1088,41 @@ export default function AdminDashboard() {
                     </div>
                 )
             }
-            {/* Mobile Bottom Navigation */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-white/80 backdrop-blur-2xl border-t border-blue-50 px-6 py-4 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                {[
-                    { id: 'payments', icon: '💳', label: 'Pay' },
-                    { id: 'users', icon: '👥', label: 'Users' },
-                    { id: 'gallery', icon: '🖼️', label: 'Gallery' },
-                    { id: 'analytics', icon: '📈', label: 'Stats' },
-                    { id: 'settings', icon: '⚙️', label: 'Set' }
-                ].map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`flex flex-col items-center gap-1 transition-all ${activeTab === item.id ? 'text-blue-600 scale-110' : 'text-blue-300'}`}
-                    >
-                        <span className="text-xl">{item.icon}</span>
-                        <span className="text-[8px] font-black uppercase tracking-widest">{item.label}</span>
-                    </button>
-                ))}
+            {/* Mobile Bottom Navigation - Scrollable to show all tabs */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-white/95 backdrop-blur-2xl border-t border-blue-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                <div className="overflow-x-auto scrollbar-hide px-2 py-3">
+                    <div className="flex gap-1 min-w-max px-2">
+                        {[
+                            { id: 'payments', icon: '💳', label: 'Payments', count: payments.length },
+                            { id: 'users', icon: '👥', label: 'Users', count: users.length },
+                            { id: 'generations', icon: '📝', label: 'Log', count: generations.length },
+                            { id: 'gallery', icon: '🖼️', label: 'Gallery' },
+                            { id: 'analytics', icon: '📈', label: 'Stats' },
+                            { id: 'support', icon: '💬', label: 'Support', count: tickets.filter(t => t.status === 'pending').length },
+                            { id: 'settings', icon: '⚙️', label: 'Settings' }
+                        ].map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`relative flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all min-w-[70px] ${activeTab === item.id
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 scale-105'
+                                    : 'text-blue-400 hover:bg-blue-50'
+                                    }`}
+                            >
+                                <span className="text-lg">{item.icon}</span>
+                                <span className="text-[7px] font-black uppercase tracking-wider whitespace-nowrap">{item.label}</span>
+                                {item.count !== undefined && item.count > 0 && (
+                                    <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[8px] font-black flex items-center justify-center ${activeTab === item.id
+                                        ? 'bg-white text-blue-600'
+                                        : 'bg-red-500 text-white'
+                                        }`}>
+                                        {item.count > 99 ? '99+' : item.count}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
