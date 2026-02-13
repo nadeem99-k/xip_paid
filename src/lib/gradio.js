@@ -22,13 +22,13 @@ export async function generateImage(prompt, initImgBuffer, mode) {
     const masterpiece_enhancer = "masterpiece, ultra-detailed photography, 8k resolution, highly realistic, skin pores, natural light, cinematic composition.";
 
     let finalPrompt = "";
-    // Identity preservation & realism prompts
+    // Identity preservation & realism prompts - apply to uploaded image only
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += "wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same person, face, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.";
+        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same person, face, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += "(COMPLETE NUDITY:2.0), (REMOVE ALL CLOTHING:2.0), (FULLY NAKED:1.9), (BARE SKIN EVERYWHERE:1.9). DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments. REPLACE WITH: (flawless smooth bare skin:2.0), (completely nude body:1.9), (no clothing whatsoever:1.9). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. Uniform skin texture, spotless clear skin, soft natural lighting. NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed. IMPORTANT: Keep exact same person, face, hair, pose, background. (Perfect anatomy:1.7), flawless hands and feet. High-resolution raw photography.";
+        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:2.0), (REMOVE ALL CLOTHING:2.0), (FULLY NAKED:1.9), (BARE SKIN EVERYWHERE:1.9). DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments. REPLACE WITH: (flawless smooth bare skin:2.0), (completely nude body:1.9), (no clothing whatsoever:1.9). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. Uniform skin texture, spotless clear skin, soft natural lighting. NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed. IMPORTANT: Keep exact same person, face, hair, pose, background. (Perfect anatomy:1.7), flawless hands and feet. High-resolution raw photography.`;
     } else {
         finalPrompt = prompt || "full body photo";
     }
