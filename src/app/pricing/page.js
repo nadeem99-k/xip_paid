@@ -31,7 +31,7 @@ export default function PricingPage() {
             price: 50,
             icon: '🪙',
             description: 'Perfect to start your journey.',
-            features: ['3 High Quality Credits', 'Bikini Mode (1.5 Images)', 'Nude Mode (0.5 Images)', 'Standard Speed']
+            features: ['3 High Quality Photos', 'Bikini Mode (1.5 Images)', 'Nude Mode (0.5 Images)', 'Standard Speed']
         },
         {
             id: '9_coins',
@@ -41,7 +41,7 @@ export default function PricingPage() {
             originalPrice: 150,
             icon: '💎',
             description: 'Most popular for regular users.',
-            features: ['9 Premium Credits', 'Bikini Mode (4.5 Images)', 'Nude Mode (1.5 Images)', 'Priority Queue']
+            features: ['9 Premium Photos', 'Bikini Mode (4.5 Images)', 'Nude Mode (1.5 Images)', 'Priority Speed']
         },
         {
             id: '21_coins',
@@ -50,7 +50,7 @@ export default function PricingPage() {
             price: 300,
             icon: '🔥',
             description: 'Best value for creators.',
-            features: ['21 Elite Credits', 'Bikini Mode (10.5 Images)', 'Nude Mode (3.5 Images)', 'Ultra Fast Speed']
+            features: ['21 Elite Photos', 'Bikini Mode (10.5 Images)', 'Nude Mode (3.5 Images)', 'Super Fast Speed']
         },
         {
             id: '100_coins',
@@ -60,8 +60,8 @@ export default function PricingPage() {
             originalPrice: 1200,
             icon: '👑',
             description: 'Ultimate power for professionals.',
-            features: ['100 Ultra Credits', 'Bikini Mode (50 Images)', 'Nude Mode (16+ Images)', 'Instant Generation']
-        }
+            features: ['100 Ultra Photos', 'Bikini Mode (50 Images)', 'Nude Mode (16+ Images)', 'Fastest Speed']
+        },
     ];
 
     const handlePaymentUpload = async (e) => {
@@ -109,8 +109,8 @@ export default function PricingPage() {
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
                         <span className="text-[10px] font-black uppercase tracking-widest text-blue-600/60">Coin System Active</span>
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-blue-950">Fuel Your <span className="text-blue-600">Creativity</span></h1>
-                    <p className="text-blue-950/40 font-bold uppercase tracking-widest text-[9px] md:text-[10px] leading-relaxed">Purchase coins to unlock advanced neural modes. <br className="hidden md:block" />Bikini (2 Coins) | Nude (6 Coins)</p>
+                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-blue-950">Add More <span className="text-blue-600">Coins</span></h1>
+                    <p className="text-blue-950/40 font-bold uppercase tracking-widest text-[9px] md:text-[10px] leading-relaxed">Buy coins to unlock premium photo styles. <br className="hidden md:block" />Bikini (2 Coins) | Nude (6 Coins)</p>
                 </div>
 
                 {paymentMessage.text && (
@@ -174,22 +174,22 @@ export default function PricingPage() {
                 ) : (
                     <div className="max-w-2xl mx-auto bg-white border border-blue-50 p-12 rounded-[3.5rem] space-y-10 shadow-2xl shadow-blue-950/[0.03] animate-fade-in-up">
                         <button onClick={() => setSelectedPackage(null)} className="inline-flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:opacity-70 transition-opacity">
-                            <span>←</span> Choose Different Module
+                            <span>←</span> Choose Different Pack
                         </button>
 
                         <div className="space-y-4 text-center">
-                            <h2 className="text-4xl font-black text-blue-950 tracking-tighter">Complete <span className="text-blue-600">Sync</span></h2>
-                            <p className="text-blue-950/40 text-[10px] font-black uppercase tracking-widest">Verify via EasyPaisa to activate your Neural Node.</p>
+                            <h2 className="text-4xl font-black text-blue-950 tracking-tighter">Complete <span className="text-blue-600">Payment</span></h2>
+                            <p className="text-blue-950/40 text-[10px] font-black uppercase tracking-widest">Send payment via EasyPaisa to get your coins.</p>
                         </div>
 
                         <div className="bg-blue-50/50 p-8 rounded-[2.5rem] border border-blue-50 space-y-6">
                             <div className="flex justify-between items-center">
-                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Transmission Mode</span>
+                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Payment Method</span>
                                 <span className="px-3 py-1 bg-green-50 text-green-600 border border-green-100 rounded-full text-[9px] font-black uppercase tracking-widest">EasyPaisa</span>
                             </div>
 
                             <div className="space-y-2 border-b border-blue-100 pb-6">
-                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Node Identifier (Account No)</span>
+                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Account Number</span>
                                 <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
                                     <span className="flex-1 text-2xl md:text-3xl font-black text-blue-950 tracking-tighter font-mono">{PAYMENT_INFO.easypaisa}</span>
                                     <button
@@ -202,7 +202,7 @@ export default function PricingPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Account Key (Title)</span>
+                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Account Name</span>
                                 <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
                                     <span className="flex-1 text-lg font-black text-blue-950 uppercase tracking-widest">{PAYMENT_INFO.title}</span>
                                     <button
@@ -215,14 +215,14 @@ export default function PricingPage() {
                             </div>
 
                             <div className="flex justify-between items-center pt-6 border-t border-blue-100">
-                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Total Payload</span>
+                                <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Total Price</span>
                                 <span className="text-3xl font-black text-blue-600 tracking-tighter">Rs {COIN_PACKS.find(p => p.id === selectedPackage)?.price}</span>
                             </div>
                         </div>
 
                         <form onSubmit={handlePaymentUpload} className="space-y-8">
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black text-blue-950/30 uppercase tracking-[0.3em] ml-2">Upload Visual Logs (Screenshot)</label>
+                                <label className="text-[10px] font-black text-blue-950/30 uppercase tracking-[0.3em] ml-2">Upload Screenshot of Payment</label>
                                 <div className="relative h-20 bg-blue-50 border border-blue-100 rounded-2xl flex items-center px-6 group hover:border-blue-300 transition-colors">
                                     <input
                                         type="file"
@@ -232,7 +232,7 @@ export default function PricingPage() {
                                         required
                                     />
                                     <div className="flex items-center justify-between w-full">
-                                        <span className="text-xs font-black text-blue-950/60 uppercase tracking-widest">{paymentProof ? paymentProof.name : "Select Log File..."}</span>
+                                        <span className="text-xs font-black text-blue-950/60 uppercase tracking-widest">{paymentProof ? paymentProof.name : "Choose photo..."}</span>
                                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm transition-transform group-hover:-rotate-6">📎</div>
                                     </div>
                                 </div>
@@ -244,7 +244,7 @@ export default function PricingPage() {
                                     type="submit"
                                     className="w-full h-20 bg-blue-600 text-white font-black rounded-3xl text-sm uppercase tracking-[0.4em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 shadow-2xl shadow-blue-600/20"
                                 >
-                                    {isUploading ? "Transmitting..." : "Authorize Access"}
+                                    {isUploading ? "Sending..." : "Submit Payment"}
                                 </button>
                             ) : (
                                 <Link

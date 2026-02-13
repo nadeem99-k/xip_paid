@@ -25,72 +25,102 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
     const allKeys = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',').filter(k => k.trim());
     const model = modelOverride || "Flux_2_Klein_4B_BF16";
-    const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
+
+    // Retry mechanism for rate limits
+    let lastError = null;
+    const maxRetries = 2; // Try the whole set of keys twice
 
     const blob = new Blob([initImgBuffer], { type: 'image/jpeg' });
 
-    for (let i = 0; i < shuffledKeys.length; i++) {
-        const apiKey = shuffledKeys[i].trim();
-        try {
-            console.log(`Attempting DeAPI generation with key index ${i}...`);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
+        let allKeysRateLimited = true;
 
-            // Try preferred model first
-            const modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
-
-            for (const currentModel of modelsToTry) {
-                const formData = new FormData();
-                formData.append('image', blob, 'image.jpg');
-                formData.append('prompt', finalPrompt);
-                formData.append('model', currentModel);
-                formData.append('steps', '4');
-                formData.append('width', '1024');
-                formData.append('height', '1024');
-                formData.append('guidance_scale', '4.5'); // Slightly higher for better prompt adherence
-                formData.append('strength', '0.75'); // Keep core features
-                formData.append('image_strength', '0.75'); // Maintain identity
-                formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
-
-                const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
-                    method: 'POST',
-                    headers: {
-                        'accept': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: formData
-                });
-
-                if (response.status === 429) {
-                    console.warn(`DeAPI key ${i} rate limited (429). Rotating to next key...`);
-                    break; // Exit model loop, try next key
+        for (let i = 0; i < shuffledKeys.length; i++) {
+            const apiKey = shuffledKeys[i].trim();
+            try {
+                if (attempt > 0) {
+                    console.log(`Retry attempt ${attempt + 1}/${maxRetries} for DeAPI generation...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying
                 }
 
-                if (response.status === 422) {
-                    console.warn(`DeAPI key ${i} does not support model ${currentModel}. Trying next fallback...`);
-                    continue; // Try next fallback model with SAME key
+                console.log(`Attempting DeAPI generation directly with key index ${i}...`);
+
+                // Try preferred model first
+                const modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
+
+                for (const currentModel of modelsToTry) {
+                    const formData = new FormData();
+                    formData.append('image', blob, 'image.jpg');
+                    formData.append('prompt', finalPrompt);
+                    formData.append('model', currentModel);
+                    formData.append('steps', '4');
+                    formData.append('width', '1024');
+                    formData.append('height', '1024');
+                    formData.append('guidance_scale', '4.5'); // Slightly higher for better prompt adherence
+                    formData.append('strength', '0.75'); // Keep core features
+                    formData.append('image_strength', '0.75'); // Maintain identity
+                    formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
+
+                    const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
+                        method: 'POST',
+                        headers: {
+                            'accept': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: formData
+                    });
+
+                    if (response.status === 429) {
+                        console.warn(`DeAPI key ${i} rate limited (429).`);
+                        lastError = new Error(`DeAPI key ${i} rate limited.`);
+                        break; // Exit model loop, try next key
+                    }
+
+                    if (response.status === 422) {
+                        console.warn(`DeAPI key ${i} does not support model ${currentModel}. Trying next fallback...`);
+                        allKeysRateLimited = false; // It's not a rate limit, just model handling
+                        continue; // Try next fallback model with SAME key
+                    }
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`DeAPI key ${i} error ${response.status}: ${errorText}`);
+                        lastError = new Error(`DeAPI error ${response.status}: ${errorText}`);
+                        allKeysRateLimited = false;
+                        break; // Exit model loop, try next key
+                    }
+
+                    const data = await response.json();
+                    const requestId = data.data?.request_id || data.request_id;
+
+                    if (!requestId) {
+                        console.warn(`No request_id returned from DeAPI with key ${i} and model ${currentModel}`);
+                        continue;
+                    }
+
+                    // If we got here, request is accepted, start polling
+                    return await pollStatus(requestId, apiKey);
                 }
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error(`DeAPI key ${i} error ${response.status}: ${errorText}`);
-                    break; // Exit model loop, try next key
-                }
-
-                const data = await response.json();
-                const requestId = data.data?.request_id || data.request_id;
-
-                if (!requestId) {
-                    console.warn(`No request_id returned from DeAPI with key ${i} and model ${currentModel}`);
-                    continue;
-                }
-
-                // If we got here, request is accepted, start polling
-                return await pollStatus(requestId, apiKey);
+            } catch (error) {
+                console.error(`DeAPI Attempt with key index ${i} failed:`, error.message);
+                lastError = error;
+                allKeysRateLimited = false; // Network error or other exception
             }
-        } catch (error) {
-            console.error(`DeAPI Attempt with key index ${i} failed:`, error.message);
+        }
+
+        // If we tried all keys and all were 429, we loop to the next attempt
+        if (!allKeysRateLimited) {
+            // If we had a non-429 error (like 500 or 401), we probably shouldn't just retry blindly, but let's assume we want to exhaust retries
+            // Actually, if !allKeysRateLimited, it means we hit a real error or success (but returned returned above).
+            // If we are here, it means we FAILED to return.
+            // If errors were NOT rate limits, maybe we should stop?
+            // But simpler to just let it retry or throw.
+            // Let's just continue loop.
         }
     }
-    throw new Error("All DeAPI keys failed or were rate-limited. Please try again later.");
+
+    throw lastError || new Error("All DeAPI keys failed or were rate-limited. Please try again later.");
 }
 
 async function pollStatus(requestId, apiKey) {
