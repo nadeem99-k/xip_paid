@@ -84,13 +84,13 @@ export default function DashboardPage() {
 
     const NAME_MAP = {
         providers: {
-            gradio: "Standard Slow",
-            pollinations: "Rapid Fire",
-            deapi: "Power Pro"
+            gradio: "Standard AI",
+            pollinations: "Fast AI",
+            deapi: "Premium AI"
         },
         models: {
-            "Flux_2_Klein_4B_BF16": "Neural Flux v2.0",
-            "Flux_2_Einstein_BF16": "Einstein Gen 3"
+            "Flux_2_Klein_4B_BF16": "Smart Design v2",
+            "Flux_2_Einstein_BF16": "High Detail v3"
         }
     };
 
@@ -441,8 +441,8 @@ export default function DashboardPage() {
                         <div className="space-y-16">
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
                                 <div className="space-y-2">
-                                    <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-blue-950">AI Synthesis <span className="text-blue-600">Studio</span></h1>
-                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Identity-Preserving Generative Engine</p>
+                                    <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-blue-950">AI Image <span className="text-blue-600">Studio</span></h1>
+                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Create beautiful photos with AI</p>
                                 </div>
                                 <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
                                     <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
@@ -463,7 +463,7 @@ export default function DashboardPage() {
                                     </div>
 
                                     <div className="space-y-6">
-                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">1. AI Synthesis Core</label>
+                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">1. Choose AI Speed</label>
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => setProvider('gradio')}
@@ -472,7 +472,7 @@ export default function DashboardPage() {
                                                 <span className="text-xl">🦾</span>
                                                 <div className="text-center">
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-950">{NAME_MAP.providers.gradio}</p>
-                                                    <p className="text-[8px] font-bold text-blue-600">Stable Node</p>
+                                                    <p className="text-[8px] font-bold text-blue-600">Regular Speed</p>
                                                 </div>
                                             </button>
                                             <button
@@ -482,7 +482,7 @@ export default function DashboardPage() {
                                                 <span className="text-xl">💎</span>
                                                 <div className="text-center">
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-950">{NAME_MAP.providers.deapi}</p>
-                                                    <p className="text-[8px] font-bold text-blue-600">High Precision</p>
+                                                    <p className="text-[8px] font-bold text-blue-600">Best Quality</p>
                                                 </div>
                                             </button>
                                         </div>
@@ -490,20 +490,20 @@ export default function DashboardPage() {
 
                                     {provider === 'deapi' && (
                                         <div className="space-y-4 animate-fade-in-down">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">2. Advanced Neural Engine</label>
+                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">2. Choose AI Brain</label>
                                             <select
                                                 value={selectedModel}
                                                 onChange={(e) => setSelectedModel(e.target.value)}
                                                 className="w-full p-4 bg-white border border-blue-100 rounded-2xl text-[10px] font-black uppercase tracking-widest focus:border-blue-600 focus:outline-none transition-all cursor-pointer"
                                             >
                                                 <option value="Flux_2_Klein_4B_BF16">{NAME_MAP.models.Flux_2_Klein_4B_BF16}</option>
-                                                <option value="Flux_2_Einstein_BF16">{NAME_MAP.models.Flux_2_Einstein_BF16 || "Quantum Render v3"}</option>
+                                                <option value="Flux_2_Einstein_BF16">{NAME_MAP.models.Flux_2_Einstein_BF16 || "Ultra Detail v3"}</option>
                                             </select>
                                         </div>
                                     )}
 
                                     <div className="space-y-6">
-                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">{provider === 'deapi' ? '3' : '2'}. Generation Mode</label>
+                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">{provider === 'deapi' ? '3' : '2'}. Select Style</label>
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => setSelectedMode('bikini')}
@@ -531,7 +531,7 @@ export default function DashboardPage() {
 
                                     <div className="space-y-6">
                                         <div className="flex items-center justify-between ml-1">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30">{provider === 'deapi' ? '4' : '3'}. Source Reference</label>
+                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30">{provider === 'deapi' ? '4' : '3'}. Upload Your Photo</label>
                                             {previewUrl && <button onClick={() => setInputImage(null)} className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:opacity-70 transition-colors">Reset</button>}
                                         </div>
                                         <div className={`relative group aspect-[3/4] rounded-[3rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden ${previewUrl ? 'border-blue-200 bg-blue-50/30' : 'border-blue-100 hover:border-blue-300 hover:bg-blue-50/50'}`}>
@@ -541,8 +541,8 @@ export default function DashboardPage() {
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-12 space-y-6">
                                                     <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center text-4xl group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 text-blue-600">🖼️</div>
                                                     <div className="space-y-2">
-                                                        <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-950">Select Base Identity</p>
-                                                        <p className="text-[10px] text-blue-900/30 font-bold uppercase tracking-widest leading-relaxed">Ensure the face is clearly visible for optimal synthesis.</p>
+                                                        <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-950">Tap to Select Photo</p>
+                                                        <p className="text-[10px] text-blue-900/30 font-bold uppercase tracking-widest leading-relaxed">Choose a clear photo for the best results.</p>
                                                     </div>
                                                     <input
                                                         type="file"
@@ -564,7 +564,7 @@ export default function DashboardPage() {
 
                                     <div className="space-y-6 text-left">
                                         <div className="flex items-center gap-3 ml-1">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30">{provider === 'deapi' ? '5' : '4'}. Synthesis Modifiers</label>
+                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30">{provider === 'deapi' ? '5' : '4'}. Custom Settings</label>
                                             <img src="/logo.png" alt="XIP AI" className="h-4 w-auto opacity-30" />
                                         </div>
                                         <div className="relative group">
@@ -575,7 +575,7 @@ export default function DashboardPage() {
                                                 value={prompt}
                                                 onChange={(e) => setPrompt(e.target.value)}
                                                 className="w-full h-40 bg-white/50 backdrop-blur-sm border border-blue-100 rounded-[2.5rem] p-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100/50 transition-all shadow-sm resize-none placeholder:text-blue-950/20 font-serif italic text-blue-950 relative z-10"
-                                                placeholder="Enter bespoke instructions for the AI..."
+                                                placeholder="Enter any special requests for the AI..."
                                             ></textarea>
                                             <div className="absolute bottom-6 right-8 text-[9px] font-black text-blue-950/20 uppercase tracking-widest z-20">
                                                 Tokens: {prompt.length}/500
@@ -588,7 +588,7 @@ export default function DashboardPage() {
                                         disabled={isGenerating || !inputImage}
                                         className="group relative w-full h-20 bg-blue-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-30 overflow-hidden shadow-2xl shadow-blue-600/10"
                                     >
-                                        <span className="relative z-10">{isGenerating ? "Synthesizing Identity..." : "Initiate Transformation"}</span>
+                                        <span className="relative z-10">{isGenerating ? "Creating Your Photo..." : "Create Photo Now"}</span>
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1500ms]"></div>
                                     </button>
 
@@ -598,7 +598,7 @@ export default function DashboardPage() {
                                 {/* Right Side: Display */}
                                 <div className="lg:col-span-6 space-y-12">
                                     <div className="space-y-6">
-                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">{provider === 'deapi' ? '6' : '5'}. Neural Render Output</label>
+                                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">{provider === 'deapi' ? '6' : '5'}. Your Final Photo</label>
                                         <div className="aspect-[3/4] glass rounded-[3rem] border-blue-100 flex items-center justify-center relative overflow-hidden group shadow-2xl shadow-blue-900/[0.03]">
                                             {isGenerating ? (
                                                 <div className="text-center space-y-10 z-10 px-12">
@@ -609,8 +609,8 @@ export default function DashboardPage() {
                                                         <div className="absolute inset-0 flex items-center justify-center font-black text-3xl text-blue-600 tracking-tighter">AI</div>
                                                     </div>
                                                     <div className="space-y-4">
-                                                        <p className="text-sm font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse">Running Neural Synthesis</p>
-                                                        <p className="text-[10px] text-blue-950/30 font-bold uppercase tracking-widest leading-relaxed">Cross-referencing weights via decentralized studio nodes...</p>
+                                                        <p className="text-sm font-black uppercase tracking-[0.5em] text-blue-600 animate-pulse">AI is Working</p>
+                                                        <p className="text-[10px] text-blue-950/30 font-bold uppercase tracking-widest leading-relaxed">Please wait while we create your photo...</p>
                                                     </div>
                                                 </div>
                                             ) : generatedImages.length > 0 ? (
@@ -621,7 +621,7 @@ export default function DashboardPage() {
                                                             onClick={() => handleDownload(generatedImages[0])}
                                                             className="flex-1 h-20 bg-blue-600 text-white rounded-3xl font-black text-xs flex items-center justify-center uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-blue-600/20"
                                                         >
-                                                            Download Masterpiece
+                                                            Download Photo
                                                         </button>
                                                         <button onClick={() => setGeneratedImages([])} className="w-20 h-20 bg-red-50 border border-red-100 text-red-500 rounded-3xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-xl shadow-red-500/10">🗑️</button>
                                                     </div>
@@ -636,8 +636,8 @@ export default function DashboardPage() {
                                                     <div className="relative z-10 space-y-6 opacity-40 group-hover:opacity-100 transition-all duration-700 group-hover:scale-110">
                                                         <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center mx-auto text-5xl group-hover:rotate-12 transition-transform shadow-lg shadow-blue-950/5 text-blue-600">✨</div>
                                                         <div className="space-y-2">
-                                                            <p className="text-xs font-black uppercase tracking-[0.4em] text-blue-950">Neural Manifestation</p>
-                                                            <p className="text-[10px] text-blue-950/30 font-bold uppercase tracking-widest leading-relaxed">Synthesis node idle. Awaiting configuration signal.</p>
+                                                            <p className="text-xs font-black uppercase tracking-[0.4em] text-blue-950">Your Photo Result</p>
+                                                            <p className="text-[10px] text-blue-950/30 font-bold uppercase tracking-widest leading-relaxed">Everything is ready. Just click Create now.</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -663,7 +663,7 @@ export default function DashboardPage() {
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
                                 <div className="space-y-2">
                                     <h1 className="text-4xl font-black tracking-tighter text-blue-950">Generation <span className="text-blue-600">Archive</span></h1>
-                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Historical Visual logs from your Neural Node</p>
+                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">All the photos you have created</p>
                                 </div>
                                 <button onClick={fetchHistory} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all">Refresh logs</button>
                             </header>
@@ -682,7 +682,7 @@ export default function DashboardPage() {
                                                     <div>
                                                         <p className="text-[9px] font-black text-white/50 uppercase tracking-widest">{item.mode} Mode</p>
                                                         <p className="text-[7px] text-blue-400 font-bold uppercase tracking-widest">
-                                                            {getCleanName('providers', item.provider)} • {item.provider === 'deapi' ? getCleanName('models', item.model) : 'Neural Sync'}
+                                                            {getCleanName('providers', item.provider)} • {item.provider === 'deapi' ? getCleanName('models', item.model) : 'Standard AI'}
                                                         </p>
                                                     </div>
                                                     <p className="text-[7px] text-white/30 font-bold">{new Date(item.timestamp).toLocaleDateString()}</p>
@@ -719,7 +719,7 @@ export default function DashboardPage() {
                             ) : (
                                 <div className="py-20 text-center space-y-6">
                                     <div className="text-5xl opacity-20">📭</div>
-                                    <p className="text-blue-950/20 font-black uppercase tracking-widest text-xs">No visual logs found in this module.</p>
+                                    <p className="text-blue-950/20 font-black uppercase tracking-widest text-xs">No photos found in your history.</p>
                                 </div>
                             )}
                         </div>
@@ -728,7 +728,7 @@ export default function DashboardPage() {
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
                                 <div className="space-y-2">
                                     <h1 className="text-4xl font-black tracking-tighter text-blue-950">Payment <span className="text-blue-600">Logs</span></h1>
-                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Transaction verification status registry</p>
+                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Check the status of your coin payments</p>
                                 </div>
                                 <button onClick={fetchUserPayments} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all">Update logs</button>
                             </header>
@@ -743,7 +743,7 @@ export default function DashboardPage() {
                                         <table className="w-full text-left">
                                             <thead className="bg-blue-50/50 border-b border-blue-50">
                                                 <tr>
-                                                    <th className="p-6 text-[10px] font-black uppercase tracking-widest text-blue-950/40">Module Packet</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-widest text-blue-950/40">Coins Pack</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-widest text-blue-950/40">Value</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-widest text-blue-950/40">Status</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-widest text-blue-950/40 text-right">Timestamp</th>
@@ -787,7 +787,7 @@ export default function DashboardPage() {
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
                                 <div className="space-y-2">
                                     <h1 className="text-4xl font-black tracking-tighter text-blue-950">Billing <span className="text-blue-600">& Refill</span></h1>
-                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Purchase coins to unlock advanced neural modes</p>
+                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Buy coins to create more photos</p>
                                 </div>
                                 {selectedPackage && (
                                     <button onClick={() => setSelectedPackage(null)} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all">← Back to Plans</button>
@@ -835,7 +835,7 @@ export default function DashboardPage() {
                                                     {pack.features.map((feature, i) => (
                                                         <li key={i} className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider opacity-80">
                                                             <span className="w-1 h-1 rounded-full bg-current"></span>
-                                                            {feature}
+                                                            {feature.replace('Credits', 'Photos').replace('Queue', 'Speed').replace('Generation', 'Speed')}
                                                         </li>
                                                     ))}
                                                 </ul>
@@ -900,7 +900,7 @@ export default function DashboardPage() {
                                             type="submit"
                                             className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-600/10"
                                         >
-                                            {isUploading ? "Verifying Transaction..." : "Submit Payment"}
+                                            {isUploading ? "Verifying Payment..." : "Submit Payment"}
                                         </button>
                                     </form>
                                 </div>

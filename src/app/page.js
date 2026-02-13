@@ -7,20 +7,20 @@ import { useRouter } from 'next/navigation';
 const slides = [
   {
     image: "/images/slider-1.png",
-    title: "Celestial Synthesis",
-    subtitle: "Define the Future of Realism",
-    tag: "Flux Architecture"
+    title: "Amazing AI Photos",
+    subtitle: "Real photos created by AI",
+    tag: "Smart AI"
   },
   {
     image: "/images/slider-2.png",
-    title: "Pure Aesthetics",
-    subtitle: "Unmatched Identity Preservation",
-    tag: "Pro Edition"
+    title: "Beautiful Designs",
+    subtitle: "Keep your look exactly the same",
+    tag: "Best Quality"
   },
   {
     image: "/images/slider-3.png",
-    title: "Infinite Detail",
-    subtitle: "8K Neural Upscaling Standard",
+    title: "Super Clear",
+    subtitle: "High Quality 8K Photos",
     tag: "Ultra HD"
   }
 ];
@@ -150,22 +150,22 @@ export default function Home() {
               <div className="flex gap-4 md:gap-6">
                 <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-lg md:text-xl shadow-lg">1</div>
                 <div>
-                  <h3 className="text-lg md:text-xl font-bold text-blue-950 mb-1 md:mb-2">Input Prompt</h3>
-                  <p className="text-blue-900/60 leading-relaxed font-medium text-sm md:text-base">Describe your vision with simple text. Our AI handles the semantic complexity.</p>
+                  <h3 className="text-lg md:text-xl font-bold text-blue-950 mb-1 md:mb-2">Write Instructions</h3>
+                  <p className="text-blue-900/60 leading-relaxed font-medium text-sm md:text-base">Just type what you want to see, and our AI will create it for you.</p>
                 </div>
               </div>
               <div className="flex gap-4 md:gap-6">
                 <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-2xl bg-white border-2 border-blue-100 text-blue-600 flex items-center justify-center font-black text-lg md:text-xl">2</div>
                 <div>
-                  <h3 className="text-lg md:text-xl font-bold text-blue-950 mb-1 md:mb-2">Select Mode</h3>
-                  <p className="text-blue-900/60 leading-relaxed font-medium text-sm md:text-base">Choose from Bikini, Nude, or Hot modes tailored for specific artistic goals.</p>
+                  <h3 className="text-lg md:text-xl font-bold text-blue-950 mb-1 md:mb-2">Select Style</h3>
+                  <p className="text-blue-900/60 leading-relaxed font-medium text-sm md:text-base">Choose the style you like for your photos instantly.</p>
                 </div>
               </div>
               <div className="flex gap-4 md:gap-6">
                 <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-2xl bg-white border-2 border-blue-100 text-blue-600 flex items-center justify-center font-black text-lg md:text-xl">3</div>
                 <div>
-                  <h3 className="text-lg md:text-xl font-bold text-blue-950 mb-1 md:mb-2">Download 8K</h3>
-                  <p className="text-blue-900/60 leading-relaxed font-medium text-sm md:text-base">Instant generation with one-click high-resolution master output.</p>
+                  <h3 className="text-lg md:text-xl font-bold text-blue-950 mb-1 md:mb-2">Save in 8K</h3>
+                  <p className="text-blue-900/60 leading-relaxed font-medium text-sm md:text-base">Get high quality photos instantly with one simple click.</p>
                 </div>
               </div>
             </div>
@@ -198,16 +198,16 @@ export default function Home() {
       < section className="w-full py-24 md:py-40 px-6 bg-blue-50/50" >
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16 md:mb-24 space-y-4">
-            <h2 className="text-4xl md:text-7xl font-black text-blue-950 tracking-tighter">Elite <span className="text-blue-600">Features</span></h2>
-            <p className="text-blue-900/50 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs">Powered by H100 GPU Clusters</p>
+            <h2 className="text-4xl md:text-7xl font-black text-blue-950 tracking-tighter">Best <span className="text-blue-600">Features</span></h2>
+            <p className="text-blue-900/50 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs">Powered by Super Fast AI</p>
           </div>
 
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 auto-rows-[250px] md:auto-rows-[300px]">
             <div className="sm:col-span-2 glass rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-12 flex flex-col justify-end border-white shadow-xl hover:shadow-2xl transition-all group overflow-hidden relative">
               <div className="absolute top-10 right-10 w-40 h-40 bg-blue-600/5 rounded-full blur-3xl group-hover:bg-blue-600/10 transition-all"></div>
               <div className="space-y-4 relative z-10">
-                <h3 className="text-2xl md:text-3xl font-black text-blue-950 tracking-tight">Dynamic Scaling</h3>
-                <p className="text-blue-900/60 leading-relaxed max-w-sm text-sm md:text-base">Infinite resolution scaling without losing structural fidelity or skin texture.</p>
+                <h3 className="text-2xl md:text-3xl font-black text-blue-950 tracking-tight">Super Resolution</h3>
+                <p className="text-blue-900/60 leading-relaxed max-w-sm text-sm md:text-base">Make photos bigger and clearer without losing any detail.</p>
               </div>
             </div>
 
@@ -229,7 +229,7 @@ export default function Home() {
 
             <div className="glass rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-12 flex flex-col justify-center gap-6 border-white shadow-xl sm:col-span-2 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-transparent"></div>
-              <h3 className="text-2xl md:text-3xl font-black text-blue-950 relative z-10">Neural Fidelity</h3>
+              <h3 className="text-2xl md:text-3xl font-black text-blue-950 relative z-10">Photo Quality</h3>
               <div className="flex gap-2 relative z-10">
                 {[60, 40, 85, 50, 75, 42].map((height, i) => (
                   <div key={i} className="h-20 md:h-24 w-4 bg-blue-600/10 rounded-full overflow-hidden">
@@ -241,8 +241,8 @@ export default function Home() {
 
             <div className="sm:col-span-2 glass rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between border-white shadow-xl group gap-6 overflow-hidden">
               <div className="relative z-10">
-                <h3 className="text-2xl md:text-3xl font-black text-blue-950 tracking-tight mb-2">Identity Vault</h3>
-                <p className="text-blue-900/60 max-w-xs text-sm md:text-base">Preserve character consistency across sessions with custom LoRA weights.</p>
+                <h3 className="text-2xl md:text-3xl font-black text-blue-950 tracking-tight mb-2">Save Your Style</h3>
+                <p className="text-blue-900/60 max-w-xs text-sm md:text-base">Keep your face and style exactly the same in every photo you create.</p>
               </div>
               <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0 group">
                 <div className="absolute inset-0 rounded-full border-4 border-dashed border-blue-200 animate-spin-slow"></div>

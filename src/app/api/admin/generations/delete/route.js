@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase as adminDb } from "@/lib/supabase";
-import { getAuthenticatedUser } from "@/lib/auth";
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export async function POST(req) {
     try {
