@@ -699,22 +699,33 @@ export default function AdminDashboard() {
                                         {activeTab === 'payments' && (
                                             <>
                                                 <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <h3 className="font-bold text-blue-950 text-sm">{item.userEmail}</h3>
-                                                        <p className="text-[9px] text-blue-400 font-bold mt-1 uppercase tracking-wider">{item.method}</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-bold text-blue-950 text-sm break-all">{item.userEmail}</h3>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <p className="text-[9px] text-blue-400 font-bold uppercase tracking-wider">{item.method}</p>
+                                                            <span className="text-[8px] text-blue-950/30 font-bold">• {new Date(item.timestamp).toLocaleDateString()}</span>
+                                                        </div>
                                                     </div>
-                                                    <span className="px-3 py-1 bg-green-50 text-green-600 font-black text-[10px] rounded-lg">Rs {item.amount}</span>
+                                                    <span className="px-3 py-1 bg-green-50 text-green-600 font-black text-[10px] rounded-lg shrink-0">Rs {item.amount}</span>
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.package === 'nude' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600'}`}>
                                                         {item.package}
                                                     </span>
+                                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.status === 'approved' ? 'bg-green-50 text-green-600' :
+                                                            item.status === 'rejected' ? 'bg-red-50 text-red-600' :
+                                                                'bg-yellow-50 text-yellow-600'
+                                                        }`}>
+                                                        {item.status}
+                                                    </span>
                                                     <a href={item.proof_url} target="_blank" rel="noopener noreferrer" className="px-3 py-1 bg-gray-50 text-gray-600 rounded-lg text-[9px] font-black uppercase tracking-widest">Proof ↗</a>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2 pt-2">
-                                                    <button onClick={() => handleAction(item.id, 'approve')} className="py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">Approve</button>
-                                                    <button onClick={() => handleAction(item.id, 'reject')} className="py-3 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest">Reject</button>
-                                                </div>
+                                                {item.status === 'pending' && (
+                                                    <div className="grid grid-cols-2 gap-2 pt-2">
+                                                        <button onClick={() => handleAction(item.id, 'approve')} className="py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">✓ Approve</button>
+                                                        <button onClick={() => handleAction(item.id, 'reject')} className="py-3 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">✕ Reject</button>
+                                                    </div>
+                                                )}
                                             </>
                                         )}
 
@@ -722,9 +733,12 @@ export default function AdminDashboard() {
                                         {activeTab === 'users' && (
                                             <>
                                                 <div className="flex justify-between items-start">
-                                                    <div>
+                                                    <div className="flex-1 min-w-0">
                                                         <h3 className="font-bold text-blue-950 text-sm break-all">{item.email}</h3>
-                                                        <span className={`mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${item.role === 'admin' ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-500'}`}>{item.role}</span>
+                                                        <div className="flex items-center gap-2 mt-2">
+                                                            <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${item.role === 'admin' ? 'bg-red-50 text-red-500' : item.role === 'banned' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'}`}>{item.role}</span>
+                                                            <span className="text-[8px] text-blue-400 font-bold">Joined {new Date(item.created_at).toLocaleDateString()}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center justify-between bg-blue-50/50 p-3 rounded-2xl">
@@ -733,6 +747,29 @@ export default function AdminDashboard() {
                                                         <span className="font-black text-blue-950">{item.coins} Coins</span>
                                                         <button onClick={() => handleUpdateCoins(item.id, item.coins)} className="w-6 h-6 flex items-center justify-center bg-white rounded-full text-blue-600 shadow-sm">✏️</button>
                                                     </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 pt-3">
+                                                    <button
+                                                        onClick={() => fetchUserProfile(item.id)}
+                                                        className="py-3 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-1"
+                                                    >
+                                                        👁️ View Profile
+                                                    </button>
+                                                    {item.role === 'banned' ? (
+                                                        <button
+                                                            onClick={() => handleUserAction(item.id, 'unban')}
+                                                            className="py-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all flex items-center justify-center gap-1"
+                                                        >
+                                                            🔓 Unban
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleUserAction(item.id, 'ban')}
+                                                            className="py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-1"
+                                                        >
+                                                            🚫 Ban User
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </>
                                         )}
@@ -769,11 +806,24 @@ export default function AdminDashboard() {
                                                 <div className="p-3 bg-blue-50/30 rounded-xl text-xs text-blue-950 italic line-clamp-3">
                                                     "{item.prompt}"
                                                 </div>
-                                                <div className="flex justify-between items-center pt-2">
-                                                    <span className="text-[9px] font-bold text-blue-950/20 uppercase tracking-widest">
-                                                        {new Date(item.created_at || item.timestamp).toLocaleString()}
-                                                    </span>
-                                                    <a href={item.image_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-black text-[10px] uppercase tracking-widest underline decoration-blue-200 underline-offset-4">Open ↗</a>
+                                                <div className="text-[9px] font-bold text-blue-950/20 uppercase tracking-widest">
+                                                    {new Date(item.created_at || item.timestamp).toLocaleString()}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                                    <a
+                                                        href={item.image_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="py-3 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-1"
+                                                    >
+                                                        📂 Open Full
+                                                    </a>
+                                                    <button
+                                                        onClick={() => handleDeleteGeneration(item.id)}
+                                                        className="py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-1"
+                                                    >
+                                                        🗑️ Delete
+                                                    </button>
                                                 </div>
                                             </>
                                         )}
