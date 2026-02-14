@@ -1,23 +1,23 @@
 import sharp from "sharp";
 
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(STRICT IDENTITY AND POSE PRESERVATION:2.5), (MAINTAIN EXACT ORIGINAL BODY SILHOUETTE:2.0), (LOCK ALL HEAD AND FACIAL FEATURES:2.0).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE SKIN RECOVERY:1.8), (NATURAL SKIN TEXTURE:1.8), (REALISTIC ANATOMY MATCHING ORIGINAL POSE:1.9), (DETAILED REALISTIC SKIN WHERE CLOTHING WAS REMOVED:1.9).";
-    const masterpiece_enhancer = "masterpiece, (8k UHD raw photo:1.3), ultra-detailed, (realistic skin pores:1.4), cinematic lighting, RAW photography.";
+    const identity_preservation = "(1:1 ABSOLUTE FACE MATCH:2.5), (STRICT IDENTITY AND POSE PRESERVATION:2.5), (ZERO PIXEL CHANGE TO HEAD AND FACE:2.5), (COPY-PASTE ORIGINAL FACE AND HAIR:2.0).";
+    const anatomic_realism = "(BIOLOGICALLY ACCURATE SKIN RECOVERY:1.9), (ULTRA-REALISTIC NATURAL SKIN TEXTURE:1.9), (SUB-DERMAL SCATTERING:1.5), (MICRO-HAIRS ON SKIN:1.3), (NATURAL SKIN OIL SHEEN:1.3), (REALISTIC ANATOMY MATCHING ORIGINAL POSE:1.9), (MATCH ORIGINAL SKIN TONE:1.8).";
+    const masterpiece_enhancer = "masterpiece, (8k UHD raw photo:1.3), ultra-detailed photographic realism, (realistic skin pores:1.4), (seamless skin integration:1.6), (natural shadows:1.5), (ambient occlusion on skin:1.4), (MATCH ORIGINAL FILM GRAIN:1.4), (COLOR TEMPERATURE MATCH:1.4), cinematic RAW photography.";
     const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime.";
 
     let finalPrompt = "";
     let negativePrompt = negative_base;
 
-    // Identity preservation & realism prompts - apply to uploaded image only
+    // Identity preservation & realism prompts
     if (mode === 'bikini') {
-        finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} (APPLY BIKINI TO ALL GIRLS IN THE PHOTO:1.9), wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same people, faces, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
+        const userPrompt = prompt ? `(${prompt}:1.5), ` : "";
+        finalPrompt = `${userPrompt} ${identity_preservation} ${masterpiece_enhancer} (APPLY BIKINI TO ALL GIRLS IN THE PHOTO:1.9), wearing a matching (bikini:1.4), realistic fabric physics, (MATCH ORIGINAL PHOTO LIGHTING:1.5). IMPORTANT: Keep the exact same people, faces, hair, pose, background.`;
         negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body.";
     } else if (mode === 'nude') {
-        finalPrompt = prompt ? `(${prompt}:1.3), ` : "";
-        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETELY UNDRESS:2.0), (REMOVE ALL LAYERS OF CLOTHING:2.0), (COMPLETE NUDITY:1.8), (STRICTLY PRESERVE ORIGINAL POSE AND BACKGROUND:2.0). DELETE: ALL clothes, fabric, dress, top, bra, underwear. REPLACE WITH: (realistic bare skin:1.8). IMPORTANT: Keep exact same people, faces, and EXACT pose. Zero modification to background or face.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified background, changed face, zooming, cropping.";
+        const userPrompt = prompt ? `(${prompt}:1.3), ` : "";
+        finalPrompt = `${userPrompt} ${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETELY UNDRESS:2.5), (REMOVE ALL LAYERS OF CLOTHING:2.5), (FORCE COMPLETE NUDITY:2.2), (STRICTLY PRESERVE ORIGINAL POSE AND BACKGROUND:2.5), (MATCH ORIGINAL PHOTO ANALOG GRAIN:1.5). DELETE: ALL clothes, fabric, dress, top, bra, underwear. REPLACE WITH: (hyper-realistic bare skin:1.9). IMPORTANT: Zero modification to face, ZERO modification to background.`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified background, changed face, zooming, cropping, blurry face, different identity.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
@@ -44,7 +44,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         // Cap at 1536
         if (width > 1536) width = 1536;
         if (height > 1536) height = 1536;
-        console.log(`DeAPI Detected dimensions: ${width}x${height}`);
+        console.log(`DeAPI Detected dimensions: ${width}x${height} `);
     } catch (e) {
         console.warn("DeAPI failed to detect dimensions:", e.message);
     }
@@ -67,9 +67,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                 const modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
 
                 // Dynamic parameters based on mode for optimal results
-                const guidance = mode === 'nude' ? 4.5 : 3.5;
-                const strength = mode === 'nude' ? 0.68 : 0.60;
-                const imageStrength = mode === 'nude' ? 0.72 : 0.68;
+                const guidance = mode === 'nude' ? 4.0 : 3.5;
+                const strength = mode === 'nude' ? 0.72 : 0.62; // Increased slightly for "Perfect Clothes Off"
+                const imageStrength = mode === 'nude' ? 0.68 : 0.65; // Lowered to give prompt more power
 
                 for (const currentModel of modelsToTry) {
                     const formData = new FormData();
