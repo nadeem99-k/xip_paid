@@ -1,5 +1,7 @@
+import sharp from "sharp";
+
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(STRICT IDENTITY AND POSE PRESERVATION:2.0), (MAINTAIN EXACT ORIGINAL BODY SILHOUETTE:2.0), (KEEP ORIGINAL FACES AND HAIR:1.9).";
+    const identity_preservation = "(STRICT IDENTITY AND POSE PRESERVATION:2.5), (MAINTAIN EXACT ORIGINAL BODY SILHOUETTE:2.0), (LOCK ALL HEAD AND FACIAL FEATURES:2.0).";
     const anatomic_realism = "(BIOLOGICALLY ACCURATE SKIN RECOVERY:1.8), (NATURAL SKIN TEXTURE:1.8), (REALISTIC ANATOMY MATCHING ORIGINAL POSE:1.9), (DETAILED REALISTIC SKIN WHERE CLOTHING WAS REMOVED:1.9).";
     const masterpiece_enhancer = "masterpiece, (8k UHD raw photo:1.3), ultra-detailed, (realistic skin pores:1.4), cinematic lighting, RAW photography.";
     const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime.";
@@ -14,8 +16,8 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.3), ` : "";
-        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (UNCLOTHE AND REMOVE CLOTHING ONLY:1.9), (COMPLETE NUDITY:1.8), (STRICTLY PRESERVE ORIGINAL POSE AND BACKGROUND:2.0). DELETE: ALL clothes, dress, top, bra, underwear. REPLACE WITH: (realistic bare skin:1.8). IMPORTANT: Keep exact same people, faces, and EXACT pose. Zero modification to background or face.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified background, changed face.";
+        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETELY UNDRESS:2.0), (REMOVE ALL LAYERS OF CLOTHING:2.0), (COMPLETE NUDITY:1.8), (STRICTLY PRESERVE ORIGINAL POSE AND BACKGROUND:2.0). DELETE: ALL clothes, fabric, dress, top, bra, underwear. REPLACE WITH: (realistic bare skin:1.8). IMPORTANT: Keep exact same people, faces, and EXACT pose. Zero modification to background or face.`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified background, changed face, zooming, cropping.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
@@ -28,6 +30,24 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     const maxRetries = 2; // Try the whole set of keys twice
 
     const blob = new Blob([initImgBuffer], { type: 'image/jpeg' });
+
+    // Detect Original Dimensions to fix "Zooming"
+    let width = 1024;
+    let height = 1024;
+    try {
+        const metadata = await sharp(initImgBuffer).metadata();
+        width = metadata.width;
+        height = metadata.height;
+        // Normalize to multiples of 32
+        width = Math.floor(width / 32) * 32;
+        height = Math.floor(height / 32) * 32;
+        // Cap at 1536
+        if (width > 1536) width = 1536;
+        if (height > 1536) height = 1536;
+        console.log(`DeAPI Detected dimensions: ${width}x${height}`);
+    } catch (e) {
+        console.warn("DeAPI failed to detect dimensions:", e.message);
+    }
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
@@ -58,8 +78,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                     formData.append('negative_prompt', negativePrompt);
                     formData.append('model', currentModel);
                     formData.append('steps', '4');
-                    formData.append('width', '1024');
-                    formData.append('height', '1024');
+                    // Dynamic Resolution to fix "Zooming"
+                    formData.append('width', width.toString());
+                    formData.append('height', height.toString());
                     formData.append('guidance_scale', guidance.toString());
                     formData.append('strength', strength.toString());
                     formData.append('image_strength', imageStrength.toString())

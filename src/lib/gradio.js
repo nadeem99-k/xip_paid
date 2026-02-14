@@ -1,4 +1,5 @@
 import { Client, handle_file } from "@gradio/client";
+import sharp from "sharp";
 // Trigger re-compilation
 
 // Multi-Space Racing Pool (Ported from webhook.js)
@@ -24,23 +25,26 @@ const SAM_POOL = [
 ];
 
 async function generateMask(initImgBuffer) {
-    console.log("Generating automatic mask for clothes...");
+    console.log("Generating automatic mask for clothes (Protecting Face)...");
     for (const space of SAM_POOL) {
         try {
             const client = await Client.connect(space.id);
             const imageFile = await handle_file(initImgBuffer);
-            // Grounded-SAM typically takes (image, prompt, task, threshold, text_threshold)
+
+            // Step 1: Detect Clothes and Face
+            // Using Grounded-SAM to identify specific areas
             const result = await client.predict("/predict", [
                 imageFile,
-                "clothes, dress, bikini, outfit, fabric", // Detection prompt
-                "Segment Everything", // Task
-                0.3, // Box threshold
-                0.25 // Text threshold
+                "clothes, dress, bikini, fabric, head, face, hair", // Detection prompt
+                "Segment Everything",
+                0.3,
+                0.25
             ]);
 
             if (result && result.data && result.data.length > 0) {
-                // Return the mask file (usually the second or third output)
-                // SAM outputs: [labeled_image, mask_image, etc]
+                // Return the mask file. 
+                // We logic: Inpaint Flux needs the WHITE area as the area to CHANGE.
+                // So we want CLOTHES = WHITE, and FACE = BLACK.
                 const maskUrl = result.data.find(item => item && (item.url || item.path) && item.label === "mask") || result.data[1];
                 if (maskUrl) {
                     let url = maskUrl.url || maskUrl.path;
@@ -84,6 +88,26 @@ export async function generateImage(prompt, initImgBuffer, mode) {
     const batchSize = 3;
     const allErrors = [];
 
+    // Detect Original Dimensions to fix "Zooming"
+    let width = 1024;
+    let height = 1024;
+    if (initImgBuffer) {
+        try {
+            const metadata = await sharp(initImgBuffer).metadata();
+            width = metadata.width;
+            height = metadata.height;
+            // Normalize to multiples of 8 or 16 for AI models
+            width = Math.floor(width / 32) * 32;
+            height = Math.floor(height / 32) * 32;
+            // Cap at 1536 to prevent memory issues
+            if (width > 1536) width = 1536;
+            if (height > 1536) height = 1536;
+            console.log(`Detected dimensions: ${width}x${height}`);
+        } catch (e) {
+            console.warn("Failed to detect image dimensions:", e.message);
+        }
+    }
+
     // Attempt Mask Generation for "Pixel Perfect" results
     let maskUrl = null;
     if (initImgBuffer && (mode === 'nude' || mode === 'bikini')) {
@@ -106,29 +130,41 @@ export async function generateImage(prompt, initImgBuffer, mode) {
 
                     let result;
                     if (maskUrl) {
-                        // INPAINTING WORKFLOW
-                        const inpaintSpace = shuffledInpaint[0]; // Try the best available inpaint space
-                        const inpaintClient = await Client.connect(inpaintSpace.id);
+                        // INPAINTING WORKFLOW with Retry
+                        for (const inpaintSpace of shuffledInpaint) {
+                            try {
+                                const inpaintClient = await Client.connect(inpaintSpace.id);
+                                // Flux Inpainting format: [ {background, layers, composite}, prompt, neg_prompt, strength, match_colors, width, height, seed, steps ]
+                                result = await inpaintClient.predict("/predict", [
+                                    {
+                                        background: imageFile,
+                                        layers: [{ path: maskUrl }],
+                                        composite: null
+                                    },
+                                    finalPrompt,
+                                    negativePrompt,
+                                    0.70, // Increased strength for "Perfect Clothes Off"
+                                    true, // Match original colors
+                                    width,
+                                    height,
+                                    Math.floor(Math.random() * 2147483647),
+                                    8
+                                ]);
+                                if (result) break;
+                            } catch (inpaintErr) {
+                                console.warn(`Inpaint Space ${inpaintSpace.name} failed:`, inpaintErr.message);
+                                continue;
+                            }
+                        }
+                    }
 
-                        // Flux Inpainting format: [ {background, layers, composite}, prompt, neg_prompt, strength, match_colors ]
-                        result = await inpaintClient.predict("/predict", [
-                            {
-                                background: imageFile,
-                                layers: [{ path: maskUrl }],
-                                composite: null
-                            },
-                            finalPrompt,
-                            negativePrompt,
-                            0.68, // Optimal inpainting strength
-                            true  // Match original colors
-                        ]);
-                    } else if (space.type === "flux2_klein") {
+                    if (!result && space.type === "flux2_klein") {
                         result = await client.predict("/generate", [
                             finalPrompt, imageFile ? [{ image: imageFile }] : [],
                             "Distilled (4 steps)", Math.floor(Math.random() * 2147483647),
                             true, 1024, 1024, 8, 2.7, false
                         ]);
-                    } else if (space.type === "flux1_schnell" || space.type === "sdxl_turbo") {
+                    } else if (!result && (space.type === "flux1_schnell" || space.type === "sdxl_turbo")) {
                         const strength = mode === 'nude' ? 0.68 : 0.60;
                         const payload = [imageFile, finalPrompt, strength, Math.floor(Math.random() * 2147483647), 8];
 
