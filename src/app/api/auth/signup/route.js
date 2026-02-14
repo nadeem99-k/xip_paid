@@ -46,12 +46,23 @@ export async function POST(req) {
             const { cookies } = await import('next/headers');
             const cookieStore = await cookies();
             const referralCode = cookieStore.get("referral_code")?.value;
+
             if (referralCode) {
+                console.log(`[Signup API] Detected referral code: ${referralCode} for ${email}`);
                 const { processReferral } = await import("@/lib/auth-helpers");
                 await processReferral(email, referralCode);
+
+                // Optional: Give the NEW user a small bonus for being referred (e.g., +2 coins)
+                const { error: bonusError } = await supabase
+                    .from("users")
+                    .update({ coins: 5 }) // Base 3 + 2 Bonus
+                    .eq("email", email);
+
+                if (bonusError) console.warn("[Signup API] Failed to award referred user bonus:", bonusError.message);
+                else console.log(`[Signup API] Awarded 2 bonus coins to referred user: ${email}`);
             }
         } catch (cookieErr) {
-            console.warn("Could not process referral in manual signup:", cookieErr.message);
+            console.warn("[Signup API] Could not process referral in manual signup:", cookieErr.message);
         }
 
         return NextResponse.json({ success: true, message: "User created" }, { status: 201 });

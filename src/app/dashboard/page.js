@@ -814,126 +814,185 @@ export default function DashboardPage() {
                             )}
                         </div>
                     ) : activeTab === 'referral' ? (
-                        <div className="space-y-12">
-                            <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
+                        <div className="space-y-12 pb-10">
+                            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-blue-50">
                                 <div className="space-y-2">
-                                    <h1 className="text-4xl font-black tracking-tighter text-blue-950">Referral <span className="text-blue-600">Rewards</span></h1>
-                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Share your code & earn free coins</p>
+                                    <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-blue-950">Referral <span className="text-blue-600">Program</span></h1>
+                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Invite friends & earn premium credits</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="px-5 py-2.5 bg-blue-50 text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                                        Active Rewards
+                                    </div>
                                 </div>
                             </header>
 
-                            <div className="grid md:grid-cols-2 gap-12">
-                                <div className="space-y-8">
-                                    <div className="p-10 bg-blue-600 rounded-[3rem] text-white space-y-8 shadow-2xl shadow-blue-600/20">
-                                        <div className="space-y-2">
-                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Your Referral System</p>
-                                            <h3 className="text-3xl font-black tracking-tighter">Invite friends, get 10 coins.</h3>
-                                        </div>
-                                        <p className="text-sm font-medium text-blue-50 leading-relaxed opacity-80">
-                                            For every 3 people who sign up using your link, we'll automatically add 10 coins to your account.
-                                        </p>
-                                        <div className="space-y-4 pt-4">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Your Unique Link</label>
-                                            <div className="flex gap-2">
-                                                <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 text-xs font-bold truncate">
-                                                    {displayUser?.referral_code ? (
-                                                        `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`
-                                                    ) : (
-                                                        <span className="opacity-40 italic">Generating your link...</span>
-                                                    )}
+                            <div className="grid lg:grid-cols-12 gap-8 md:gap-12">
+                                {/* Left Side: Sharing Card */}
+                                <div className="lg:col-span-7 space-y-8">
+                                    <div className="relative group overflow-hidden p-8 md:p-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-[3rem] text-white shadow-2xl shadow-blue-600/20">
+                                        {/* Decorative elements */}
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/10 transition-all duration-700"></div>
+                                        <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-400/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+
+                                        <div className="relative z-10 space-y-8">
+                                            <div className="space-y-3">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest text-blue-50">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                                                    Earn 10 Coins
                                                 </div>
-                                                <button
-                                                    onClick={() => {
-                                                        if (displayUser?.referral_code) {
-                                                            handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`, 'ref');
-                                                        }
-                                                    }}
-                                                    disabled={!displayUser?.referral_code}
-                                                    className="px-6 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center justify-center min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {copiedField === 'ref' ? 'Copied!' : 'Copy'}
-                                                </button>
+                                                <h3 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight">
+                                                    Share your link,<br className="hidden md:block" /> get <span className="text-blue-100">Free Credits.</span>
+                                                </h3>
+                                                <p className="text-sm md:text-base font-medium text-blue-50/80 leading-relaxed max-w-md">
+                                                    Refer 3 friends and unlock 10 premium coins instantly. Your friends also get 2 bonus coins on signup!
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 ml-1">Your Personal Invitation Link</label>
+                                                <div className="flex flex-col sm:flex-row gap-3">
+                                                    <div className="flex-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold truncate flex items-center">
+                                                        {displayUser?.referral_code ? (
+                                                            `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`
+                                                        ) : (
+                                                            <span className="opacity-40 italic">Initializing link...</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (displayUser?.referral_code) {
+                                                                    handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`, 'ref');
+                                                                }
+                                                            }}
+                                                            disabled={!displayUser?.referral_code}
+                                                            className="flex-1 sm:flex-none px-8 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white shadow-lg active:scale-95 transition-all flex items-center justify-center min-w-[120px] disabled:opacity-50"
+                                                        >
+                                                            {copiedField === 'ref' ? 'Copied' : 'Copy'}
+                                                        </button>
+                                                        {typeof navigator !== 'undefined' && navigator.share && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    navigator.share({
+                                                                        title: 'XIP AI - Premium Generation',
+                                                                        text: 'Join me on XIP AI and get bonus credits!',
+                                                                        url: `${window.location.origin}?ref=${displayUser.referral_code}`
+                                                                    }).catch(() => { });
+                                                                }}
+                                                                className="w-14 h-14 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center hover:bg-white/30 transition-all border border-white/10"
+                                                            >
+                                                                📤
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="p-8 border border-blue-50 rounded-[2.5rem] bg-white space-y-4">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-950/20">Total Referrals</p>
-                                            <p className="text-3xl font-black tracking-tighter text-blue-950">{displayUser?.referral_count || 0}</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div className="p-8 border border-blue-50 rounded-[2.5rem] bg-white group hover:border-blue-200 transition-all">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-900/30">Total Referrals</p>
+                                                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">👥</div>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <p className="text-4xl font-black tracking-tighter text-blue-950">{displayUser?.referral_count || 0}</p>
+                                                <span className="text-[10px] font-black text-blue-600 uppercase">Users</span>
+                                            </div>
                                         </div>
-                                        <div className="p-8 border border-blue-50 rounded-[2.5rem] bg-white space-y-4">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-950/20">Rewards Earned</p>
-                                            <p className="text-3xl font-black tracking-tighter text-blue-950">{Math.floor((displayUser?.referral_rewarded_count || 0) / 3) * 10} <span className="text-[10px] text-blue-600 block">COINS</span></p>
+                                        <div className="p-8 border border-blue-50 rounded-[2.5rem] bg-white group hover:border-blue-200 transition-all">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-900/30">Rewards Earned</p>
+                                                <div className="w-8 h-8 rounded-xl bg-yellow-50 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">🪙</div>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <p className="text-4xl font-black tracking-tighter text-blue-950">{Math.floor((displayUser?.referral_rewarded_count || 0) / 3) * 10}</p>
+                                                <span className="text-[10px] font-black text-blue-600 uppercase">Total Coins</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-8">
-                                    <div className="p-10 border border-blue-50 rounded-[3rem] bg-blue-50/30 space-y-8">
-                                        <div className="space-y-2">
-                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30">Next Milestone</p>
-                                            <div className="flex justify-between items-end">
+                                {/* Right Side: Progress & History */}
+                                <div className="lg:col-span-5 space-y-8">
+                                    <div className="p-10 border border-blue-50 rounded-[3rem] bg-blue-50/20 backdrop-blur-sm space-y-8">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/40">Progress to Reward</p>
                                                 <h3 className="text-3xl font-black tracking-tighter text-blue-950">
-                                                    {3 - ((displayUser?.referral_count || 0) % 3)} <span className="text-blue-600">Left</span>
+                                                    {(displayUser?.referral_count || 0) % 3} <span className="text-blue-600">/ 3</span>
                                                 </h3>
-                                                <p className="text-[10px] font-black text-blue-900/40 uppercase mb-2">Next Reward: 10 Coins</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-100/50 px-3 py-1 rounded-full border border-blue-100">
+                                                    Next: 10 Coins
+                                                </div>
                                             </div>
                                         </div>
 
                                         <div className="space-y-4">
-                                            <div className="h-4 bg-white rounded-full overflow-hidden border border-blue-100 p-1">
+                                            <div className="h-5 bg-white rounded-full overflow-hidden border border-blue-100 p-1.5 shadow-inner">
                                                 <div
-                                                    className="h-full bg-blue-600 rounded-full transition-all duration-1000"
-                                                    style={{ width: `${((displayUser?.referral_count || 0) % 3) / 3 * 100}%` }}
+                                                    className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-[1500ms] shadow-lg"
+                                                    style={{ width: `${Math.max(5, ((displayUser?.referral_count || 0) % 3) / 3 * 100)}%` }}
                                                 ></div>
                                             </div>
-                                            <div className="flex justify-between text-[8px] font-black text-blue-900/20 uppercase tracking-widest">
-                                                <span>0</span>
-                                                <span>1</span>
-                                                <span>2</span>
-                                                <span>Reward</span>
+                                            <div className="flex justify-between px-1 text-[8px] font-black text-blue-900/20 uppercase tracking-[0.2em]">
+                                                <span>Start</span>
+                                                <span className={((displayUser?.referral_count || 0) % 3) >= 1 ? 'text-blue-600' : ''}>Friend 1</span>
+                                                <span className={((displayUser?.referral_count || 0) % 3) >= 2 ? 'text-blue-600' : ''}>Friend 2</span>
+                                                <span className="text-blue-600">Reward</span>
                                             </div>
                                         </div>
 
-                                        <div className="pt-4 p-6 bg-white rounded-2xl border border-blue-50">
-                                            <div className="flex items-start gap-4">
-                                                <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center text-xl">💡</div>
-                                                <div className="space-y-1">
-                                                    <p className="text-[10px] font-black text-blue-950 uppercase tracking-widest">Pro Tip</p>
-                                                    <p className="text-[10px] text-blue-950/40 font-medium leading-relaxed">
-                                                        Share your link on Twitter or Telegram for faster results. Each successful registration gets you closer to your next 10 credits!
-                                                    </p>
-                                                </div>
+                                        <div className="bg-white/80 p-6 rounded-3xl border border-blue-50/50 flex gap-4 shadow-sm items-center">
+                                            <div className="w-12 h-12 bg-blue-600/5 rounded-2xl flex items-center justify-center text-2xl">✨</div>
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black text-blue-950 uppercase tracking-widest">Share Everywhere</p>
+                                                <p className="text-[9px] text-blue-900/40 font-bold leading-relaxed">Post your link on Telegram, WhatsApp or Twitter groups for fastest credit mining.</p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-950 to-blue-900 text-white space-y-6">
-                                        <div className="flex items-center gap-4 border-b border-white/10 pb-4">
-                                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xl">🤝</div>
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Recent Referrals</p>
-                                                <p className="text-xs font-bold">People joined using your link</p>
+                                    <div className="bg-blue-950 rounded-[3rem] p-8 md:p-10 text-white space-y-8 shadow-2xl shadow-blue-950/20">
+                                        <div className="flex items-center justify-between pb-6 border-b border-white/5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-xl">🚀</div>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Recent Activity</p>
+                                                    <p className="text-[10px] font-bold">New people joining in</p>
+                                                </div>
                                             </div>
+                                            <button onClick={fetchReferrals} className="text-[9px] font-bold text-blue-400 hover:text-blue-300 transition-colors">REFRESH</button>
                                         </div>
 
                                         {isLoadingReferrals ? (
-                                            <div className="flex justify-center py-4">
-                                                <div className="w-6 h-6 border-2 border-white/10 border-t-white rounded-full animate-spin"></div>
+                                            <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                                <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin"></div>
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Syncing database...</p>
                                             </div>
                                         ) : referrals.length > 0 ? (
-                                            <div className="space-y-4 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                                            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
                                                 {referrals.map((ref, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
-                                                        <div className="text-[10px] font-bold tracking-tight">{ref.email}</div>
-                                                        <div className="text-[8px] font-black uppercase text-white/30">{new Date(ref.timestamp).toLocaleDateString()}</div>
+                                                    <div key={idx} className="group flex justify-between items-center bg-white/5 hover:bg-white/10 p-4 rounded-2xl border border-white/5 transition-all">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-[10px] font-black text-blue-400">
+                                                                {ref.email[0].toUpperCase()}
+                                                            </div>
+                                                            <div className="text-[10px] font-bold text-white/90">{ref.email}</div>
+                                                        </div>
+                                                        <div className="text-[8px] font-black uppercase text-blue-400/50">
+                                                            {new Date(ref.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="py-4 text-center">
-                                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">No referrals yet</p>
+                                            <div className="py-16 text-center space-y-4 opacity-30">
+                                                <div className="text-4xl">💎</div>
+                                                <p className="text-[10px] font-black uppercase tracking-widest">No referrals recorded yet</p>
                                             </div>
                                         )}
                                     </div>
