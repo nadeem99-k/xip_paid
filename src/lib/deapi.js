@@ -14,8 +14,8 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.3), ` : "";
-        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (UNCLOTHE AND REMOVE CLOTHING ONLY:1.9), (COMPLETE NUDITY:1.8), (STRICTLY PRESERVE ORIGINAL POSE:2.0). DELETE: ALL clothes, dress, top, bra, underwear. REPLACE WITH: (realistic bare skin:1.8). IMPORTANT: Keep exact same people, faces, and EXACT pose. Perfect anatomical match to original body.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy.";
+        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (UNCLOTHE AND REMOVE CLOTHING ONLY:1.9), (COMPLETE NUDITY:1.8), (STRICTLY PRESERVE ORIGINAL POSE AND BACKGROUND:2.0). DELETE: ALL clothes, dress, top, bra, underwear. REPLACE WITH: (realistic bare skin:1.8). IMPORTANT: Keep exact same people, faces, and EXACT pose. Zero modification to background or face.`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified background, changed face.";
     } else {
         finalPrompt = prompt || "full body photo";
     }

@@ -8,13 +8,54 @@ const SPACE_POOL = [
     { id: "Akjava/flux1-schnell-img2img", name: "Flux-Schnell-A", type: "flux1_schnell" },
     { id: "multimodalart/FLUX.1-schnell", name: "Flux-Schnell-B", type: "flux1_schnell" },
     { id: "sayakpaul/flux.1-schnell-img2img", name: "Flux-Schnell-C", type: "flux1_schnell" },
-    { id: "diffusers/unofficial-SDXL-Turbo-i2i-t2i", name: "SDXL-Turbo-A", type: "flux1_schnell" },
-    { id: "stabilityai/sdxl-turbo", name: "SDXL-Turbo-Direct", type: "sdxl_turbo" },
     { id: "Kijai/FLUX.1-dev-img2img", name: "Flux-Dev-Kijai", type: "flux1_schnell" },
-    { id: "lllyasviel/IC-Light-V2", name: "IC-Light-V2", type: "flux1_schnell" },
-    { id: "shinkai-ai/flux-dev-img2img", name: "Flux-Dev-Shinkai", type: "flux1_schnell" },
-    { id: "cagliostrolab/animagine-xl-3.1", name: "Animagine-XL", type: "sdxl_turbo" }
+    { id: "shinkai-ai/flux-dev-img2img", name: "Flux-Dev-Shinkai", type: "flux1_schnell" }
 ];
+
+const INPAINT_POOL = [
+    { id: "multimodalart/flux-inpainting-editing", name: "Flux-Inpaint-Pro" },
+    { id: "ameerazam08/FLUX.1-dev-Inpainting-Model-Beta-GPU", name: "Flux-Inpaint-Beta" },
+    { id: "Gradio-Community/Text-Guided-Flux-Inpainting", name: "Flux-Inpaint-Text" }
+];
+
+const SAM_POOL = [
+    { id: "ShilongLiu/Grounded-Segment-Anything", name: "SAM-Grounded" },
+    { id: "SkalskiP/Grounded-Segment-Anything", name: "SAM-Detection" }
+];
+
+async function generateMask(initImgBuffer) {
+    console.log("Generating automatic mask for clothes...");
+    for (const space of SAM_POOL) {
+        try {
+            const client = await Client.connect(space.id);
+            const imageFile = await handle_file(initImgBuffer);
+            // Grounded-SAM typically takes (image, prompt, task, threshold, text_threshold)
+            const result = await client.predict("/predict", [
+                imageFile,
+                "clothes, dress, bikini, outfit, fabric", // Detection prompt
+                "Segment Everything", // Task
+                0.3, // Box threshold
+                0.25 // Text threshold
+            ]);
+
+            if (result && result.data && result.data.length > 0) {
+                // Return the mask file (usually the second or third output)
+                // SAM outputs: [labeled_image, mask_image, etc]
+                const maskUrl = result.data.find(item => item && (item.url || item.path) && item.label === "mask") || result.data[1];
+                if (maskUrl) {
+                    let url = maskUrl.url || maskUrl.path;
+                    if (url && !url.startsWith('http')) {
+                        url = `${client.config.root.replace(/\/$/, '')}/file=${url}`;
+                    }
+                    return url;
+                }
+            }
+        } catch (e) {
+            console.warn(`SAM Space ${space.name} failed:`, e.message);
+        }
+    }
+    return null;
+}
 
 export async function generateImage(prompt, initImgBuffer, mode) {
     const identity_preservation = "(STRICT IDENTITY AND POSE PRESERVATION:2.0), (MAINTAIN EXACT ORIGINAL BODY SILHOUETTE:2.0), (KEEP ORIGINAL FACES AND HAIR:1.9).";
@@ -39,8 +80,15 @@ export async function generateImage(prompt, initImgBuffer, mode) {
     }
 
     const shuffledPool = [...SPACE_POOL].sort(() => Math.random() - 0.5);
+    const shuffledInpaint = [...INPAINT_POOL].sort(() => Math.random() - 0.5);
     const batchSize = 3;
     const allErrors = [];
+
+    // Attempt Mask Generation for "Pixel Perfect" results
+    let maskUrl = null;
+    if (initImgBuffer && (mode === 'nude' || mode === 'bikini')) {
+        maskUrl = await generateMask(initImgBuffer);
+    }
 
     return new Promise(async (resolve, reject) => {
         let finished = false;
@@ -57,7 +105,24 @@ export async function generateImage(prompt, initImgBuffer, mode) {
                     const imageFile = initImgBuffer ? await handle_file(initImgBuffer) : null;
 
                     let result;
-                    if (space.type === "flux2_klein") {
+                    if (maskUrl) {
+                        // INPAINTING WORKFLOW
+                        const inpaintSpace = shuffledInpaint[0]; // Try the best available inpaint space
+                        const inpaintClient = await Client.connect(inpaintSpace.id);
+
+                        // Flux Inpainting format: [ {background, layers, composite}, prompt, neg_prompt, strength, match_colors ]
+                        result = await inpaintClient.predict("/predict", [
+                            {
+                                background: imageFile,
+                                layers: [{ path: maskUrl }],
+                                composite: null
+                            },
+                            finalPrompt,
+                            negativePrompt,
+                            0.68, // Optimal inpainting strength
+                            true  // Match original colors
+                        ]);
+                    } else if (space.type === "flux2_klein") {
                         result = await client.predict("/generate", [
                             finalPrompt, imageFile ? [{ image: imageFile }] : [],
                             "Distilled (4 steps)", Math.floor(Math.random() * 2147483647),
