@@ -81,7 +81,22 @@ export async function getAuthenticatedUser() {
         }
     } else if (!dbUser.referral_code) {
         // Migration: Ensure existing users have a referral code
-        const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        let newCode;
+        let isUnique = false;
+        let attempts = 0;
+
+        while (!isUnique && attempts < 5) {
+            newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            // Check for uniqueness
+            const { count } = await adminDb
+                .from("users")
+                .select("*", { count: 'exact', head: true })
+                .eq("referral_code", newCode);
+
+            if (count === 0) isUnique = true;
+            attempts++;
+        }
+
         console.log(`[Auth Helpers] Generating missing referral code for ${dbUser.email}: ${newCode}`);
         const { data: updatedUser, error: updateErr } = await adminDb
             .from("users")
@@ -92,6 +107,8 @@ export async function getAuthenticatedUser() {
 
         if (updateErr) {
             console.error("[Auth Helpers] Failed to update missing referral code:", updateErr.message);
+            // Even if update failed, return the generated code in the object so UI can show it
+            dbUser.referral_code = newCode;
         } else if (updatedUser) {
             dbUser = updatedUser;
         }

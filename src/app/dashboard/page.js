@@ -298,8 +298,9 @@ export default function DashboardPage() {
     }
 
     // Use `user` state for coins display if available (fetched from API), else fallback to `authUser` (from session/db hook)
-    // Note: useUser hook merges DB data, so authUser might already have coins.
-    const displayUser = user || authUser;
+    // We merge these to ensure that fields like referral_code (from profile sync) aren't lost 
+    // if the history API (which sets 'user' state) doesn't catch them immediately.
+    const displayUser = authUser ? { ...authUser, ...user } : user;
 
     const handleGenerate = async (e) => {
         if (e) e.preventDefault();
