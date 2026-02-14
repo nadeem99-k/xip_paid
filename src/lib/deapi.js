@@ -1,7 +1,7 @@
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(1:1 IDENTICAL FACE MATCH:2.0), (STRICT FACIAL PORTRAIT PRESERVATION:2.0), (MAINTAIN ORIGINAL HEAD AND HAIR:1.9), (KEEP ORIGINAL HUMAN FEATURES:1.9).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY:1.8), (NATURAL DETAILED SKIN TEXTURE:1.8), (REALISTIC BREASTS AND PINK INTIMATE AREAS:1.8), (DETAILED REALISTIC VULVA/PUSSY TEXTURE:1.9).";
-    const masterpiece_enhancer = "masterpiece, ultra-detailed photography, 8k resolution, highly realistic, skin pores, natural light, cinematic composition.";
+    const identity_preservation = "(STRICT IDENTITY PRESERVATION FOR EVERY PERSON IN IMAGE:2.0), (MAINTAIN ALL ORIGINAL FACES AND HAIR:1.9), (KEEP ALL ORIGINAL HUMAN FEATURES:1.9).";
+    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY FOR ALL SUBJECTS:1.8), (NATURAL DETAILED SKIN TEXTURE:1.8), (REALISTIC BREASTS AND PINK INTIMATE AREAS FOR EVERY GIRL:1.9), (DETAILED REALISTIC VULVA/PUSSY TEXTURE:1.9), (NATURAL SKIN FOLDS AND BODY COMPRESSION:1.6), (PHYSICS-BASED BODY SHAPES FOR SITTING/LYING POSES:1.7).";
+    const masterpiece_enhancer = "masterpiece, (8k UHD raw photo:1.3), ultra-detailed photography, highly realistic, (ultra-realistic skin pores:1.4), (subsurface scattering:1.2), (volumetric natural lighting:1.2), cinematic composition, (SEAMLESS SKIN TEXTURE IN JOINTS AND BENDS:1.5).";
     const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime.";
 
     let finalPrompt = "";
@@ -10,11 +10,11 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // Identity preservation & realism prompts - apply to uploaded image only
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same person, face, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
+        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} (APPLY BIKINI TO ALL GIRLS IN THE PHOTO:1.9), wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same people, faces, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
         negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:1.7), (REMOVE ALL CLOTHING:1.7), (FULLY NAKED:1.6), (BARE SKIN EVERYWHERE:1.6). DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments. REPLACE WITH: (flawless smooth bare skin:1.8), (completely nude body:1.7), (no clothing whatsoever:1.7). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. Uniform skin texture, spotless clear skin, soft natural lighting. IMPORTANT: Keep exact same person, face, hair, pose, background. (Perfect anatomy:1.7), flawless hands and feet. High-resolution raw photography.`;
+        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY FOR ALL SUBJECTS:1.8), (UNCLOTHE EVERY SINGLE PERSON:1.8), (REMOVE ALL CLOTHING:1.7), (FULLY NAKED:1.6), (BARE SKIN EVERYWHERE:1.6). DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments. REPLACE WITH: (flawless smooth bare skin:1.8), (completely nude body:1.7), (no clothing whatsoever:1.7). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. Uniform skin texture, spotless clear skin, soft natural lighting. IMPORTANT: Keep exact same people, faces, hair, pose, background. (Perfect anatomy:1.7), flawless hands and feet. High-resolution raw photography.`;
         negativePrompt += " clothes, dress, fabric, garments, bra, underwear, panties, covered, clothed, censored, censorship, bars, mosaic.";
     } else {
         finalPrompt = prompt || "full body photo";
