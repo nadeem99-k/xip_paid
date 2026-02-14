@@ -836,11 +836,20 @@ export default function DashboardPage() {
                                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Your Unique Link</label>
                                             <div className="flex gap-2">
                                                 <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 text-xs font-bold truncate">
-                                                    {typeof window !== 'undefined' ? `${window.location.origin}?ref=${displayUser?.referral_code || '...'}` : `?ref=${displayUser?.referral_code || '...'}`}
+                                                    {displayUser?.referral_code ? (
+                                                        `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`
+                                                    ) : (
+                                                        <span className="opacity-40 italic">Generating your link...</span>
+                                                    )}
                                                 </div>
                                                 <button
-                                                    onClick={() => handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser?.referral_code || ''}`, 'ref')}
-                                                    className="px-6 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center justify-center min-w-[100px]"
+                                                    onClick={() => {
+                                                        if (displayUser?.referral_code) {
+                                                            handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`, 'ref');
+                                                        }
+                                                    }}
+                                                    disabled={!displayUser?.referral_code}
+                                                    className="px-6 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center justify-center min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     {copiedField === 'ref' ? 'Copied!' : 'Copy'}
                                                 </button>
