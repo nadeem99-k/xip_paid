@@ -1,5 +1,4 @@
 import { Client, handle_file } from "@gradio/client";
-import sharp from "sharp";
 // Trigger re-compilation
 
 // Multi-Space Racing Pool (Ported from webhook.js)
@@ -9,62 +8,18 @@ const SPACE_POOL = [
     { id: "Akjava/flux1-schnell-img2img", name: "Flux-Schnell-A", type: "flux1_schnell" },
     { id: "multimodalart/FLUX.1-schnell", name: "Flux-Schnell-B", type: "flux1_schnell" },
     { id: "sayakpaul/flux.1-schnell-img2img", name: "Flux-Schnell-C", type: "flux1_schnell" },
+    { id: "diffusers/unofficial-SDXL-Turbo-i2i-t2i", name: "SDXL-Turbo-A", type: "flux1_schnell" },
+    { id: "stabilityai/sdxl-turbo", name: "SDXL-Turbo-Direct", type: "sdxl_turbo" },
     { id: "Kijai/FLUX.1-dev-img2img", name: "Flux-Dev-Kijai", type: "flux1_schnell" },
-    { id: "shinkai-ai/flux-dev-img2img", name: "Flux-Dev-Shinkai", type: "flux1_schnell" }
+    { id: "lllyasviel/IC-Light-V2", name: "IC-Light-V2", type: "flux1_schnell" },
+    { id: "shinkai-ai/flux-dev-img2img", name: "Flux-Dev-Shinkai", type: "flux1_schnell" },
+    { id: "cagliostrolab/animagine-xl-3.1", name: "Animagine-XL", type: "sdxl_turbo" }
 ];
-
-const INPAINT_POOL = [
-    { id: "multimodalart/flux-inpainting-editing", name: "Flux-Inpaint-Pro" },
-    { id: "ameerazam08/FLUX.1-dev-Inpainting-Model-Beta-GPU", name: "Flux-Inpaint-Beta" },
-    { id: "Gradio-Community/Text-Guided-Flux-Inpainting", name: "Flux-Inpaint-Text" }
-];
-
-const SAM_POOL = [
-    { id: "ShilongLiu/Grounded-Segment-Anything", name: "SAM-Grounded" },
-    { id: "SkalskiP/Grounded-Segment-Anything", name: "SAM-Detection" }
-];
-
-async function generateMask(initImgBuffer) {
-    console.log("Generating automatic mask for clothes (Protecting Face)...");
-    for (const space of SAM_POOL) {
-        try {
-            const client = await Client.connect(space.id);
-            const imageFile = await handle_file(initImgBuffer);
-
-            // Step 1: Detect Clothes and Face
-            // Using Grounded-SAM to identify specific areas
-            const result = await client.predict("/predict", [
-                imageFile,
-                "clothes, dress, bikini, fabric, head, face, hair", // Detection prompt
-                "Segment Everything",
-                0.3,
-                0.25
-            ]);
-
-            if (result && result.data && result.data.length > 0) {
-                // Return the mask file. 
-                // We logic: Inpaint Flux needs the WHITE area as the area to CHANGE.
-                // So we want CLOTHES = WHITE, and FACE = BLACK.
-                const maskUrl = result.data.find(item => item && (item.url || item.path) && item.label === "mask") || result.data[1];
-                if (maskUrl) {
-                    let url = maskUrl.url || maskUrl.path;
-                    if (url && !url.startsWith('http')) {
-                        url = `${client.config.root.replace(/\/$/, '')}/file=${url}`;
-                    }
-                    return url;
-                }
-            }
-        } catch (e) {
-            console.warn(`SAM Space ${space.name} failed:`, e.message);
-        }
-    }
-    return null;
-}
 
 export async function generateImage(prompt, initImgBuffer, mode) {
-    const identity_preservation = "(1:1 ABSOLUTE FACE MATCH:2.5), (STRICT IDENTITY AND POSE PRESERVATION:2.5), (ZERO PIXEL CHANGE TO HEAD AND FACE:2.5), (COPY-PASTE ORIGINAL FACE AND HAIR:2.0).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE SKIN RECOVERY:1.9), (ULTRA-REALISTIC NATURAL SKIN TEXTURE:1.9), (DETAILED AREOLAS AND NIPPLES:1.8), (ANATOMICALLY PERFECT LABIA AND VULVA:1.7), (NATURAL GRAVITY ON BREASTS:1.5), (SUB-DERMAL SCATTERING:1.5), (MICRO-HAIRS ON SKIN:1.3), (NATURAL SKIN OIL SHEEN:1.3), (REALISTIC ANATOMY MATCHING ORIGINAL POSE:1.9).";
-    const masterpiece_enhancer = "masterpiece, (8k UHD raw photo:1.3), ultra-detailed photographic realism, (realistic skin pores:1.4), (seamless skin integration:1.6), (natural shadows:1.5), (MATCH ORIGINAL FILM GRAIN:1.4), (COLOR TEMPERATURE MATCH:1.4), cinematic RAW photography.";
+    const identity_preservation = "(STRICT IDENTITY AND POSE PRESERVATION:2.0), (MAINTAIN EXACT ORIGINAL BODY SILHOUETTE:2.0), (KEEP ORIGINAL FACES AND HAIR:1.9).";
+    const anatomic_realism = "(BIOLOGICALLY ACCURATE SKIN RECOVERY:1.8), (NATURAL SKIN TEXTURE:1.8), (REALISTIC ANATOMY MATCHING ORIGINAL POSE:1.9), (DETAILED REALISTIC SKIN WHERE CLOTHING WAS REMOVED:1.9).";
+    const masterpiece_enhancer = "masterpiece, (8k UHD raw photo:1.3), ultra-detailed, (realistic skin pores:1.4), cinematic lighting, RAW photography.";
     const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime.";
 
     let finalPrompt = "";
@@ -72,47 +27,20 @@ export async function generateImage(prompt, initImgBuffer, mode) {
 
     // Identity preservation & realism prompts - apply to uploaded image only
     if (mode === 'bikini') {
-        const userPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt = `(full nudity:1.8), (wearing a matching bikini:1.5), ${userPrompt} ${identity_preservation} ${masterpiece_enhancer} (APPLY BIKINI TO ALL GIRLS IN THE PHOTO:1.9), (MATCH ORIGINAL PHOTO LIGHTING:1.5). IMPORTANT: Keep the exact same people, faces, hair, pose, background.`;
+        finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
+        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} (APPLY BIKINI TO ALL GIRLS IN THE PHOTO:1.9), wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: Keep the exact same people, faces, hair, pose, background. (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
         negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body.";
     } else if (mode === 'nude') {
-        const userPrompt = prompt ? `(${prompt}:1.3), ` : "";
-        finalPrompt = `(unclothed:2.0), (full nakedness:2.2), (explicit nudity:2.5), (breasts and nipples:2.0), (vulva and labia:1.9), ${userPrompt} ${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETELY UNDRESS:2.5), (REMOVE ALL LAYERS OF CLOTHING:2.5), (FORCE COMPLETE NUDITY:2.3), (STRICTLY PRESERVE ORIGINAL POSE AND BACKGROUND:2.5). DELETE: ALL clothes, fabric, dress, top, bra, underwear. REPLACE WITH: (hyper-realistic bare skin:1.9). IMPORTANT: Zero modification to face, ZERO modification to background.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified background, changed face, zooming, cropping, blurry face, different identity, censored, hidden features.";
+        finalPrompt = prompt ? `(${prompt}:1.3), ` : "";
+        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (UNCLOTHE AND REMOVE CLOTHING ONLY:1.9), (COMPLETE NUDITY:1.8), (STRICTLY PRESERVE ORIGINAL POSE:2.0). DELETE: ALL clothes, dress, top, bra, underwear. REPLACE WITH: (realistic bare skin:1.8). IMPORTANT: Keep exact same people, faces, and EXACT pose. Perfect anatomical match to original body.`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
 
     const shuffledPool = [...SPACE_POOL].sort(() => Math.random() - 0.5);
-    const shuffledInpaint = [...INPAINT_POOL].sort(() => Math.random() - 0.5);
     const batchSize = 3;
     const allErrors = [];
-
-    // Detect Original Dimensions to fix "Zooming"
-    let width = 1024;
-    let height = 1024;
-    if (initImgBuffer) {
-        try {
-            const metadata = await sharp(initImgBuffer).metadata();
-            width = metadata.width;
-            height = metadata.height;
-            // Normalize to multiples of 8 or 16 for AI models
-            width = Math.floor(width / 32) * 32;
-            height = Math.floor(height / 32) * 32;
-            // Cap at 1536 to prevent memory issues
-            if (width > 1536) width = 1536;
-            if (height > 1536) height = 1536;
-            console.log(`Detected dimensions: ${width}x${height}`);
-        } catch (e) {
-            console.warn("Failed to detect image dimensions:", e.message);
-        }
-    }
-
-    // Attempt Mask Generation for "Pixel Perfect" results
-    let maskUrl = null;
-    if (initImgBuffer && (mode === 'nude' || mode === 'bikini')) {
-        maskUrl = await generateMask(initImgBuffer);
-    }
 
     return new Promise(async (resolve, reject) => {
         let finished = false;
@@ -129,42 +57,13 @@ export async function generateImage(prompt, initImgBuffer, mode) {
                     const imageFile = initImgBuffer ? await handle_file(initImgBuffer) : null;
 
                     let result;
-                    if (maskUrl) {
-                        // INPAINTING WORKFLOW with Retry
-                        for (const inpaintSpace of shuffledInpaint) {
-                            try {
-                                const inpaintClient = await Client.connect(inpaintSpace.id);
-                                // Flux Inpainting format: [ {background, layers, composite}, prompt, neg_prompt, strength, match_colors, width, height, seed, steps ]
-                                result = await inpaintClient.predict("/predict", [
-                                    {
-                                        background: imageFile,
-                                        layers: [{ path: maskUrl }],
-                                        composite: null
-                                    },
-                                    finalPrompt,
-                                    negativePrompt,
-                                    0.70, // Increased strength for "Perfect Clothes Off"
-                                    true, // Match original colors
-                                    width,
-                                    height,
-                                    Math.floor(Math.random() * 2147483647),
-                                    8
-                                ]);
-                                if (result) break;
-                            } catch (inpaintErr) {
-                                console.warn(`Inpaint Space ${inpaintSpace.name} failed:`, inpaintErr.message);
-                                continue;
-                            }
-                        }
-                    }
-
-                    if (!result && space.type === "flux2_klein") {
+                    if (space.type === "flux2_klein") {
                         result = await client.predict("/generate", [
                             finalPrompt, imageFile ? [{ image: imageFile }] : [],
                             "Distilled (4 steps)", Math.floor(Math.random() * 2147483647),
                             true, 1024, 1024, 8, 2.7, false
                         ]);
-                    } else if (!result && (space.type === "flux1_schnell" || space.type === "sdxl_turbo")) {
+                    } else if (space.type === "flux1_schnell" || space.type === "sdxl_turbo") {
                         const strength = mode === 'nude' ? 0.68 : 0.60;
                         const payload = [imageFile, finalPrompt, strength, Math.floor(Math.random() * 2147483647), 8];
 
