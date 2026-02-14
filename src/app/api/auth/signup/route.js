@@ -29,11 +29,27 @@ export async function POST(req) {
                     email,
                     password: hashedPassword,
                     package: 'none',
-                    role: 'user'
+                    role: 'user',
+                    referral_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+                    referral_count: 0,
+                    referral_rewarded_count: 0
                 }
             ]);
 
         if (insertError) throw insertError;
+
+        // Process referral if code exists in cookies
+        try {
+            const { cookies } = await import('next/headers');
+            const cookieStore = await cookies();
+            const referralCode = cookieStore.get("referral_code")?.value;
+            if (referralCode) {
+                const { processReferral } = await import("@/lib/auth-helpers");
+                await processReferral(email, referralCode);
+            }
+        } catch (cookieErr) {
+            console.warn("Could not process referral in manual signup:", cookieErr.message);
+        }
 
         return NextResponse.json({ success: true, message: "User created" }, { status: 201 });
     } catch (error) {

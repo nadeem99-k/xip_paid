@@ -1,7 +1,24 @@
 import { updateSession } from "@/lib/supabase/middleware";
 
+import { NextResponse } from "next/server";
+
 export async function middleware(request) {
-    return await updateSession(request);
+    const response = await updateSession(request);
+
+    // Capture referral code from URL and store in cookie
+    const referralCode = request.nextUrl.searchParams.get("ref");
+    if (referralCode) {
+        // Set cookie for 7 days
+        response.cookies.set("referral_code", referralCode, {
+            maxAge: 7 * 24 * 60 * 60,
+            path: "/",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+        });
+    }
+
+    return response;
 }
 
 export const config = {

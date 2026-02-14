@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 // The client you created from the Server-Side Auth instructions
 import { createClient } from '@/lib/supabase/server'
-import { getAuthenticatedUser } from '@/lib/auth-helpers'
+import { getAuthenticatedUser, processReferral } from '@/lib/auth-helpers'
+import { cookies } from 'next/headers'
 
 export async function GET(request) {
     const { searchParams, origin } = new URL(request.url)
@@ -14,7 +15,13 @@ export async function GET(request) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error) {
             // Ensure user record exists in database (syncing coins, role, etc.)
-            await getAuthenticatedUser();
+            const user = await getAuthenticatedUser();
+
+            // Handle referral processing
+            const referralCode = (await cookies()).get("referral_code")?.value;
+            if (user && referralCode) {
+                await processReferral(user.email, referralCode);
+            }
 
             const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
             const isLocalEnv = process.env.NODE_ENV === 'development'

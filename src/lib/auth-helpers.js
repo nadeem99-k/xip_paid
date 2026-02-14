@@ -26,6 +26,11 @@ export async function getAuthenticatedUser() {
     }
 
     if (!dbUser) {
+        // Handle referral code if present in cookies (passed from middleware/client)
+        // For now, we'll assume the code might be in a header or we'll need to update this after checking middleware
+        let referredById = null;
+        // Logic to get referral link/code will be added in middleware or via query sync
+
         const newUserData = {
             email: authUser.email,
             name: authUser.user_metadata?.name || authUser.email.split('@')[0],
@@ -33,8 +38,14 @@ export async function getAuthenticatedUser() {
             role: (authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase())) ? "admin" : "user",
             package: "free",
             coins: 3,
-            id: authUser.id
+            id: authUser.id,
+            referral_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+            referral_count: 0,
+            referral_rewarded_count: 0
         };
+
+        // If we had a way to identify the referrer here, we would set referred_by
+        // Note: OAuth flow might make it tricky to pass the code here unless using cookies or sessions
 
         const { data: newUser, error: createError } = await adminDb
             .from("users")
@@ -52,4 +63,52 @@ export async function getAuthenticatedUser() {
     }
 
     return dbUser;
+}
+
+export async function processReferral(newUserEmail, referralCode) {
+    if (!referralCode) return;
+
+    try {
+        // 1. Find the referrer
+        const { data: referrer, error: referrerError } = await adminDb
+            .from("users")
+            .select("id, referral_count, referral_rewarded_count, coins, email")
+            .eq("referral_code", referralCode)
+            .single();
+
+        if (referrerError || !referrer) return;
+
+        // 2. Update the new user with referred_by
+        const { error: updateNewUserError } = await adminDb
+            .from("users")
+            .update({ referred_by: referrer.id })
+            .eq("email", newUserEmail)
+            .is("referred_by", null); // Only if not already set
+
+        if (updateNewUserError) return;
+
+        // 3. Increment referrer's count
+        const newCount = (referrer.referral_count || 0) + 1;
+        let newRewardedCount = referrer.referral_rewarded_count || 0;
+        let newCoins = referrer.coins || 0;
+
+        // 4. Check for reward (Every 3 successful referrals = 10 coins)
+        if (newCount - newRewardedCount >= 3) {
+            newCoins += 10;
+            newRewardedCount += 3;
+        }
+
+        await adminDb
+            .from("users")
+            .update({
+                referral_count: newCount,
+                referral_rewarded_count: newRewardedCount,
+                coins: newCoins
+            })
+            .eq("id", referrer.id);
+
+        console.log(`Referral processed: ${newUserEmail} referred by ${referrer.email}. New count: ${newCount}, Reward given: ${newCount % 3 === 0}`);
+    } catch (err) {
+        console.error("Process referral error:", err);
+    }
 }

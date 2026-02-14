@@ -368,6 +368,10 @@ export default function DashboardPage() {
                                     <span className="text-xl">💸</span>
                                     <span className="text-[10px] uppercase tracking-[0.2em]">Payments</span>
                                 </button>
+                                <button onClick={() => setActiveTab('referral')} className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'referral' ? 'bg-blue-600 text-white font-bold shadow-[0_10px_20px_rgba(37,99,235,0.15)]' : 'text-blue-900/50 hover:text-blue-600 hover:bg-blue-50'}`}>
+                                    <span className="text-xl">🤝</span>
+                                    <span className="text-[10px] uppercase tracking-[0.2em]">Referral</span>
+                                </button>
                             </div>
                         </nav>
                     </div>
@@ -431,6 +435,13 @@ export default function DashboardPage() {
                 >
                     <span className="text-xl">💸</span>
                     <span className="text-[8px] font-black uppercase tracking-widest">Vault</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('referral')}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${activeTab === 'referral' ? 'text-blue-600' : 'text-blue-900/30'}`}
+                >
+                    <span className="text-xl">🤝</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Refer</span>
                 </button>
             </nav>
 
@@ -782,6 +793,105 @@ export default function DashboardPage() {
                                 </div>
                             )}
                         </div>
+                    ) : activeTab === 'referral' ? (
+                        <div className="space-y-12">
+                            <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
+                                <div className="space-y-2">
+                                    <h1 className="text-4xl font-black tracking-tighter text-blue-950">Referral <span className="text-blue-600">Rewards</span></h1>
+                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Share your code & earn free coins</p>
+                                </div>
+                            </header>
+
+                            <div className="grid md:grid-cols-2 gap-12">
+                                <div className="space-y-8">
+                                    <div className="p-10 bg-blue-600 rounded-[3rem] text-white space-y-8 shadow-2xl shadow-blue-600/20">
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Your Referral System</p>
+                                            <h3 className="text-3xl font-black tracking-tighter">Invite friends, get 10 coins.</h3>
+                                        </div>
+                                        <p className="text-sm font-medium text-blue-50 leading-relaxed opacity-80">
+                                            For every 3 people who sign up using your link, we'll automatically add 10 coins to your account.
+                                        </p>
+                                        <div className="space-y-4 pt-4">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Your Unique Link</label>
+                                            <div className="flex gap-2">
+                                                <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 text-xs font-bold truncate">
+                                                    {typeof window !== 'undefined' ? `${window.location.origin}?ref=${displayUser?.referral_code}` : `?ref=${displayUser?.referral_code}`}
+                                                </div>
+                                                <button
+                                                    onClick={() => handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser?.referral_code}`, 'ref')}
+                                                    className="px-6 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center justify-center min-w-[100px]"
+                                                >
+                                                    {copiedField === 'ref' ? 'Copied!' : 'Copy'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="p-8 border border-blue-50 rounded-[2.5rem] bg-white space-y-4">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-950/20">Total Referrals</p>
+                                            <p className="text-3xl font-black tracking-tighter text-blue-950">{displayUser?.referral_count || 0}</p>
+                                        </div>
+                                        <div className="p-8 border border-blue-50 rounded-[2.5rem] bg-white space-y-4">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-950/20">Rewards Earned</p>
+                                            <p className="text-3xl font-black tracking-tighter text-blue-950">{Math.floor((displayUser?.referral_rewarded_count || 0) / 3) * 10} <span className="text-[10px] text-blue-600 block">COINS</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <div className="p-10 border border-blue-50 rounded-[3rem] bg-blue-50/30 space-y-8">
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30">Next Milestone</p>
+                                            <div className="flex justify-between items-end">
+                                                <h3 className="text-3xl font-black tracking-tighter text-blue-950">
+                                                    {3 - ((displayUser?.referral_count || 0) % 3)} <span className="text-blue-600">Left</span>
+                                                </h3>
+                                                <p className="text-[10px] font-black text-blue-900/40 uppercase mb-2">Next Reward: 10 Coins</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="h-4 bg-white rounded-full overflow-hidden border border-blue-100 p-1">
+                                                <div
+                                                    className="h-full bg-blue-600 rounded-full transition-all duration-1000"
+                                                    style={{ width: `${((displayUser?.referral_count || 0) % 3) / 3 * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <div className="flex justify-between text-[8px] font-black text-blue-900/20 uppercase tracking-widest">
+                                                <span>0</span>
+                                                <span>1</span>
+                                                <span>2</span>
+                                                <span>Reward</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-4 p-6 bg-white rounded-2xl border border-blue-50">
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center text-xl">💡</div>
+                                                <div className="space-y-1">
+                                                    <p className="text-[10px] font-black text-blue-950 uppercase tracking-widest">Pro Tip</p>
+                                                    <p className="text-[10px] text-blue-950/40 font-medium leading-relaxed">
+                                                        Share your link on Twitter or Telegram for faster results. Each successful registration gets you closer to your next 10 credits!
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-950 to-blue-900 text-white space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xl">🛡️</div>
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Program</p>
+                                                <p className="text-xs font-bold">Referrals are verified by our neural anti-fraud system.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     ) : activeTab === 'billing' ? (
                         <div className="space-y-12">
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
@@ -906,7 +1016,12 @@ export default function DashboardPage() {
                                 </div>
                             )}
                         </div>
-                    ) : null}
+                    ) : (
+                        <div className="py-20 text-center space-y-6">
+                            <div className="text-5xl opacity-20">🛡️</div>
+                            <p className="text-blue-950/20 font-black uppercase tracking-widest text-xs">Terminal access restricted.</p>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
