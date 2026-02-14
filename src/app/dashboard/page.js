@@ -29,6 +29,8 @@ export default function DashboardPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [paymentMessage, setPaymentMessage] = useState({ type: null, text: null });
     const [copiedField, setCopiedField] = useState(null);
+    const [referrals, setReferrals] = useState([]);
+    const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
 
     const handleCopy = (text, field) => {
         navigator.clipboard.writeText(text);
@@ -123,6 +125,8 @@ export default function DashboardPage() {
             fetchHistory(controller.signal);
         } else if (activeTab === 'payments') {
             fetchUserPayments(controller.signal);
+        } else if (activeTab === 'referral') {
+            fetchReferrals(controller.signal);
         }
         return () => controller.abort();
     }, [activeTab]);
@@ -175,6 +179,22 @@ export default function DashboardPage() {
             console.error("Fetch payments error:", err);
         } finally {
             if (!signal?.aborted) setIsLoadingPayments(false);
+        }
+    };
+
+    const fetchReferrals = async (signal) => {
+        setIsLoadingReferrals(true);
+        try {
+            const res = await fetch('/api/user/referrals', { signal });
+            const data = await res.json();
+            if (data.success) {
+                setReferrals(data.referrals);
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            console.error("Fetch referrals error:", err);
+        } finally {
+            if (!signal?.aborted) setIsLoadingReferrals(false);
         }
     };
 
@@ -816,10 +836,10 @@ export default function DashboardPage() {
                                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Your Unique Link</label>
                                             <div className="flex gap-2">
                                                 <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 text-xs font-bold truncate">
-                                                    {typeof window !== 'undefined' ? `${window.location.origin}?ref=${displayUser?.referral_code}` : `?ref=${displayUser?.referral_code}`}
+                                                    {typeof window !== 'undefined' ? `${window.location.origin}?ref=${displayUser?.referral_code || '...'}` : `?ref=${displayUser?.referral_code || '...'}`}
                                                 </div>
                                                 <button
-                                                    onClick={() => handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser?.referral_code}`, 'ref')}
+                                                    onClick={() => handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser?.referral_code || ''}`, 'ref')}
                                                     className="px-6 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center justify-center min-w-[100px]"
                                                 >
                                                     {copiedField === 'ref' ? 'Copied!' : 'Copy'}
@@ -880,14 +900,33 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-950 to-blue-900 text-white space-y-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xl">🛡️</div>
+                                    <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-blue-950 to-blue-900 text-white space-y-6">
+                                        <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+                                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xl">🤝</div>
                                             <div>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Program</p>
-                                                <p className="text-xs font-bold">Referrals are verified by our neural anti-fraud system.</p>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Recent Referrals</p>
+                                                <p className="text-xs font-bold">People joined using your link</p>
                                             </div>
                                         </div>
+
+                                        {isLoadingReferrals ? (
+                                            <div className="flex justify-center py-4">
+                                                <div className="w-6 h-6 border-2 border-white/10 border-t-white rounded-full animate-spin"></div>
+                                            </div>
+                                        ) : referrals.length > 0 ? (
+                                            <div className="space-y-4 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                                                {referrals.map((ref, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                                                        <div className="text-[10px] font-bold tracking-tight">{ref.email}</div>
+                                                        <div className="text-[8px] font-black uppercase text-white/30">{new Date(ref.timestamp).toLocaleDateString()}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="py-4 text-center">
+                                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">No referrals yet</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

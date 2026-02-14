@@ -28,7 +28,10 @@ export async function POST(req) {
                 {
                     email,
                     password: hashedPassword,
-                    package: 'none',
+                    name: email.split('@')[0],
+                    full_name: email.split('@')[0],
+                    package: 'free',
+                    coins: 3,
                     role: 'user',
                     referral_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
                     referral_count: 0,

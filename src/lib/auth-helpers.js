@@ -60,6 +60,35 @@ export async function getAuthenticatedUser() {
             return null;
         }
         dbUser = newUser;
+
+        // Process referral if code exists in cookies (OAuth flow)
+        try {
+            const { cookies } = await import('next/headers');
+            const cookieStore = await cookies();
+            const referralCode = cookieStore.get("referral_code")?.value;
+            if (referralCode) {
+                await processReferral(authUser.email, referralCode);
+                // Refetch user to get updated referred_by
+                const { data: updatedUser } = await adminDb
+                    .from("users")
+                    .select("*")
+                    .eq("id", dbUser.id)
+                    .single();
+                if (updatedUser) dbUser = updatedUser;
+            }
+        } catch (cookieErr) {
+            console.warn("[Auth Helpers] Could not process referral in OAuth signup:", cookieErr.message);
+        }
+    } else if (!dbUser.referral_code) {
+        // Migration: Ensure existing users have a referral code
+        const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const { data: updatedUser } = await adminDb
+            .from("users")
+            .update({ referral_code: newCode })
+            .eq("id", dbUser.id)
+            .select("*")
+            .single();
+        if (updatedUser) dbUser = updatedUser;
     }
 
     return dbUser;
