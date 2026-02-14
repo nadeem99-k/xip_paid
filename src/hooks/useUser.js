@@ -36,9 +36,14 @@ export function useUser() {
                     return;
                 }
 
-                if (mounted) {
+                if (mounted && dbUser) {
                     console.log(`[useUser] Profile details loaded for ${sessionUser.email}, role: ${dbUser.role}`);
-                    setUser(prev => ({ ...prev, ...dbUser }));
+
+                    // Merge session user data with db profile data
+                    setUser(prev => {
+                        if (!prev) return { ...sessionUser, ...dbUser };
+                        return { ...prev, ...dbUser };
+                    });
                 }
             } catch (err) {
                 // Ignore background fetch errors

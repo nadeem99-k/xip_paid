@@ -136,7 +136,8 @@ export default function DashboardPage() {
             const res = await fetch('/api/history', { signal });
             const data = await res.json();
             if (data.success) {
-                setUser(data.user);
+                // Merge the fresh user data into our local state
+                setUser(prev => ({ ...prev, ...data.user }));
             }
         } catch (err) {
             if (err.name === 'AbortError') return;
@@ -856,7 +857,15 @@ export default function DashboardPage() {
                                                         {displayUser?.referral_code ? (
                                                             `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`
                                                         ) : (
-                                                            <span className="opacity-40 italic">Initializing link...</span>
+                                                            <div className="flex items-center gap-3 w-full">
+                                                                <span className="opacity-40 italic">Initializing link...</span>
+                                                                <button
+                                                                    onClick={() => { refreshUser(); fetchUser(); }}
+                                                                    className="ml-auto text-[9px] font-black text-blue-500 hover:text-blue-600 bg-blue-500/10 px-3 py-1.5 rounded-full"
+                                                                >
+                                                                    SYNC NOW
+                                                                </button>
+                                                            </div>
                                                         )}
                                                     </div>
                                                     <div className="flex gap-2">

@@ -381,50 +381,42 @@ export default function AdminDashboard() {
             )}
 
             <div className="space-y-8 animate-slide-up">
+                {/* Mobile Floating Header */}
+                <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-b border-blue-50 p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white text-xs font-black">AI</div>
+                        <h1 className="text-lg font-black text-blue-950 tracking-tight">Admin <span className="text-blue-600">Pro</span></h1>
+                    </div>
+                    <button onClick={() => router.push('/')} className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">🏠</button>
+                </div>
+
                 {/* Header Section */}
-                <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 pb-8 border-b border-blue-50">
+                <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 pb-8 border-b border-blue-50 pt-12 md:pt-0">
                     <div className="space-y-4">
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-500 rounded-full border border-red-100 w-fit">
                             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                            <span className="text-[9px] font-black uppercase tracking-widest">Admin Control</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest">System Status: Active</span>
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-blue-950">Dashboard <span className="text-blue-600">Overview</span></h1>
-                        <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">System Management Center</p>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-blue-950">Dashboard</h1>
+                        <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Administrative Control Center</p>
                     </div>
 
-                    {/* Stats Grid - Now scrollable on mobile */}
+                    {/* Stats Grid */}
                     <div className="flex xl:grid xl:grid-cols-4 gap-4 w-full xl:w-auto overflow-x-auto pb-4 xl:pb-0 scrollbar-hide snap-x">
-                        <div className="min-w-[280px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
-                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Revenue</p>
-                            <div className="flex items-end justify-between">
-                                <p className="text-3xl font-black text-blue-950 tracking-tighter">Rs {stats?.totalVolume || 0}</p>
-                                <div className="text-right">
-                                    <p className="text-[9px] font-black text-green-600 uppercase tracking-tighter">Rs {stats?.revenueToday || 0} Today</p>
-                                    <p className="text-[8px] font-bold text-blue-400">Rs {stats?.monthlyVolume || 0} Month</p>
+                        {[
+                            { label: 'Total Revenue', value: stats?.totalVolume || 0, icon: '💰' },
+                            { label: 'Total Users', value: stats?.totalUsers || 0, icon: '👥' },
+                            { label: 'Creations', value: generations.length, icon: '🎨' },
+                            { label: 'Pending', value: payments.length, icon: '⏳' }
+                        ].map((stat, i) => (
+                            <div key={i} className="min-w-[240px] xl:min-w-[200px] snap-center p-6 bg-white border border-blue-50 rounded-[2rem] flex flex-col justify-between hover:border-blue-200 transition-all">
+                                <div className="flex justify-between items-start mb-4">
+                                    <p className="text-[9px] font-black text-blue-900/30 uppercase tracking-widest">{stat.label}</p>
+                                    <span className="text-xl opacity-40">{stat.icon}</span>
                                 </div>
+                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{stat.value}</p>
                             </div>
-                        </div>
-                        <div className="min-w-[200px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
-                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Users</p>
-                            <div className="flex items-end justify-between">
-                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{stats?.totalUsers || 0}</p>
-                                <span className="text-2xl">👥</span>
-                            </div>
-                        </div>
-                        <div className="min-w-[200px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
-                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Creations</p>
-                            <div className="flex items-end justify-between">
-                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{generations.length}</p>
-                                <span className="text-2xl">🎨</span>
-                            </div>
-                        </div>
-                        <div className="min-w-[200px] xl:min-w-0 snap-center p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex flex-col justify-between hover:bg-blue-50 transition-colors">
-                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Pending Orders</p>
-                            <div className="flex items-end justify-between">
-                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{payments.length}</p>
-                                <span className="text-2xl">⏳</span>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </header>
 
@@ -713,8 +705,8 @@ export default function AdminDashboard() {
                                                         {item.package}
                                                     </span>
                                                     <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.status === 'approved' ? 'bg-green-50 text-green-600' :
-                                                            item.status === 'rejected' ? 'bg-red-50 text-red-600' :
-                                                                'bg-yellow-50 text-yellow-600'
+                                                        item.status === 'rejected' ? 'bg-red-50 text-red-600' :
+                                                            'bg-yellow-50 text-yellow-600'
                                                         }`}>
                                                         {item.status}
                                                     </span>
@@ -954,9 +946,9 @@ export default function AdminDashboard() {
                                     <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm space-y-6">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl">📢</div>
-                                            <div>
+                                            <div className="space-y-1">
                                                 <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Site-wide Broadcast</h3>
-                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Push alerts to all users</p>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Push alerts to all users</p>
                                             </div>
                                         </div>
 
@@ -995,9 +987,9 @@ export default function AdminDashboard() {
                                     <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm space-y-6">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center text-xl">💰</div>
-                                            <div>
+                                            <div className="space-y-1">
                                                 <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Price Management</h3>
-                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Live Pricing Control (Rs)</p>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Live Pricing Control (Rs)</p>
                                             </div>
                                         </div>
 
@@ -1009,7 +1001,7 @@ export default function AdminDashboard() {
                                                         type="number"
                                                         className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 font-black text-blue-950 outline-none focus:ring-2 focus:ring-green-500/20 transition-all"
                                                         value={settings.pricing?.[pkg] || ''}
-                                                        onChange={(e) => setSettings({ ...settings, pricing: { ...settings.pricing, [pkg]: parseInt(e.target.value) } })}
+                                                        onChange={(e) => setSettings({ ...settings, pricing: { ...settings.pricing, [pkg]: parseInt(e.target.value) || 0 } })}
                                                     />
                                                 </div>
                                             ))}
@@ -1174,6 +1166,6 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
