@@ -66,6 +66,9 @@ export default function Navbar() {
                         <Link href="/pricing" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Pricing</Link>
                     )}
                     <Link href="/support" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Support</Link>
+                    <Link href="/dashboard?tab=referral" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1.5">
+                        <span>🤝</span> Refer & Earn
+                    </Link>
                     {user && (
                         <Link href="/dashboard" className="text-sm font-bold text-blue-900/60 hover:text-blue-600 transition-colors">Dashboard</Link>
                     )}
@@ -123,6 +126,9 @@ export default function Navbar() {
                             <Link href="/pricing" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Pricing</Link>
                         )}
                         <Link href="/support" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Support</Link>
+                        <Link href="/dashboard?tab=referral" onClick={toggleMenu} className="text-lg font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                            <span>🤝</span> Refer & Earn
+                        </Link>
                         {user ? (
                             <>
                                 <Link href="/dashboard" onClick={toggleMenu} className="text-lg font-black text-blue-950 uppercase tracking-widest">Dashboard</Link>

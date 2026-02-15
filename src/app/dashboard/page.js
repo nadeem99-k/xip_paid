@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 
@@ -130,6 +130,16 @@ export default function DashboardPage() {
         }
         return () => controller.abort();
     }, [activeTab]);
+
+    const searchParams = useSearchParams();
+
+    // Sync tab with URL query param
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab && ['studio', 'history', 'billing', 'payments', 'referral'].includes(tab)) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     const fetchUser = async (signal) => {
         try {
@@ -477,11 +487,36 @@ export default function DashboardPage() {
                                     <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-blue-950">AI Image <span className="text-blue-600">Studio</span></h1>
                                     <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Create beautiful photos with AI</p>
                                 </div>
-                                <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
-                                    <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
-                                    <span className="text-xs font-black uppercase tracking-widest text-blue-950">{displayUser?.package || 'Starter'} Plan</span>
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <button
+                                        onClick={() => setActiveTab('referral')}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-green-100 transition-all"
+                                    >
+                                        <span>🤝</span> Refer & Earn 10 Coins
+                                    </button>
+                                    <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
+                                        <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
+                                        <span className="text-xs font-black uppercase tracking-widest text-blue-950">{displayUser?.package || 'Starter'} Plan</span>
+                                    </div>
                                 </div>
                             </header>
+
+                            {/* Referral Banner */}
+                            <div
+                                onClick={() => setActiveTab('referral')}
+                                className="group relative overflow-hidden p-8 rounded-[2.5rem] bg-gradient-to-r from-blue-600 to-indigo-600 text-white cursor-pointer hover:shadow-2xl hover:shadow-blue-600/20 transition-all animate-fade-in-down"
+                            >
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/20 transition-all"></div>
+                                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <div className="space-y-2 text-center md:text-left">
+                                        <h2 className="text-2xl font-black tracking-tighter">Get 10 Free Premium Coins! 🎁</h2>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-100 opacity-80">Invite friends and unlock unlimited creative power</p>
+                                    </div>
+                                    <div className="px-8 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 shadow-xl group-hover:scale-105 transition-transform">
+                                        Invite & Earn Now <span>🚀</span>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div className="grid lg:grid-cols-11 gap-8 md:gap-16">
                                 {/* Left Side: Controls */}
@@ -689,8 +724,19 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                            </div >
+                            <Link href="/dashboard?tab=referral" className="block p-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-[3rem] text-white shadow-2xl shadow-blue-600/20 hover:scale-[1.01] transition-transform group">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-50/80">Referral Program</p>
+                                        <h3 className="text-2xl font-black tracking-tighter leading-tight">
+                                            Invite friends, get <span className="text-blue-100">Free Credits.</span>
+                                        </h3>
+                                    </div>
+                                    <div className="w-16 h-16 bg-white/10 backdrop-blur-md text-white rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-12 transition-transform border border-white/10">🤝</div>
+                                </div>
+                            </Link>
+                        </div >
                     ) : activeTab === 'history' ? (
                         <div className="space-y-12">
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
@@ -1138,9 +1184,10 @@ export default function DashboardPage() {
                             <div className="text-5xl opacity-20">🛡️</div>
                             <p className="text-blue-950/20 font-black uppercase tracking-widest text-xs">Terminal access restricted.</p>
                         </div>
-                    )}
-                </div>
-            </main>
-        </div>
+                    )
+                    }
+                </div >
+            </main >
+        </div >
     );
 }
