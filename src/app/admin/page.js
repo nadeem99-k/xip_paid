@@ -370,17 +370,18 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-white pt-24 pb-28 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto">
+        <div className="min-h-screen bg-[#fafbfc] pt-24 pb-28 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto selection:bg-blue-100 selection:text-blue-900">
+            <div className="fixed inset-0 pointer-events-none opacity-[0.03] grayscale invert z-0">
+                <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+            </div>
             {/* Toast Notification */}
             {toast && (
-                <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-600 text-white'
-                    }`}>
+                <div className={`fixed top-4 right-4 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-600 text-white'}`}>
                     <span className="text-xl">{toast.type === 'error' ? '⚠️' : '✅'}</span>
                     <p className="font-bold text-sm tracking-wide">{toast.message}</p>
                 </div>
             )}
-
-            <div className="space-y-8 animate-slide-up">
+            <div className="relative z-10 space-y-8 animate-slide-up">
                 {/* Mobile Floating Header */}
                 <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-b border-blue-50 p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -402,19 +403,32 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="flex xl:grid xl:grid-cols-4 gap-4 w-full xl:w-auto overflow-x-auto pb-4 xl:pb-0 scrollbar-hide snap-x">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                         {[
-                            { label: 'Total Revenue', value: stats?.totalVolume || 0, icon: '💰' },
-                            { label: 'Total Users', value: stats?.totalUsers || 0, icon: '👥' },
-                            { label: 'Creations', value: generations.length, icon: '🎨' },
-                            { label: 'Pending', value: payments.length, icon: '⏳' }
+                            { label: 'Revenue', value: stats?.totalVolume || 0, icon: '💰', color: 'bg-green-500', trend: '+12%', sub: 'Total Volume' },
+                            { label: 'Users', value: stats?.totalUsers || 0, icon: '👥', color: 'bg-blue-600', trend: '+5%', sub: 'Global Growth' },
+                            { label: 'Creations', value: generations.length, icon: '🎨', color: 'bg-purple-600', trend: '+24%', sub: 'Total Assets' },
+                            { label: 'Pending', value: payments.length, icon: '⏳', color: 'bg-yellow-500', trend: '!', sub: 'Needs Review' }
                         ].map((stat, i) => (
-                            <div key={i} className="min-w-[240px] xl:min-w-[200px] snap-center p-6 bg-white border border-blue-50 rounded-[2rem] flex flex-col justify-between hover:border-blue-200 transition-all">
-                                <div className="flex justify-between items-start mb-4">
-                                    <p className="text-[9px] font-black text-blue-900/30 uppercase tracking-widest">{stat.label}</p>
-                                    <span className="text-xl opacity-40">{stat.icon}</span>
+                            <div key={i} className="group relative p-6 bg-white border border-blue-50 rounded-[2.5rem] flex flex-col justify-between hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-900/[0.03] transition-all duration-500 overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-blue-100/50 transition-all duration-700"></div>
+                                <div className="relative z-10">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className={`w-10 h-10 ${stat.color} rounded-2xl flex items-center justify-center text-white text-lg shadow-lg shadow-current/20 group-hover:scale-110 transition-transform duration-500`}>
+                                            {stat.icon}
+                                        </div>
+                                        <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${stat.trend === '!' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
+                                            {stat.trend}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.2em]">{stat.label}</p>
+                                        <h3 className="text-3xl font-black text-blue-950 tracking-tighter">
+                                            {stat.label === 'Revenue' ? `Rs ${stat.value}` : stat.value}
+                                        </h3>
+                                        <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">{stat.sub}</p>
+                                    </div>
                                 </div>
-                                <p className="text-3xl font-black text-blue-950 tracking-tighter">{stat.value}</p>
                             </div>
                         ))}
                     </div>
@@ -857,79 +871,101 @@ export default function AdminDashboard() {
 
                             {/* Analytics View */}
                             {activeTab === 'analytics' && growthStats && (
-                                <div className="p-8 space-y-12 animate-slide-up">
+                                <div className="p-4 md:p-8 space-y-12 animate-slide-up">
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                         {/* User Growth Chart */}
-                                        <div className="bg-blue-50/30 p-8 rounded-[2rem] border border-blue-50 overflow-hidden">
-                                            <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest mb-8">User Growth (30 Days)</h3>
+                                        <div className="bg-blue-50/20 p-6 md:p-8 rounded-[2.5rem] border border-blue-50/50 overflow-hidden relative group">
+                                            <div className="flex items-center justify-between mb-8">
+                                                <div>
+                                                    <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">User Base Growth</h3>
+                                                    <p className="text-[10px] font-bold text-blue-400 uppercase mt-1">Last 30 Days</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-xl font-black text-blue-950">{Math.max(...growthStats.users)}</div>
+                                                    <div className="text-[8px] font-bold text-green-500 uppercase">Peak Users</div>
+                                                </div>
+                                            </div>
                                             <div className="overflow-x-auto pb-4 scrollbar-hide">
-                                                <div className="flex items-end gap-1 h-48 min-w-[600px]">
+                                                <div className="flex items-end gap-1.5 h-48 min-w-[500px]">
                                                     {growthStats.users.map((count, i) => (
-                                                        <div key={i} className="flex-1 bg-blue-600 rounded-t-lg transition-all hover:bg-blue-700 relative group" style={{ height: `${(count / Math.max(...growthStats.users, 1)) * 100}%` }}>
-                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-blue-950 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                                        <div key={i} className="flex-1 bg-gradient-to-t from-blue-600 to-indigo-500 rounded-t-xl transition-all duration-500 hover:scale-x-110 hover:brightness-110 relative group/bar" style={{ height: `${(count / Math.max(...growthStats.users, 1)) * 100}%` }}>
+                                                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-blue-950 text-white text-[9px] font-black px-3 py-1.5 rounded-xl opacity-0 group-hover/bar:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-xl">
                                                                 {count} Users
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
-                                            <div className="flex justify-between mt-4 text-[8px] font-bold text-blue-900/30 uppercase">
-                                                <span>30 Days Ago</span>
-                                                <span className="md:hidden">← Swipe to view →</span>
+                                            <div className="flex justify-between mt-4 text-[9px] font-black text-blue-900/20 uppercase tracking-widest border-t border-blue-50 pt-4">
+                                                <span>30D Ago</span>
+                                                <span className="md:hidden flex items-center gap-2 animate-pulse">← SWIPE TO VIEW →</span>
                                                 <span>Today</span>
                                             </div>
                                         </div>
 
                                         {/* Revenue Growth Chart */}
-                                        <div className="bg-green-50/30 p-8 rounded-[2rem] border border-green-50 overflow-hidden">
-                                            <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest mb-8">Revenue Trends (30 Days)</h3>
+                                        <div className="bg-green-50/20 p-6 md:p-8 rounded-[2.5rem] border border-green-50/50 overflow-hidden relative group">
+                                            <div className="flex items-center justify-between mb-8">
+                                                <div>
+                                                    <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Revenue Lifecycle</h3>
+                                                    <p className="text-[10px] font-bold text-green-600 uppercase mt-1">30 Day Performance</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-xl font-black text-blue-950">Rs {growthStats.revenue.reduce((a, b) => a + b, 0)}</div>
+                                                    <div className="text-[8px] font-bold text-green-500 uppercase">Total Period</div>
+                                                </div>
+                                            </div>
                                             <div className="overflow-x-auto pb-4 scrollbar-hide">
-                                                <div className="flex items-end gap-1 h-48 min-w-[600px]">
+                                                <div className="flex items-end gap-1.5 h-48 min-w-[500px]">
                                                     {growthStats.revenue.map((amount, i) => (
-                                                        <div key={i} className="flex-1 bg-green-600 rounded-t-lg transition-all hover:bg-green-700 relative group" style={{ height: `${(amount / Math.max(...growthStats.revenue, 1)) * 100}%` }}>
-                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-950 text-white text-[8px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                                                        <div key={i} className="flex-1 bg-gradient-to-t from-green-500 to-emerald-400 rounded-t-xl transition-all duration-500 hover:scale-x-110 hover:brightness-110 relative group/bar" style={{ height: `${(amount / Math.max(...growthStats.revenue, 1)) * 100}%` }}>
+                                                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-blue-950 text-white text-[9px] font-black px-3 py-1.5 rounded-xl opacity-0 group-hover/bar:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap shadow-xl">
                                                                 Rs {amount}
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
-                                            <div className="flex justify-between mt-4 text-[8px] font-bold text-green-900/30 uppercase">
-                                                <span>30 Days Ago</span>
-                                                <span className="md:hidden">← Swipe to view →</span>
+                                            <div className="flex justify-between mt-4 text-[9px] font-black text-green-900/20 uppercase tracking-widest border-t border-green-50 pt-4">
+                                                <span>30D Ago</span>
+                                                <span className="md:hidden flex items-center gap-2 animate-pulse">← SWIPE TO VIEW →</span>
                                                 <span>Today</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Recent Activity Widget */}
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm space-y-8">
-                                        <div className="flex items-center justify-between">
+                                    <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-blue-100/50 shadow-sm relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/30 rounded-full -mr-32 -mt-32 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+                                        <div className="relative z-10 flex items-center justify-between mb-10">
                                             <div>
-                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Live Activity</h3>
-                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Real-time system events</p>
+                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-[0.2em]">Quantum Feed</h3>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Live System Telemetry</p>
                                             </div>
-                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Live"></div>
+                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full border border-green-100">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></div>
+                                                <span className="text-[8px] font-black text-green-600 uppercase tracking-widest">LIVE</span>
+                                            </div>
                                         </div>
 
-                                        <div className="space-y-4">
+                                        <div className="space-y-3">
                                             {[...users.slice(0, 5).map(u => ({ type: 'signup', email: u.email, date: u.created_at })),
                                             ...payments.slice(0, 5).map(p => ({ type: 'payment', email: p.userEmail, amount: p.amount, date: p.timestamp }))]
                                                 .sort((a, b) => new Date(b.date) - new Date(a.date))
                                                 .map((item, i) => (
-                                                    <div key={i} className="flex items-center justify-between p-4 bg-blue-50/30 rounded-2xl hover:bg-blue-50 transition-colors">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${item.type === 'signup' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                                                                {item.type === 'signup' ? '👤' : '💰'}
+                                                    <div key={i} className="flex items-center justify-between p-5 bg-blue-50/10 hover:bg-blue-50/40 border border-transparent hover:border-blue-50 rounded-[1.5rem] transition-all duration-300 group/item">
+                                                        <div className="flex items-center gap-5">
+                                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg shadow-sm group-hover/item:scale-110 transition-transform duration-500 ${item.type === 'signup' ? 'bg-indigo-50 text-indigo-500' : 'bg-green-50 text-green-600'}`}>
+                                                                {item.type === 'signup' ? '⚡' : '💎'}
                                                             </div>
                                                             <div>
-                                                                <p className="text-[10px] font-black text-blue-950 uppercase tracking-tight">{item.email}</p>
-                                                                <p className="text-[8px] font-bold text-blue-400 uppercase mt-0.5">
-                                                                    {item.type === 'signup' ? 'Joined the platform' : `Purchased for Rs ${item.amount}`}
+                                                                <p className="text-[11px] font-black text-blue-950 uppercase tracking-tight">{item.email}</p>
+                                                                <p className="text-[9px] font-bold text-blue-400/60 uppercase mt-0.5 tracking-wider">
+                                                                    {item.type === 'signup' ? 'New Member Registered' : `Credit Purchase: Rs ${item.amount}`}
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        <span className="text-[8px] font-black text-blue-900/20 uppercase whitespace-nowrap">
+                                                        <span className="text-[9px] font-black text-blue-900/20 uppercase whitespace-nowrap bg-white px-2 py-1 rounded-lg">
                                                             {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
@@ -941,79 +977,88 @@ export default function AdminDashboard() {
 
                             {/* Settings View */}
                             {activeTab === 'settings' && (
-                                <div className="p-8 space-y-12 animate-slide-up max-w-4xl">
+                                <div className="p-4 md:p-8 space-y-12 animate-slide-up max-w-4xl">
                                     {/* Broadcast Setting */}
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm space-y-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl">📢</div>
+                                    <div className="bg-white p-6 md:p-10 rounded-[3rem] border border-blue-100/50 shadow-sm space-y-8 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-blue-100 transition-all duration-1000"></div>
+                                        <div className="relative z-10 flex items-center gap-6">
+                                            <div className="w-16 h-16 bg-blue-600 shadow-xl shadow-blue-600/20 text-white rounded-[1.5rem] flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform duration-500">📢</div>
                                             <div className="space-y-1">
-                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Site-wide Broadcast</h3>
-                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Push alerts to all users</p>
+                                                <h3 className="text-base font-black text-blue-950 uppercase tracking-widest">Global Broadcast</h3>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">Notify all active sessions</p>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-4">
-                                            <textarea
-                                                className="w-full p-6 bg-blue-50/30 rounded-3xl border border-blue-50 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none h-32"
-                                                placeholder="Enter broadcast message..."
-                                                value={settings.broadcast?.message || ''}
-                                                onChange={(e) => setSettings({ ...settings, broadcast: { ...settings.broadcast, message: e.target.value } })}
-                                            />
-                                            <div className="flex items-center gap-6 px-4">
-                                                <label className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative z-10 space-y-6">
+                                            <div className="relative">
+                                                <textarea
+                                                    className="w-full p-8 bg-blue-50/20 rounded-[2rem] border-2 border-transparent focus:border-blue-600/10 focus:bg-white text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all resize-none h-40 shadow-inner"
+                                                    placeholder="Type your system message here..."
+                                                    value={settings.broadcast?.message || ''}
+                                                    onChange={(e) => setSettings({ ...settings, broadcast: { ...settings.broadcast, message: e.target.value } })}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col sm:flex-row items-center gap-6 bg-blue-50/30 p-4 rounded-[2rem] border border-blue-50">
+                                                <label className="flex items-center gap-4 cursor-pointer group/toggle w-full sm:w-auto px-4">
                                                     <input
                                                         type="checkbox"
                                                         className="hidden"
                                                         checked={settings.broadcast?.active || false}
                                                         onChange={(e) => setSettings({ ...settings, broadcast: { ...settings.broadcast, active: e.target.checked } })}
                                                     />
-                                                    <div className={`w-12 h-6 rounded-full relative transition-all ${settings.broadcast?.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.broadcast?.active ? 'left-7' : 'left-1'}`} />
+                                                    <div className={`w-14 h-7 rounded-full relative transition-all duration-500 ${settings.broadcast?.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                                                        <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-500 shadow-sm ${settings.broadcast?.active ? 'left-8' : 'left-1'}`} />
                                                     </div>
-                                                    <span className="text-[10px] font-black text-blue-950 uppercase tracking-widest">Show Banner</span>
+                                                    <span className="text-[10px] font-black text-blue-950 uppercase tracking-widest">Live Status</span>
                                                 </label>
                                                 <button
                                                     onClick={() => updateSetting('broadcast', settings.broadcast)}
                                                     disabled={savingSettings}
-                                                    className="ml-auto px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50"
+                                                    className="w-full sm:ml-auto px-10 py-4 bg-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-blue-700 hover:shadow-2xl hover:shadow-blue-600/40 transition-all disabled:opacity-50 active:scale-95"
                                                 >
-                                                    {savingSettings ? 'Saving...' : 'Update Broadcast'}
+                                                    {savingSettings ? 'Saving...' : 'Deploy Message 🚀'}
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Pricing Setting */}
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm space-y-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center text-xl">💰</div>
+                                    <div className="bg-white p-6 md:p-10 rounded-[3rem] border border-blue-100/50 shadow-sm space-y-10 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-green-50/50 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-green-100 transition-all duration-1000"></div>
+                                        <div className="relative z-10 flex items-center gap-6">
+                                            <div className="w-16 h-16 bg-green-600 shadow-xl shadow-green-600/20 text-white rounded-[1.5rem] flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform duration-500">💎</div>
                                             <div className="space-y-1">
-                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Price Management</h3>
-                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Live Pricing Control (Rs)</p>
+                                                <h3 className="text-base font-black text-blue-950 uppercase tracking-widest">Revenue Config</h3>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">Real-time package valuation</p>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-6">
-                                            {['starter', 'pro', 'premium'].map(pkg => (
-                                                <div key={pkg} className="space-y-2">
-                                                    <label className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest ml-1">{pkg}</label>
-                                                    <input
-                                                        type="number"
-                                                        className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 font-black text-blue-950 outline-none focus:ring-2 focus:ring-green-500/20 transition-all"
-                                                        value={settings.pricing?.[pkg] || ''}
-                                                        onChange={(e) => setSettings({ ...settings, pricing: { ...settings.pricing, [pkg]: parseInt(e.target.value) || 0 } })}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="flex justify-end">
-                                            <button
-                                                onClick={() => updateSetting('pricing', settings.pricing)}
-                                                disabled={savingSettings}
-                                                className="px-8 py-3 bg-green-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-green-700 transition-all disabled:opacity-50"
-                                            >
-                                                {savingSettings ? 'Saving...' : 'Update Prices'}
-                                            </button>
+                                        <div className="relative z-10 space-y-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                                {['starter', 'pro', 'premium'].map(pkg => (
+                                                    <div key={pkg} className="group/input p-4 bg-gray-50/50 border border-gray-100 rounded-[2rem] hover:bg-white hover:border-green-500/20 transition-all">
+                                                        <label className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.2em] ml-4 mb-2 block">{pkg}</label>
+                                                        <div className="flex items-center">
+                                                            <span className="text-lg font-black text-blue-950/20 ml-4 mr-2">Rs</span>
+                                                            <input
+                                                                type="number"
+                                                                className="w-full bg-transparent p-2 md:p-4 font-black text-2xl text-blue-950 outline-none"
+                                                                value={settings.pricing?.[pkg] || ''}
+                                                                onChange={(e) => setSettings({ ...settings, pricing: { ...settings.pricing, [pkg]: parseInt(e.target.value) || 0 } })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => updateSetting('pricing', settings.pricing)}
+                                                    disabled={savingSettings}
+                                                    className="w-full sm:w-auto px-12 py-5 bg-green-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-green-700 hover:shadow-2xl hover:shadow-green-600/40 transition-all disabled:opacity-50 active:scale-95"
+                                                >
+                                                    {savingSettings ? 'Syncing...' : 'Update Valuation'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1131,32 +1176,32 @@ export default function AdminDashboard() {
                 )
             }
             {/* Mobile Bottom Navigation - Scrollable to show all tabs */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-white/95 backdrop-blur-2xl border-t border-blue-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                <div className="overflow-x-auto scrollbar-hide px-2 py-3">
-                    <div className="flex gap-1 min-w-max px-2">
+            <div className="md:hidden fixed bottom-6 left-6 right-6 z-[90] bg-white/80 backdrop-blur-2xl border border-blue-50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[2.5rem] p-2 animate-slide-up">
+                <div className="overflow-x-auto scrollbar-hide px-2 py-2">
+                    <div className="flex gap-2 min-w-max px-2">
                         {[
-                            { id: 'payments', icon: '💳', label: 'Payments', count: payments.length },
+                            { id: 'payments', icon: '💳', label: 'Cash', count: payments.length },
                             { id: 'users', icon: '👥', label: 'Users', count: users.length },
-                            { id: 'generations', icon: '📝', label: 'Log', count: generations.length },
+                            { id: 'generations', icon: '📝', label: 'Logs', count: generations.length },
                             { id: 'gallery', icon: '🖼️', label: 'Gallery' },
                             { id: 'analytics', icon: '📈', label: 'Stats' },
-                            { id: 'support', icon: '💬', label: 'Support', count: tickets.filter(t => t.status === 'pending').length },
-                            { id: 'settings', icon: '⚙️', label: 'Settings' }
+                            { id: 'support', icon: '💬', label: 'Tickets', count: tickets.filter(t => t.status === 'pending').length },
+                            { id: 'settings', icon: '⚙️', label: 'Setup' }
                         ].map((item) => (
                             <button
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
-                                className={`relative flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all min-w-[70px] ${activeTab === item.id
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 scale-105'
+                                className={`relative flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-500 min-w-[75px] ${activeTab === item.id
+                                    ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30 scale-105 -translate-y-1'
                                     : 'text-blue-400 hover:bg-blue-50'
                                     }`}
                             >
-                                <span className="text-lg">{item.icon}</span>
+                                <span className={`text-xl ${activeTab === item.id ? 'animate-bounce' : ''}`}>{item.icon}</span>
                                 <span className="text-[7px] font-black uppercase tracking-wider whitespace-nowrap">{item.label}</span>
                                 {item.count !== undefined && item.count > 0 && (
-                                    <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[8px] font-black flex items-center justify-center ${activeTab === item.id
+                                    <span className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-[8px] font-black flex items-center justify-center border-2 border-white ${activeTab === item.id
                                         ? 'bg-white text-blue-600'
-                                        : 'bg-red-500 text-white'
+                                        : 'bg-red-500 text-white animate-pulse'
                                         }`}>
                                         {item.count > 99 ? '99+' : item.count}
                                     </span>
@@ -1166,6 +1211,6 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 }
