@@ -49,7 +49,8 @@ export async function POST(req) {
                     role: 'user',
                     referral_code: referralCode,
                     referral_count: 0,
-                    referral_rewarded_count: 0
+                    referral_rewarded_count: 0,
+                    joined_whatsapp: false
                 }
             ]);
 

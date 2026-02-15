@@ -11,16 +11,17 @@ export async function getAuthenticatedUser() {
         .from("users")
         .select("*")
         .eq("email", authUser.email)
-        .single();
+        .maybeSingle();
 
     // Admin emails whitelist
     const ADMIN_EMAILS = ['nadeemalikalhoro310@gmail.com'];
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
         console.error("[Auth Helpers] Database user fetch error:", error.message);
+        // Fallback for admins if DB is totally down/failing
         const isAdmin = authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase());
         if (isAdmin) {
-            console.log("[Auth Helpers] Admin fallback triggered for:", authUser.email);
+            console.log("[Auth Helpers] Emergency Admin fallback for:", authUser.email);
             return { ...authUser, role: 'admin', bypassDb: true };
         }
         return null;
@@ -41,16 +42,18 @@ export async function getAuthenticatedUser() {
         }
 
         const newUserData = {
+            id: authUser.id,
             email: authUser.email,
             name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email.split('@')[0],
             full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || "",
             role: (authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase())) ? "admin" : "user",
             package: "free",
             coins: 3,
-            id: authUser.id,
             referral_code: referralCode,
             referral_count: 0,
-            referral_rewarded_count: 0
+            referral_rewarded_count: 0,
+            password: "", // Satistfy NOT NULL constraint if present
+            joined_whatsapp: false
         };
 
         console.log("[Auth Helpers] Attempting to insert new user:", newUserData.email);
@@ -62,13 +65,19 @@ export async function getAuthenticatedUser() {
 
         if (createError) {
             console.error("[Auth Helpers] CRITICAL: Failed to create user record:", createError.message, createError.details);
-            const isAdmin = authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase());
-            if (isAdmin) return { ...authUser, role: 'admin', bypassDb: true };
-            return null;
+            // One last attempt: Check if user was created by a trigger/race condition
+            const { data: checkAgain } = await adminDb.from("users").select("*").eq("email", authUser.email).maybeSingle();
+            if (checkAgain) {
+                dbUser = checkAgain;
+            } else {
+                const isAdmin = authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase());
+                if (isAdmin) return { ...authUser, role: 'admin', bypassDb: true };
+                return null;
+            }
+        } else {
+            console.log("[Auth Helpers] Successfully created user record for:", newUser.email);
+            dbUser = newUser;
         }
-
-        console.log("[Auth Helpers] Successfully created user record for:", newUser.email);
-        dbUser = newUser;
 
         // Process referral if code exists in cookies (OAuth flow)
         try {
