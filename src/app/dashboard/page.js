@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 
-export default function DashboardPage() {
+function DashboardContent() {
     const { user: authUser, isLoading: authLoading } = useUser();
     const router = useRouter();
 
@@ -1189,5 +1189,17 @@ export default function DashboardPage() {
                 </div >
             </main >
         </div >
+    );
+}
+
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-white">
+                <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+        }>
+            <DashboardContent />
+        </Suspense>
     );
 }
