@@ -149,21 +149,6 @@ export async function getAuthenticatedUser() {
         }
     }
 
-    // FINAL CHECK: Ensure coins are at least 3 for free users who just signed up/migrated
-    if (dbUser && dbUser.package === 'free' && (dbUser.coins === null || dbUser.coins === undefined || dbUser.coins < 3)) {
-        console.log(`[Auth Helpers] Correcting coins for ${dbUser.email} (current: ${dbUser.coins})`);
-        const { data: fixedUser, error: fixErr } = await adminDb
-            .from("users")
-            .update({ coins: 3 })
-            .eq("email", dbUser.email)
-            .select("*")
-            .single();
-        if (!fixErr && fixedUser) {
-            dbUser = fixedUser;
-        } else {
-            console.error("[Auth Helpers] Failed to fix coins:", fixErr?.message);
-        }
-    }
 
     return dbUser;
 }
