@@ -22,6 +22,20 @@ export async function POST(req) {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Generate a unique referral code
+        let referralCode;
+        let codeUnique = false;
+        let attempts = 0;
+
+        while (!codeUnique && attempts < 5) {
+            referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const { count } = await supabase.from("users").select('*', { count: 'exact', head: true }).eq('referral_code', referralCode);
+            if (count === 0) codeUnique = true;
+            attempts++;
+        }
+
+        console.log(`[Signup API] Registering new user: ${email} with code: ${referralCode}`);
+
         const { error: insertError } = await supabase
             .from("users")
             .insert([
@@ -33,7 +47,7 @@ export async function POST(req) {
                     package: 'free',
                     coins: 3,
                     role: 'user',
-                    referral_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+                    referral_code: referralCode,
                     referral_count: 0,
                     referral_rewarded_count: 0
                 }

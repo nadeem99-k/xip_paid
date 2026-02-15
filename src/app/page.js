@@ -34,6 +34,16 @@ export default function Home() {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
+
+    // Capture referral code if present
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      console.log('Capturing referral code:', ref);
+      // Store in cookie for 30 days
+      document.cookie = `referral_code=${ref}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+    }
+
     return () => clearInterval(timer);
   }, []);
 

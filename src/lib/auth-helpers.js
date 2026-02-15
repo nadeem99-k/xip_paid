@@ -17,36 +17,43 @@ export async function getAuthenticatedUser() {
     const ADMIN_EMAILS = ['nadeemalikalhoro310@gmail.com'];
 
     if (error && error.code !== 'PGRST116') {
-        console.warn("[Auth Helpers] Database user fetch error, using whitelist fallback:", error.message);
+        console.error("[Auth Helpers] Database user fetch error:", error.message);
         const isAdmin = authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase());
         if (isAdmin) {
+            console.log("[Auth Helpers] Admin fallback triggered for:", authUser.email);
             return { ...authUser, role: 'admin', bypassDb: true };
         }
         return null;
     }
 
     if (!dbUser) {
-        // Handle referral code if present in cookies (passed from middleware/client)
-        // For now, we'll assume the code might be in a header or we'll need to update this after checking middleware
-        let referredById = null;
-        // Logic to get referral link/code will be added in middleware or via query sync
+        console.log("[Auth Helpers] No DB user found for:", authUser.email, "Creating new record...");
+
+        let referralCode;
+        let codeUnique = false;
+        let attempts = 0;
+
+        while (!codeUnique && attempts < 5) {
+            referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const { count } = await adminDb.from("users").select('*', { count: 'exact', head: true }).eq('referral_code', referralCode);
+            if (count === 0) codeUnique = true;
+            attempts++;
+        }
 
         const newUserData = {
             email: authUser.email,
-            name: authUser.user_metadata?.name || authUser.email.split('@')[0],
+            name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email.split('@')[0],
             full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || "",
             role: (authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase())) ? "admin" : "user",
             package: "free",
             coins: 3,
             id: authUser.id,
-            referral_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+            referral_code: referralCode,
             referral_count: 0,
             referral_rewarded_count: 0
         };
 
-        // If we had a way to identify the referrer here, we would set referred_by
-        // Note: OAuth flow might make it tricky to pass the code here unless using cookies or sessions
-
+        console.log("[Auth Helpers] Attempting to insert new user:", newUserData.email);
         const { data: newUser, error: createError } = await adminDb
             .from("users")
             .insert([newUserData])
@@ -54,11 +61,13 @@ export async function getAuthenticatedUser() {
             .single();
 
         if (createError) {
-            console.error("Failed to create user record:", createError);
+            console.error("[Auth Helpers] CRITICAL: Failed to create user record:", createError.message, createError.details);
             const isAdmin = authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase());
             if (isAdmin) return { ...authUser, role: 'admin', bypassDb: true };
             return null;
         }
+
+        console.log("[Auth Helpers] Successfully created user record for:", newUser.email);
         dbUser = newUser;
 
         // Process referral if code exists in cookies (OAuth flow)
@@ -98,19 +107,52 @@ export async function getAuthenticatedUser() {
         }
 
         console.log(`[Auth Helpers] Generating missing referral code for ${dbUser.email}: ${newCode}`);
+
+        // Use both id and email for update to be safe, but fallback to email if id is problematic
         const { data: updatedUser, error: updateErr } = await adminDb
             .from("users")
             .update({ referral_code: newCode })
-            .eq("id", dbUser.id)
+            .or(`id.eq.${dbUser.id},email.eq.${dbUser.email}`)
             .select("*")
             .single();
 
         if (updateErr) {
-            console.error("[Auth Helpers] Failed to update missing referral code:", updateErr.message);
-            // Even if update failed, return the generated code in the object so UI can show it
-            dbUser.referral_code = newCode;
+            console.error("[Auth Helpers] CRITICAL: Failed to persist missing referral code for:", dbUser.email, "Error:", updateErr.message);
+
+            // Try updating by email only as a last resort
+            const { data: retryUser, error: retryErr } = await adminDb
+                .from("users")
+                .update({ referral_code: newCode })
+                .eq("email", dbUser.email)
+                .select("*")
+                .single();
+
+            if (retryErr) {
+                console.error("[Auth Helpers] CRITICAL: Email fallback update also failed:", retryErr.message);
+                dbUser.referral_code = newCode;
+            } else {
+                console.log("[Auth Helpers] Successfully persisted referral code via email fallback for:", retryUser.email);
+                dbUser = retryUser;
+            }
         } else if (updatedUser) {
+            console.log("[Auth Helpers] Successfully persisted referral code for:", updatedUser.email);
             dbUser = updatedUser;
+        }
+    }
+
+    // FINAL CHECK: Ensure coins are at least 3 for free users who just signed up/migrated
+    if (dbUser && dbUser.package === 'free' && (dbUser.coins === null || dbUser.coins === undefined || dbUser.coins < 3)) {
+        console.log(`[Auth Helpers] Correcting coins for ${dbUser.email} (current: ${dbUser.coins})`);
+        const { data: fixedUser, error: fixErr } = await adminDb
+            .from("users")
+            .update({ coins: 3 })
+            .eq("email", dbUser.email)
+            .select("*")
+            .single();
+        if (!fixErr && fixedUser) {
+            dbUser = fixedUser;
+        } else {
+            console.error("[Auth Helpers] Failed to fix coins:", fixErr?.message);
         }
     }
 
@@ -153,9 +195,11 @@ export async function processReferral(newUserEmail, referralCode) {
             .single();
 
         if (fetchNewUserError || !newcomer) {
-            console.error(`[Referral] New user ${newUserEmail} not found in DB yet.`);
+            console.error(`[Referral] CRITICAL: New user ${newUserEmail} not found in DB. Data:`, newcomer, "Error:", fetchNewUserError?.message);
             return;
         }
+
+        console.log(`[Referral] Linking newcomer ${newcomer.id} to referrer ${referrer.email} (${referrer.id})`);
 
         // Only update if not already referred
         if (newcomer.referred_by) {

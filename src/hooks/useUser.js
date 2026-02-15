@@ -23,27 +23,28 @@ export function useUser() {
             if (!sessionUser?.email || !mounted) return;
 
             try {
-                const { data: dbUser, error } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('email', sessionUser.email)
-                    .single();
+                // Fetch from our API instead of direct Supabase to trigger migration/init logic
+                const res = await fetch('/api/user/profile');
+                const data = await res.json();
 
-                if (error) {
-                    if (error.code !== 'PGRST116') {
-                        console.warn(`[useUser] Note: Database profile fetch error:`, error.message);
-                    }
-                    return;
-                }
+                if (data.success && data.user && mounted) {
+                    console.log(`[useUser] Profile details synced for ${sessionUser.email}`);
 
-                if (mounted && dbUser) {
-                    console.log(`[useUser] Profile details loaded for ${sessionUser.email}, role: ${dbUser.role}`);
-
-                    // Merge session user data with db profile data
                     setUser(prev => {
-                        if (!prev) return { ...sessionUser, ...dbUser };
-                        return { ...prev, ...dbUser };
+                        if (!prev) return { ...sessionUser, ...data.user };
+                        return { ...prev, ...data.user };
                     });
+                } else if (!data.success) {
+                    // Fallback to direct supabase if API fails (e.g. during deployment transitions)
+                    const { data: dbUser } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('email', sessionUser.email)
+                        .single();
+
+                    if (dbUser && mounted) {
+                        setUser(prev => ({ ...prev, ...dbUser }));
+                    }
                 }
             } catch (err) {
                 // Ignore background fetch errors
