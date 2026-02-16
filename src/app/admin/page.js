@@ -29,6 +29,45 @@ export default function AdminDashboard() {
     const [testingKey, setTestingKey] = useState(null);
     const [envKeysInfo, setEnvKeysInfo] = useState({ count: 0, details: [] });
 
+    // Calculate total remaining images from API keys
+    const totalImagesLeft = useMemo(() => {
+        let finiteTotal = 0;
+        let hasUnlimited = false;
+
+        // 1. Check Environment Keys (Always treated as unlimited/unknown capacity)
+        if (envKeysInfo?.count > 0) {
+            hasUnlimited = true;
+        }
+
+        // 2. Check Database Keys
+        if (apiKeys && apiKeys.length > 0) {
+            // Include both active and rate_limited keys
+            const validKeys = apiKeys.filter(k => k.status === 'active' || k.status === 'rate_limited');
+
+            for (const key of validKeys) {
+                if (key.total_limit === null) {
+                    hasUnlimited = true;
+                } else if (key.usage?.total?.remaining !== undefined && key.usage?.total?.remaining !== null) {
+                    finiteTotal += key.usage.total.remaining;
+                }
+            }
+        }
+
+        // Format Output
+        // If we have meaningful finite count, show it (with + if there are also unlimited keys)
+        if (finiteTotal > 0) {
+            return hasUnlimited ? `${finiteTotal}+` : finiteTotal;
+        }
+
+        // If no finite count but we have unlimited keys, show ∞
+        if (hasUnlimited) {
+            return '∞';
+        }
+
+        // Otherwise 0
+        return 0;
+    }, [apiKeys, envKeysInfo]);
+
     // Admin email whitelist - add your admin emails here
     const ADMIN_EMAILS = [
         'nadeemalikalhoro310@gmail.com',
@@ -536,6 +575,9 @@ export default function AdminDashboard() {
         );
     }
 
+
+
+
     return (
         <div className="min-h-screen bg-[#fafbfc] pt-24 pb-28 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto selection:bg-blue-100 selection:text-blue-900">
             <div className="fixed inset-0 pointer-events-none opacity-[0.03] grayscale invert z-0">
@@ -570,12 +612,13 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
                         {[
                             { label: 'Revenue', value: stats?.totalVolume || 0, icon: '💰', color: 'bg-green-500', trend: '+12%', sub: 'Total Volume' },
                             { label: 'Users', value: stats?.totalUsers || 0, icon: '👥', color: 'bg-blue-600', trend: '+5%', sub: 'Global Growth' },
                             { label: 'Creations', value: generations.length, icon: '🎨', color: 'bg-purple-600', trend: '+24%', sub: 'Total Assets' },
-                            { label: 'Pending', value: payments.length, icon: '⏳', color: 'bg-yellow-500', trend: '!', sub: 'Needs Review' }
+                            { label: 'Pending', value: payments.length, icon: '⏳', color: 'bg-yellow-500', trend: '!', sub: 'Needs Review' },
+                            { label: 'Capacity', value: totalImagesLeft, icon: '⚡', color: 'bg-indigo-600', trend: 'MAX', sub: 'Images Left' }
                         ].map((stat, i) => (
                             <div key={i} className="group relative p-6 bg-white border border-blue-50 rounded-[2.5rem] flex flex-col justify-between hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-900/[0.03] transition-all duration-500 overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-blue-100/50 transition-all duration-700"></div>
