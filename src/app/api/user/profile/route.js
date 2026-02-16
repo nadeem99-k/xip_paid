@@ -6,7 +6,7 @@ export async function GET() {
         const user = await getAuthenticatedUser();
 
         if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 }); // 401 is fine, returns JSON
         }
 
         return NextResponse.json({
@@ -18,3 +18,4 @@ export async function GET() {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+

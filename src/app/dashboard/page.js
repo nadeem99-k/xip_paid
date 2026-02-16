@@ -318,7 +318,7 @@ function DashboardContent() {
         // Check for sufficient coins
         const cost = selectedMode === 'nude' ? 6 : 2;
         if ((displayUser?.coins || 0) < cost) {
-            alert(`Insufficient credits. ${selectedMode === 'nude' ? 'Nude' : 'Bikini'} mode requires ${cost} coins. Redirecting to plans...`);
+            alert(`Insufficient credits. ${selectedMode === 'nude' ? 'Nude' : (selectedMode === 'remover' ? 'Remover' : 'Bikini')} mode requires ${cost} coins. Redirecting to plans...`);
             router.push('/pricing');
             return;
         }
@@ -592,6 +592,17 @@ function DashboardContent() {
                                                 <div className="text-center">
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-950">Nude Mode</p>
                                                     <p className="text-[9px] font-bold text-blue-600">6 Coins</p>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedMode('remover')}
+                                                disabled={(displayUser?.coins || 0) < 2}
+                                                className={`p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 ${(displayUser?.coins || 0) < 2 ? 'opacity-40 cursor-not-allowed bg-gray-50 border-gray-100' : selectedMode === 'remover' ? 'border-blue-600 bg-blue-50/50' : 'border-blue-50 bg-white hover:border-blue-200'}`}
+                                            >
+                                                <span className="text-2xl">🧼</span>
+                                                <div className="text-center">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-950">Remover Mode</p>
+                                                    <p className="text-[8px] font-bold text-blue-600">Clean Face • 2 Coins</p>
                                                 </div>
                                             </button>
                                         </div>

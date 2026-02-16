@@ -22,7 +22,7 @@ export async function POST(req) {
         const model = formData.get("model");
 
         const mode = selectedMode || user.package;
-        const cost = mode === 'nude' ? 6 : (mode === 'bikini' ? 2 : 0);
+        const cost = mode === 'nude' ? 6 : (mode === 'bikini' || mode === 'remover' ? 2 : 0);
 
         if (user.coins < cost) {
             return NextResponse.json({ error: `Insufficient coins. ${mode} mode costs ${cost} coins.` }, { status: 403 });

@@ -1,6 +1,19 @@
+// Helper function to track API key usage
+async function trackUsage(apiKey, success = false, failure = false, rateLimit = false) {
+    try {
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/api-keys/track-usage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey, success, failure, rate_limit: rateLimit })
+        });
+    } catch (err) {
+        console.warn('Failed to track usage:', err.message);
+    }
+}
+
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(STRICT 1:1 FACE CLONE:2.0), (DO NOT TOUCH FACE:2.0), (MAINTAIN IDENTICAL FACIAL FEATURES:2.0), (STRICT FACIAL PORTRAIT PRESERVATION:1.9), (KEEP ORIGINAL HUMAN FEATURES:1.9), (KEEP EXACT SAME PERSON AND IDENTITY:2.0), (LEAVE EYES NOSE MOUTH UNTOUCHED:2.0).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY:1.9), (NATURAL DETAILED SKIN TEXTURE:1.8), (REALISTIC BREASTS AND PINK INTIMATE AREAS:1.8), (DETAILED REALISTIC VULVA/PUSSY TEXTURE:1.9).";
+    const identity_preservation = "(STRICT 1:1 FACE CLONE:3.0), (DO NOT TOUCH FACE:3.0), (MAINTAIN IDENTICAL FACIAL FEATURES:3.0), (STRICT FACIAL PORTRAIT PRESERVATION:2.5), (KEEP ORIGINAL HUMAN FEATURES:2.5), (KEEP EXACT SAME PERSON AND IDENTITY:3.0), (LEAVE EYES NOSE MOUTH UNTOUCHED:3.0), (EXACT COPY OF INPUT FACE:3.0).";
+    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY:2.0), (NATURAL DETAILED SKIN TEXTURE:2.0), (REALISTIC BREASTS AND PINK INTIMATE AREAS:2.0), (DETAILED REALISTIC VULVA/PUSSY TEXTURE:2.0).";
     const masterpiece_enhancer = "masterpiece, ultra-detailed photography, 8k resolution, highly realistic, skin pores, natural light, cinematic composition.";
     const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime.";
 
@@ -10,17 +23,59 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // Identity preservation & realism prompts
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: (STRICT COMPLIANCE: KEEP ORIGINAL FACE 100% UNTOUCHED:2.0), (IDENTICAL HEAD AND HAIR:1.9). (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography.`;
+        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: (STRICT COMPLIANCE: KEEP ORIGINAL FACE 100% UNTOUCHED:3.0), (IDENTICAL HEAD AND HAIR:2.5). (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography. (SAME FACE AS INPUT:3.0).`;
         negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body, modified face, changed features, different person, distorted eyes, changed expression, plastic surgery look.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:2.0), (REMOVE ALL CLOTHING:2.0), (FULLY NAKED:1.9), (BARE SKIN EVERYWHERE:1.9). DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments. REPLACE WITH: (flawless smooth bare skin:2.0), (completely nude body:1.9), (no clothing whatsoever:1.9). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. Uniform skin texture, spotless clear skin, soft natural lighting. NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed. IMPORTANT: (STRICT 1:1 FACE LOCK:2.0), (DO NOT MODIFY FACIAL FEATURES:2.0), (KEEP ORIGINAL EYES NOSE AND LIPS:2.0), (SAME PERSON:2.0). (Perfect anatomy:1.7), flawless hands and feet. High-resolution raw photography.`;
+        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:2.0), (REMOVE ALL CLOTHING:2.0), (FULLY NAKED:2.0), (BARE SKIN EVERYWHERE:2.0). DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments. REPLACE WITH: (flawless smooth bare skin:2.0), (completely nude body:2.0), (no clothing whatsoever:2.0). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. Uniform skin texture, spotless clear skin, soft natural lighting. NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed. IMPORTANT: (STRICT 1:1 FACE LOCK:3.0), (DO NOT MODIFY FACIAL FEATURES:3.0), (KEEP ORIGINAL EYES NOSE AND LIPS:3.0), (SAME PERSON:3.0). (Perfect anatomy:1.8), flawless hands and feet. High-resolution raw photography. (SAME FACE AS INPUT:3.0).`;
         negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, changed eyes, changed mouth, different identity.";
+    } else if (mode === 'remover') {
+        const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
+        finalPrompt = `${remove_instruction} ${identity_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0).`;
+        negativePrompt += " sticker, emoji, graphic, text, watermark, occlusion, distorted face, changed identity, blur, plastic, low quality, changed background, changed eyes, changed nose, changed lips.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
 
-    const allKeys = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',').filter(k => k.trim());
+    // Filter out known bad keys (those that returned 401 recently in this session)
+    // In a real app we'd persistent this, but for now we'll just track it in a local set if needed
+    // However, the requested change is to skip them during the loop if 401 is encountered.
+
+
+    // Fetch API keys from database first
+    const dbKeys = [];
+    try {
+        const dbResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/api-keys`);
+        if (dbResponse.ok) {
+            const dbData = await dbResponse.json();
+            if (dbData.success && dbData.keys && dbData.keys.length > 0) {
+                // Filter for enabled deapi keys
+                const keyRecords = dbData.keys.filter(k => k.provider === 'deapi' && k.is_enabled);
+                keyRecords.forEach(k => {
+                    if (k.api_key && k.api_key.trim()) {
+                        dbKeys.push(k.api_key.trim());
+                    }
+                });
+                console.log(`Loaded ${dbKeys.length} DeAPI keys from database`);
+            }
+        }
+    } catch (dbError) {
+        console.warn('Failed to fetch keys from database:', dbError.message);
+    }
+
+    // Load environment keys
+    const envKeysRaw = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',');
+    const envKeys = envKeysRaw.map(k => k.trim()).filter(k => k.length > 0);
+    console.log(`Loaded ${envKeys.length} DeAPI keys from environment`);
+
+    // Merge and deduplicate
+    const allKeys = [...new Set([...dbKeys, ...envKeys])];
+    console.log(`Total unique DeAPI keys available: ${allKeys.length}`);
+
+    if (allKeys.length === 0) {
+        console.warn("No DeAPI keys found in database or environment!");
+    }
+
     const model = modelOverride || "Flux_2_Klein_4B_BF16";
 
     // Retry mechanism for rate limits
@@ -38,19 +93,24 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
             try {
                 if (attempt > 0) {
                     console.log(`Retry attempt ${attempt + 1}/${maxRetries} for DeAPI generation...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retrying
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                 }
 
+                // Skip if we hit 401 on this key before (optional enhancement, but let's just handle it in the loop)
                 console.log(`Attempting DeAPI generation directly with key index ${i}...`);
 
                 // Try preferred model first
-                const modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
+                let modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
+                // Remover mode: Prefer Flux for identity, Qwen might be too strong
+                if (mode === 'remover') {
+                    modelsToTry = ["Flux_2_Klein_4B_BF16", "flux-dev", "flux"];
+                }
 
                 // Dynamic parameters based on mode for optimal results
-                // Lower strength preserves MORE of the original image (especially the face)
-                const guidance = mode === 'nude' ? 4.0 : 3.0;
-                const strength = mode === 'nude' ? 0.58 : 0.55;
-                const imageStrength = mode === 'nude' ? 0.85 : 0.82;
+                // REMOVER: Lower strength preserves MORE of the original image (especially the face)
+                const guidance = mode === 'nude' ? 3.0 : (mode === 'remover' ? 2.2 : 2.5);
+                const strength = mode === 'nude' ? 0.50 : (mode === 'remover' ? 0.45 : 0.45);
+                const imageStrength = mode === 'nude' ? 0.96 : (mode === 'remover' ? 0.95 : 0.96);
 
                 for (const currentModel of modelsToTry) {
                     const formData = new FormData();
@@ -76,23 +136,32 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                     });
 
                     if (response.status === 429) {
-                        console.warn(`DeAPI key ${i} rate limited (429).`);
-                        lastError = new Error(`DeAPI key ${i} rate limited.`);
+                        const errorText = await response.text();
+                        console.warn(`DeAPI key ${i} rate limited (429) on POST. Details: ${errorText}`);
+                        await trackUsage(apiKey, false, false, true);
+                        lastError = new Error(`DeAPI key ${i} rate limited: ${errorText}`);
                         break; // Exit model loop, try next key
+                    }
+
+                    if (response.status === 401) {
+                        console.error(`DeAPI key ${i} is INVALID (401). Skipping...`);
+                        lastError = new Error(`Invalid key ${i}`);
+                        break; // Exit model loop, skip this key forever in this loop
                     }
 
                     if (response.status === 422) {
                         console.warn(`DeAPI key ${i} does not support model ${currentModel}. Trying next fallback...`);
-                        allKeysRateLimited = false; // It's not a rate limit, just model handling
-                        continue; // Try next fallback model with SAME key
+                        allKeysRateLimited = false;
+                        continue;
                     }
 
                     if (!response.ok) {
                         const errorText = await response.text();
                         console.error(`DeAPI key ${i} error ${response.status}: ${errorText}`);
+                        await trackUsage(apiKey, false, true, false);
                         lastError = new Error(`DeAPI error ${response.status}: ${errorText}`);
                         allKeysRateLimited = false;
-                        break; // Exit model loop, try next key
+                        break;
                     }
 
                     const data = await response.json();
@@ -103,24 +172,16 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                         continue;
                     }
 
-                    // If we got here, request is accepted, start polling
-                    return await pollStatus(requestId, apiKey);
+                    // Track successful request
+                    const result = await pollStatus(requestId, apiKey);
+                    await trackUsage(apiKey, true, false, false);
+                    return result;
                 }
             } catch (error) {
                 console.error(`DeAPI Attempt with key index ${i} failed:`, error.message);
                 lastError = error;
-                allKeysRateLimited = false; // Network error or other exception
+                allKeysRateLimited = false;
             }
-        }
-
-        // If we tried all keys and all were 429, we loop to the next attempt
-        if (!allKeysRateLimited) {
-            // If we had a non-429 error (like 500 or 401), we probably shouldn't just retry blindly, but let's assume we want to exhaust retries
-            // Actually, if !allKeysRateLimited, it means we hit a real error or success (but returned returned above).
-            // If we are here, it means we FAILED to return.
-            // If errors were NOT rate limits, maybe we should stop?
-            // But simpler to just let it retry or throw.
-            // Let's just continue loop.
         }
     }
 
@@ -129,9 +190,11 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
 async function pollStatus(requestId, apiKey) {
     let attempts = 0;
-    const maxAttempts = 30;
+    const maxAttempts = 40; // Increased
+    let delay = 2000;
+
     while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, delay));
         try {
             const statusResponse = await fetch(`https://api.deapi.ai/api/v1/client/request-status/${requestId}`, {
                 method: 'GET',
@@ -140,6 +203,13 @@ async function pollStatus(requestId, apiKey) {
                     'Authorization': `Bearer ${apiKey}`
                 }
             });
+
+            if (statusResponse.status === 429) {
+                console.warn(`Polling 429 Rate Limit for request ${requestId}. Increasing delay...`);
+                delay *= 1.5; // Exponential backoff
+                attempts++;
+                continue;
+            }
 
             if (!statusResponse.ok) {
                 console.warn(`DeAPI status check failed: ${statusResponse.status}`);
@@ -158,10 +228,15 @@ async function pollStatus(requestId, apiKey) {
             } else if (status === 'error' || status === 'failed') {
                 throw new Error(`DeAPI processing failed: ${JSON.stringify(statusData)}`);
             }
+
+            // Success call but not done yet, reset delay slightly or keep it
+            if (delay > 2000) delay -= 500;
+            if (delay < 2000) delay = 2000;
+
         } catch (pollError) {
             console.warn(`Polling error: ${pollError.message}`);
         }
         attempts++;
     }
-    throw new Error(`DeAPI timed out after ${maxAttempts * 2} seconds.`);
+    throw new Error(`DeAPI timed out after reaching maximum polling attempts.`);
 }
