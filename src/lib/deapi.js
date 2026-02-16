@@ -1,11 +1,74 @@
-// Helper function to track API key usage
+import { supabase } from '@/lib/supabase';
+
+// Helper function to track API key usage directly in DB
 async function trackUsage(apiKey, success = false, failure = false, rateLimit = false) {
+    if (!supabase) return;
+
     try {
-        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/api-keys/track-usage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ api_key: apiKey, success, failure, rate_limit: rateLimit })
-        });
+        // Find the API key in the database
+        const { data: keyData, error: keyError } = await supabase
+            .from('api_keys')
+            .select('id, status')
+            .eq('api_key', apiKey)
+            .single();
+
+        if (keyError || !keyData) {
+            // Key not in database, skip tracking
+            return;
+        }
+
+        const keyId = keyData.id;
+
+        // Update last_used_at timestamp
+        await supabase
+            .from('api_keys')
+            .update({ last_used_at: new Date().toISOString() })
+            .eq('id', keyId);
+
+        // Update status based on response
+        if (rateLimit) {
+            await supabase.from('api_keys').update({ status: 'rate_limited' }).eq('id', keyId);
+        } else if (failure) {
+            await supabase.from('api_keys').update({ status: 'invalid' }).eq('id', keyId);
+        } else if (success) {
+            await supabase.from('api_keys').update({ status: 'active' }).eq('id', keyId);
+        }
+
+        // Get today's date
+        const today = new Date().toISOString().split('T')[0];
+
+        // Try to get existing usage record for today
+        const { data: existingUsage } = await supabase
+            .from('api_key_usage')
+            .select('*')
+            .eq('api_key_id', keyId)
+            .eq('request_date', today)
+            .single();
+
+        if (existingUsage) {
+            // Update existing record
+            const updates = {};
+            if (success) updates.success_count = (existingUsage.success_count || 0) + 1;
+            if (failure) updates.failure_count = (existingUsage.failure_count || 0) + 1;
+            if (rateLimit) updates.rate_limit_count = (existingUsage.rate_limit_count || 0) + 1;
+            updates.updated_at = new Date().toISOString();
+
+            await supabase
+                .from('api_key_usage')
+                .update(updates)
+                .eq('id', existingUsage.id);
+        } else {
+            // Insert new record
+            await supabase
+                .from('api_key_usage')
+                .insert({
+                    api_key_id: keyId,
+                    request_date: today,
+                    success_count: success ? 1 : 0,
+                    failure_count: failure ? 1 : 0,
+                    rate_limit_count: rateLimit ? 1 : 0
+                });
+        }
     } catch (err) {
         console.warn('Failed to track usage:', err.message);
     }
@@ -42,25 +105,31 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // However, the requested change is to skip them during the loop if 401 is encountered.
 
 
-    // Fetch API keys from database first
+    // Fetch API keys from database first (Direct Supabase Query)
     const dbKeys = [];
-    try {
-        const dbResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/api-keys`);
-        if (dbResponse.ok) {
-            const dbData = await dbResponse.json();
-            if (dbData.success && dbData.keys && dbData.keys.length > 0) {
-                // Filter for enabled deapi keys
-                const keyRecords = dbData.keys.filter(k => k.provider === 'deapi' && k.is_enabled);
-                keyRecords.forEach(k => {
+    if (supabase) {
+        try {
+            const { data: keys, error } = await supabase
+                .from('api_keys')
+                .select('api_key')
+                .eq('provider', 'deapi')
+                .eq('is_enabled', true);
+
+            if (!error && keys && keys.length > 0) {
+                keys.forEach(k => {
                     if (k.api_key && k.api_key.trim()) {
                         dbKeys.push(k.api_key.trim());
                     }
                 });
-                console.log(`Loaded ${dbKeys.length} DeAPI keys from database`);
+                console.log(`Loaded ${dbKeys.length} DeAPI keys from database (Direct DB)`);
+            } else if (error) {
+                console.warn('Supabase DB error fetching keys:', error.message);
             }
+        } catch (dbError) {
+            console.warn('Failed to fetch keys from database:', dbError.message);
         }
-    } catch (dbError) {
-        console.warn('Failed to fetch keys from database:', dbError.message);
+    } else {
+        console.warn('Supabase client not available, skipping DB keys.');
     }
 
     // Load environment keys
