@@ -75,11 +75,11 @@ async function trackUsage(apiKey, success = false, failure = false, rateLimit = 
 }
 
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(STRICT 1:1 FACE CLONE:1.5), (STRICT FACIAL IDENTITY:1.4), (KEEP ORIGINAL HUMAN FEATURES:1.3), (STRICT FACE LOCK:1.4). (PROHIBIT FACIAL ALTERATION:1.5).";
+    const identity_preservation = "(STRICT 1:1 FACE CLONE:1.5), (STRICT FACIAL IDENTITY:1.4), (KEEP ORIGINAL HUMAN FEATURES:1.3), (STRICT FACE LOCK:1.4). (PROHIBIT FACIAL ALTERATION:1.5). (IDENTICAL FACE:1.5).";
     const background_preservation = "(STRICT BACKGROUND LOCK:1.5), (KEEP ORIGINAL BACKGROUND 100% UNTOUCHED:1.5), (DO NOT ALTER BACKGROUND:1.4).";
-    const anatomic_realism = "(natural skin texture with imperfections:1.3), (raw photo:1.3), (iPhone camera quality:1.2), (natural body shape:1.3), (soft shadows:1.2), (natural anatomy:1.4), (realistic breast shape:1.3), (natural labia area:1.4), (subtle goosebumps:1.1).";
+    const anatomic_realism = "(perfect human anatomy:1.4), (natural skin texture with imperfections:1.3), (raw photo:1.3), (iPhone camera quality:1.2), (natural body shape:1.3), (soft shadows:1.2), (realistic breast shape:1.3), (natural female features:1.4), (subtle goosebumps:1.1).";
     const masterpiece_enhancer = "(candid shot:1.3), (unfiltered phone photo:1.4), (natural lighting:1.2), (high resolution raw dslr:1.2), depth of field.";
-    const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime, (changed face:1.5), (changed background:1.5).";
+    const negative_base = "(extra limbs, extra legs, extra arms, three legs, fused bodies, connected persons, mutated anatomy, deformed body:1.5), (extra fingers, fused fingers, too many fingers:1.4), blurry, low quality, deformed, disfigured, ugly, bad anatomy, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, duplicate artifacts, morbid, gross proportions, mutated hands, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime, (changed face:1.5), (changed background:1.5).";
 
     let finalPrompt = "";
     let negativePrompt = negative_base;
@@ -87,12 +87,12 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // Identity preservation & realism prompts
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} ${background_preservation} ${masterpiece_enhancer} wearing a (bikini:1.3). (STRICT COMPLIANCE: KEEP ORIGINAL FACE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). Real photography.`;
-        negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face.";
+        finalPrompt += `${identity_preservation} ${background_preservation} ${masterpiece_enhancer} wearing a (bikini:1.4). (STRICT COMPLIANCE: KEEP ORIGINAL FACE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). (Anatomic correctness:1.5). Real photography.`;
+        negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, (extra limbs:1.5).";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} ${background_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:1.6), (REMOVE ALL CLOTHES:1.6), (FULLY NAKED BARE SKIN:1.6). (Full body naked candid:1.4), (natural female anatomy:1.4), (detailed breasts:1.3), (natural vulva/pussy:1.4). (Shadows and depth in intimate area:1.3). NEGATIVE: clothes, dress, fabric, bra, underwear, bikini, swimsuit, (plastic skin:1.5), (3d model:1.5). (STRICT 1:1 FACE LOCK:1.5). (BACKGROUND LOCK:1.5). High-resolution raw candid photo.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, bikini, swimsuit, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background.";
+        finalPrompt += `${identity_preservation} ${background_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:1.6), (REMOVE ALL CLOTHES:1.6), (FULLY NAKED BARE SKIN:1.6). (Full body naked candid:1.4), (natural anatomy:1.5), (perfect human structure:1.5), (no extra parts:1.6), (detailed breasts:1.3), (natural vulva:1.4). (Shadows and depth in intimate area:1.3). NEGATIVE: clothes, dress, fabric, bra, underwear, bikini, swimsuit, (plastic skin:1.5), (3d model:1.5). (STRICT 1:1 FACE LOCK:1.5). (BACKGROUND LOCK:1.5). High-resolution raw candid photo.`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, bikini, swimsuit, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6).";
     } else if (mode === 'remover') {
         const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
@@ -179,7 +179,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                 // Dynamic parameters based on mode for optimal results
                 // REMOVER: Lower strength preserves MORE of the original image (especially the face)
                 const guidance = mode === 'nude' ? 2.5 : (mode === 'remover' ? 2.0 : 2.5);
-                const strength = mode === 'nude' ? 0.65 : (mode === 'remover' ? 0.38 : 0.40);
+                const strength = mode === 'nude' ? 0.62 : (mode === 'remover' ? 0.38 : 0.35);
                 const imageStrength = mode === 'nude' ? 0.98 : (mode === 'remover' ? 0.99 : 0.98);
 
                 for (const currentModel of modelsToTry) {
