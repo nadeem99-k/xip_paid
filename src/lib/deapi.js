@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
 // Helper function to track API key usage directly in DB
-async function trackUsage(apiKey, success = false, failure = false, rateLimit = false) {
+async function trackUsage(apiKey, success = false, failure = false, rateLimit = false, errorMsg = null) {
     if (!supabase) return;
 
     try {
@@ -27,11 +27,11 @@ async function trackUsage(apiKey, success = false, failure = false, rateLimit = 
 
         // Update status based on response
         if (rateLimit) {
-            await supabase.from('api_keys').update({ status: 'rate_limited' }).eq('id', keyId);
+            await supabase.from('api_keys').update({ status: 'rate_limited', updated_at: new Date().toISOString(), last_error: errorMsg }).eq('id', keyId);
         } else if (failure) {
-            await supabase.from('api_keys').update({ status: 'invalid' }).eq('id', keyId);
+            await supabase.from('api_keys').update({ status: 'invalid', updated_at: new Date().toISOString(), last_error: errorMsg }).eq('id', keyId);
         } else if (success) {
-            await supabase.from('api_keys').update({ status: 'active' }).eq('id', keyId);
+            await supabase.from('api_keys').update({ status: 'active', updated_at: new Date().toISOString(), last_error: null }).eq('id', keyId);
         }
 
         // Get today's date
@@ -75,9 +75,9 @@ async function trackUsage(apiKey, success = false, failure = false, rateLimit = 
 }
 
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(STRICT 1:1 FACE CLONE:3.0), (DO NOT TOUCH FACE:3.0), (MAINTAIN IDENTICAL FACIAL FEATURES:3.0), (STRICT FACIAL PORTRAIT PRESERVATION:2.5), (KEEP ORIGINAL HUMAN FEATURES:2.5), (KEEP EXACT SAME PERSON AND IDENTITY:3.0), (LEAVE EYES NOSE MOUTH UNTOUCHED:3.0), (EXACT COPY OF INPUT FACE:3.0).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY:2.0), (NATURAL DETAILED SKIN TEXTURE:2.0), (REALISTIC BREASTS AND PINK INTIMATE AREAS:2.0), (DETAILED REALISTIC VULVA/PUSSY TEXTURE:2.0).";
-    const masterpiece_enhancer = "masterpiece, ultra-detailed photography, 8k resolution, highly realistic, skin pores, natural light, cinematic composition.";
+    const identity_preservation = "(STRICT 1:1 FACE CLONE:3.2), (KEEP ORIGINAL HUMAN FEATURES:3.0), (LEAVE EYES NOSE MOUTH HAIR UNTOUCHED:3.2), (EXACT COPY OF INPUT FACE:3.2), (SAME PERSON:3.2).";
+    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY:2.2), (NATURAL REAL SKIN TEXTURE:2.2), (SKIN PORES AND BUMPS:1.8), (REALISTIC BREASTS:2.0), (DETAILED REALISTIC VULVA/PUSSY:2.2), (SEAMLESS SKIN:1.5), (PHOTOREALISTIC:2.0).";
+    const masterpiece_enhancer = "masterpiece, raw photography, 8k resolution, natural light, (skin texture:1.5), depth of field, sharp focus, (unfiltered:1.2).";
     const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime.";
 
     let finalPrompt = "";
@@ -86,12 +86,12 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // Identity preservation & realism prompts
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} wearing a matching (bikini:1.4), realistic fabric physics, intricate clothing details. IMPORTANT: (STRICT COMPLIANCE: KEEP ORIGINAL FACE 100% UNTOUCHED:3.0), (IDENTICAL HEAD AND HAIR:2.5). (Perfect anatomy:1.6), flawless hands with exactly five fingers. High-resolution raw photography. (SAME FACE AS INPUT:3.0).`;
-        negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body, modified face, changed features, different person, distorted eyes, changed expression, plastic surgery look.";
+        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} wearing a matching (bikini:1.4), realistic fabric physics. IMPORTANT: (STRICT COMPLIANCE: KEEP ORIGINAL FACE 100% UNTOUCHED:3.2), (IDENTICAL HEAD AND HAIR:2.8). (Perfect anatomy:1.6). High-resolution raw photography. (SAME FACE AS INPUT:3.2).`;
+        negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body, modified face, changed features, different person, plastic surgery look, ai generated artifacts, smoothed skin.";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:2.0), (REMOVE ALL CLOTHING:2.0), (FULLY NAKED:2.0), (BARE SKIN EVERYWHERE:2.0). DELETE: dress, saree, dupatta, pants, top, bra, underwear, ALL fabric, ALL garments. REPLACE WITH: (flawless smooth bare skin:2.0), (completely nude body:2.0), (no clothing whatsoever:2.0). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, perfectly rendered realistic vulva/pussy area, intimate areas match skin tone. Uniform skin texture, spotless clear skin, soft natural lighting. NEGATIVE: clothes, dress, fabric, garments, bra, underwear, covered, clothed. IMPORTANT: (STRICT 1:1 FACE LOCK:3.0), (DO NOT MODIFY FACIAL FEATURES:3.0), (KEEP ORIGINAL EYES NOSE AND LIPS:3.0), (SAME PERSON:3.0). (Perfect anatomy:1.8), flawless hands and feet. High-resolution raw photography. (SAME FACE AS INPUT:3.0).`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, changed eyes, changed mouth, different identity.";
+        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:2.3), (REMOVE ALL CLOTHING:2.3), (FULLY NAKED:2.3). DELETE: clothing, dress, saree, pants, top, bra, underwear. REPLACE WITH: (flawless smooth real skin:2.3), (completely nude body:2.3). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, rendered realistic vulva/pussy area. Uniform skin texture, soft natural lighting. NEGATIVE: clothes, dress, fabric, garments, bra, underwear. IMPORTANT: (STRICT 1:1 FACE LOCK:3.2), (DO NOT MODIFY FACIAL FEATURES:3.2), (SAME PERSON:3.2). (Perfect anatomy:1.8). High-resolution raw photography. (SAME FACE AS INPUT:3.2).`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed skin, cgi.";
     } else if (mode === 'remover') {
         const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0).`;
@@ -177,9 +177,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
                 // Dynamic parameters based on mode for optimal results
                 // REMOVER: Lower strength preserves MORE of the original image (especially the face)
-                const guidance = mode === 'nude' ? 3.0 : (mode === 'remover' ? 2.2 : 2.5);
-                const strength = mode === 'nude' ? 0.50 : (mode === 'remover' ? 0.45 : 0.45);
-                const imageStrength = mode === 'nude' ? 0.96 : (mode === 'remover' ? 0.95 : 0.96);
+                const guidance = mode === 'nude' ? 2.8 : (mode === 'remover' ? 2.2 : 2.5);
+                const strength = mode === 'nude' ? 0.52 : (mode === 'remover' ? 0.45 : 0.45);
+                const imageStrength = mode === 'nude' ? 0.98 : (mode === 'remover' ? 0.95 : 0.96);
 
                 for (const currentModel of modelsToTry) {
                     const formData = new FormData();
@@ -207,7 +207,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                     if (response.status === 429) {
                         const errorText = await response.text();
                         console.warn(`DeAPI key ${i} rate limited (429) on POST. Details: ${errorText}`);
-                        await trackUsage(apiKey, false, false, true);
+                        await trackUsage(apiKey, false, false, true, `Rate Limited (429): ${errorText.slice(0, 100)}`);
                         lastError = new Error(`DeAPI key ${i} rate limited: ${errorText}`);
                         break; // Exit model loop, try next key
                     }
@@ -227,7 +227,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                     if (!response.ok) {
                         const errorText = await response.text();
                         console.error(`DeAPI key ${i} error ${response.status}: ${errorText}`);
-                        await trackUsage(apiKey, false, true, false);
+                        await trackUsage(apiKey, false, true, false, `Error ${response.status}: ${errorText.slice(0, 100)}`);
                         lastError = new Error(`DeAPI error ${response.status}: ${errorText}`);
                         allKeysRateLimited = false;
                         break;

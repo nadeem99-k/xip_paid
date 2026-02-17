@@ -197,6 +197,14 @@ export default function AdminDashboard() {
 
     const [savingApiKey, setSavingApiKey] = useState(false);
 
+    // Coin Management State
+    const [showCoinModal, setShowCoinModal] = useState(false);
+    const [selectedUserForCoins, setSelectedUserForCoins] = useState(null);
+    const [coinAmount, setCoinAmount] = useState('');
+    const [isSubmittingCoins, setIsSubmittingCoins] = useState(false);
+    const [isTestingAll, setIsTestingAll] = useState(false);
+    const [testAllProgress, setTestAllProgress] = useState({ current: 0, total: 0 });
+
     const updateSetting = async (key, value) => {
         setSavingSettings(true);
         try {
@@ -253,30 +261,43 @@ export default function AdminDashboard() {
         setToast({ message, type });
     };
 
-    const handleUpdateCoins = async (userId, currentCoins) => {
-        const amount = prompt("Enter amount to add (e.g., 10) or remove (e.g., -5):", "10");
-        if (amount === null) return;
-        const coinAmount = parseInt(amount);
-        if (isNaN(coinAmount)) {
-            showToast("Please enter a valid number", 'error');
+    const handleUpdateCoins = (user) => {
+        setSelectedUserForCoins(user);
+        setCoinAmount('');
+        setShowCoinModal(true);
+    };
+
+    const handleSubmitCoinUpdate = async (action) => {
+        if (!coinAmount || isNaN(parseInt(coinAmount)) || parseInt(coinAmount) <= 0) {
+            showToast("Please enter a valid positive number", 'error');
             return;
         }
 
+        const amount = parseInt(coinAmount);
+        const finalAmount = action === 'add' ? amount : -amount;
+
+        setIsSubmittingCoins(true);
         try {
             const res = await fetch('/api/admin/users/update-coins', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, coinAmount })
+                body: JSON.stringify({ userId: selectedUserForCoins.id, coinAmount: finalAmount })
             });
+
             const data = await res.json();
             if (data.success) {
-                showToast(data.message);
+                showToast(data.message, 'success');
                 fetchUsers(); // Refresh list
+                setShowCoinModal(false);
+                setSelectedUserForCoins(null);
+                setCoinAmount('');
             } else {
                 showToast("Error: " + data.error, 'error');
             }
         } catch (e) {
             showToast("Network error", 'error');
+        } finally {
+            setIsSubmittingCoins(false);
         }
     };
 
@@ -438,6 +459,38 @@ export default function AdminDashboard() {
         } finally {
             setSavingApiKey(false);
         }
+    };
+
+    const handleTestAllKeys = async () => {
+        if (isTestingAll) return;
+        const enabledKeys = apiKeys.filter(k => k.is_enabled !== false);
+        if (enabledKeys.length === 0) {
+            showToast("No enabled keys to test", 'error');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to test all ${enabledKeys.length} enabled API keys?`)) return;
+
+        setIsTestingAll(true);
+        setTestAllProgress({ current: 0, total: enabledKeys.length });
+
+        for (let i = 0; i < enabledKeys.length; i++) {
+            const key = enabledKeys[i];
+            setTestAllProgress(prev => ({ ...prev, current: i + 1 }));
+            try {
+                await fetch('/api/admin/api-keys/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: key.provider, apiKey: key.api_key })
+                });
+            } catch (e) {
+                console.error(`Testing key ${key.id} failed`, e);
+            }
+        }
+
+        setIsTestingAll(false);
+        showToast("Bulk testing complete!");
+        fetchApiKeys();
     };
 
     const handleDeleteApiKey = async (keyId) => {
@@ -717,7 +770,29 @@ export default function AdminDashboard() {
                     {/* API Keys Overview Section */}
                     {activeTab === 'api-keys' && (
                         <div className="p-6 space-y-6 bg-gradient-to-br from-blue-50 to-purple-50 border-b border-blue-100">
-                            <h2 className="text-xl font-black text-blue-950 uppercase tracking-widest">🔑 API Keys Management</h2>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-black text-blue-950 uppercase tracking-widest">🔑 API Keys Management</h2>
+                                {isTestingAll && (
+                                    <div className="flex items-center gap-3 bg-blue-600 text-white px-4 py-2 rounded-xl animate-pulse">
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Testing: {testAllProgress.current}/{testAllProgress.total}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Health Warning Banner */}
+                            {apiKeys.length > 0 && (apiKeys.filter(k => k.status === 'active').length / apiKeys.length) < 0.5 && (
+                                <div className="bg-red-500 text-white p-4 rounded-3xl flex items-center justify-between shadow-xl shadow-red-500/20 animate-bounce-subtle">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-2xl">🚨</div>
+                                        <div>
+                                            <div className="text-xs font-black uppercase tracking-widest">Low Key Health Detected</div>
+                                            <div className="text-[10px] opacity-80 font-bold">More than 50% of your keys are Restricted or Frozen. Generation may fail.</div>
+                                        </div>
+                                    </div>
+                                    <button onClick={handleTestAllKeys} className="px-5 py-2 bg-white text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all">Re-Test All 🧪</button>
+                                </div>
+                            )}
 
                             {/* Statistics Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -730,11 +805,11 @@ export default function AdminDashboard() {
                                     <div className="text-3xl font-black text-green-600">{apiKeys.filter(k => k.status === 'active').length}</div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-yellow-100 shadow-sm">
-                                    <div className="text-[10px] font-black text-yellow-900/40 uppercase tracking-widest mb-2">Rate Limited</div>
+                                    <div className="text-[10px] font-black text-yellow-900/40 uppercase tracking-widest mb-2">Restricted (Limit)</div>
                                     <div className="text-3xl font-black text-yellow-600">{apiKeys.filter(k => k.status === 'rate_limited').length}</div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm">
-                                    <div className="text-[10px] font-black text-red-900/40 uppercase tracking-widest mb-2">Invalid Keys</div>
+                                    <div className="text-[10px] font-black text-red-900/40 uppercase tracking-widest mb-2">Frozen (Invalid)</div>
                                     <div className="text-3xl font-black text-red-600">{apiKeys.filter(k => k.status === 'invalid').length}</div>
                                 </div>
                             </div>
@@ -765,6 +840,13 @@ export default function AdminDashboard() {
                                     className="px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
                                 >
                                     ➕ Add New Key
+                                </button>
+                                <button
+                                    onClick={handleTestAllKeys}
+                                    disabled={isTestingAll}
+                                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50"
+                                >
+                                    🧪 Test All Keys
                                 </button>
                                 <button
                                     onClick={() => fetchApiKeys()}
@@ -839,6 +921,7 @@ export default function AdminDashboard() {
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Provider</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Key Name</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Status</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Added On</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Daily Usage</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Total Usage</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Last Used</th>
@@ -908,7 +991,7 @@ export default function AdminDashboard() {
                                                         <td className="p-6">
                                                             <div className="flex items-center gap-3">
                                                                 <span className="font-black text-blue-950">{item.coins || 0}</span>
-                                                                <button onClick={() => handleUpdateCoins(item.id, item.coins)} className="text-blue-400 hover:text-blue-600">✏️</button>
+                                                                <button onClick={() => handleUpdateCoins(item)} className="text-blue-400 hover:text-blue-600">✏️</button>
                                                             </div>
                                                         </td>
                                                         <td className="p-6">
@@ -994,13 +1077,32 @@ export default function AdminDashboard() {
                                                             <div className="text-[9px] text-blue-900/30 font-black tracking-widest uppercase mt-1">...{item.api_key.slice(-8)}</div>
                                                         </td>
                                                         <td className="p-6">
-                                                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${item.status === 'active' ? 'bg-green-50 text-green-600 border border-green-100' :
-                                                                item.status === 'invalid' ? 'bg-red-50 text-red-600 border border-red-100' :
-                                                                    item.status === 'rate_limited' ? 'bg-yellow-50 text-yellow-600 border border-yellow-100' :
-                                                                        'bg-gray-50 text-gray-600 border border-gray-100'
-                                                                }`}>
-                                                                {item.status}
+                                                            <span
+                                                                title={item.last_error}
+                                                                className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest cursor-help ${item.status === 'active' ? 'bg-green-50 text-green-600 border border-green-100' :
+                                                                    item.status === 'invalid' ? 'bg-cyan-50 text-cyan-600 border border-cyan-100' : // Frozen look
+                                                                        item.status === 'rate_limited' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                                            'bg-gray-50 text-gray-600 border border-gray-100'
+                                                                    }`}>
+                                                                {item.status === 'rate_limited' ? 'RESTRICTED ⚠️' :
+                                                                    item.status === 'invalid' ? 'FROZEN ❄️' :
+                                                                        item.status === 'active' ? 'ACTIVE ✅' : item.status}
+                                                                {item.last_error && <span className="ml-1 opacity-50">ⓘ</span>}
                                                             </span>
+                                                            {item.updated_at && (
+                                                                <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${item.status === 'rate_limited' ? 'text-amber-600/70' :
+                                                                    item.status === 'invalid' ? 'text-cyan-600/70' : 'text-green-600/40'
+                                                                    }`}>
+                                                                    {item.status === 'rate_limited' ? 'Since ' : 'Updated '}
+                                                                    {new Date(item.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="text-[10px] font-bold text-blue-950/40 uppercase">
+                                                                {new Date(item.created_at).toLocaleDateString()}
+                                                                <div className="text-[8px] opacity-70">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                            </div>
                                                         </td>
                                                         <td className="p-6">
                                                             <div className="flex items-center gap-3">
@@ -1122,8 +1224,8 @@ export default function AdminDashboard() {
                                                 <div className="flex items-center justify-between bg-blue-50/50 p-3 rounded-2xl">
                                                     <span className="text-[10px] font-bold text-blue-900/50 uppercase tracking-widest">Balance</span>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-black text-blue-950">{item.coins} Coins</span>
-                                                        <button onClick={() => handleUpdateCoins(item.id, item.coins)} className="w-6 h-6 flex items-center justify-center bg-white rounded-full text-blue-600 shadow-sm">✏️</button>
+                                                        <span className="font-black text-blue-950">{item.coins || 0} Coins</span>
+                                                        <button onClick={() => handleUpdateCoins(item)} className="w-6 h-6 flex items-center justify-center bg-white rounded-full text-blue-600 shadow-sm">✏️</button>
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2 pt-3">
@@ -1217,11 +1319,29 @@ export default function AdminDashboard() {
                                                             <span className="text-[8px] text-blue-400 font-bold">...{item.api_key.slice(-8)}</span>
                                                         </div>
                                                     </div>
-                                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.status === 'active' ? 'bg-green-50 text-green-600' :
-                                                        item.status === 'invalid' ? 'bg-red-50 text-red-600' :
-                                                            item.status === 'rate_limited' ? 'bg-yellow-50 text-yellow-600' :
-                                                                'bg-gray-50 text-gray-600'
-                                                        }`}>{item.status}</span>
+                                                    <span
+                                                        title={item.last_error}
+                                                        className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-help ${item.status === 'active' ? 'bg-green-50 text-green-600' :
+                                                                item.status === 'invalid' ? 'bg-cyan-50 text-cyan-600' :
+                                                                    item.status === 'rate_limited' ? 'bg-amber-50 text-amber-600' :
+                                                                        'bg-gray-50 text-gray-600'
+                                                            }`}>
+                                                        {item.status === 'rate_limited' ? 'RESTRICTED ⚠️' :
+                                                            item.status === 'invalid' ? 'FROZEN ❄️' :
+                                                                item.status === 'active' ? 'ACTIVE ✅' : item.status}
+                                                        {item.last_error && <span className="ml-1 opacity-50">ⓘ</span>}
+                                                    </span>
+                                                    {item.updated_at && (
+                                                        <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${item.status === 'rate_limited' ? 'text-amber-600/70' :
+                                                            item.status === 'invalid' ? 'text-cyan-600/70' : 'text-green-600/40'
+                                                            }`}>
+                                                            {item.status === 'rate_limited' ? 'Since ' : 'Updated '}
+                                                            {new Date(item.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-[9px] font-bold text-blue-950/30 uppercase tracking-widest mb-3">
+                                                    Added: {new Date(item.created_at).toLocaleString()}
                                                 </div>
                                                 <div className="space-y-3">
                                                     <div className="bg-blue-50/50 p-3 rounded-2xl">
@@ -1533,150 +1653,207 @@ export default function AdminDashboard() {
                 )}
             </div>
 
-            {/* API Key Add/Edit Modal */}
-            {showApiKeyModal && selectedApiKey && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-950/20 backdrop-blur-md animate-fade-in">
-                    <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up">
-                        <div className="p-6 border-b border-blue-50 flex items-center justify-between bg-blue-50/30 flex-shrink-0">
-                            <h2 className="text-xl font-black text-blue-950 tracking-tighter">
-                                {selectedApiKey.id ? 'Edit API Key' : 'Add New API Key'}
-                            </h2>
-                            <button onClick={() => { setShowApiKeyModal(false); setSelectedApiKey(null); }} className="w-10 h-10 rounded-2xl bg-white border border-blue-100 flex items-center justify-center text-lg hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
-                        </div>
-
-                        <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
-                            {/* Provider */}
-                            <div>
-                                <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Provider</label>
-                                <select
-                                    className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 outline-none transition-all"
-                                    value={selectedApiKey.provider}
-                                    onChange={(e) => setSelectedApiKey({ ...selectedApiKey, provider: e.target.value })}
-                                >
-                                    <option value="deapi">DeAPI</option>
-                                    <option value="gradio">Gradio</option>
-                                </select>
+            {/* Coin Management Modal */}
+            {
+                showCoinModal && selectedUserForCoins && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-950/20 backdrop-blur-md animate-fade-in">
+                        <div className="bg-white w-full max-w-md flex flex-col rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up border border-blue-50">
+                            <div className="p-6 border-b border-blue-50 flex items-center justify-between bg-blue-50/30">
+                                <h2 className="text-xl font-black text-blue-950 tracking-tighter">Manage Coins</h2>
+                                <button onClick={() => setShowCoinModal(false)} className="w-10 h-10 rounded-2xl bg-white border border-blue-100 flex items-center justify-center text-lg hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
                             </div>
-
-                            {/* Key Name */}
-                            <div>
-                                <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Key Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all"
-                                    placeholder="e.g., DeAPI Key 1"
-                                    value={selectedApiKey.key_name}
-                                    onChange={(e) => setSelectedApiKey({ ...selectedApiKey, key_name: e.target.value })}
-                                />
-                            </div>
-
-                            {/* API Key */}
-                            <div>
-                                <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">API Key</label>
-                                <div className="relative group">
-                                    <textarea
-                                        className="w-full p-4 pr-32 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-black text-blue-950 placeholder-blue-900/20 outline-none transition-all font-mono tracking-tight resize-y min-h-[100px]"
-                                        placeholder="Paste your API key(s) here. Separate multiple keys with commas or new lines."
-                                        value={selectedApiKey.api_key}
-                                        onChange={(e) => setSelectedApiKey({ ...selectedApiKey, api_key: e.target.value })}
-                                    />
-                                    <div className="absolute right-2 top-2 flex flex-col gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={async () => {
-                                                try {
-                                                    const text = await navigator.clipboard.readText();
-                                                    setSelectedApiKey({ ...selectedApiKey, api_key: text });
-                                                    showToast("Pasted from clipboard!");
-                                                } catch (err) {
-                                                    showToast("Failed to paste", "error");
-                                                }
-                                            }}
-                                            className="px-3 bg-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 border border-blue-100 transition-all shadow-sm"
-                                            title="Paste from Clipboard"
-                                        >
-                                            📋 Paste
-                                        </button>
-                                        {selectedApiKey.api_key && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleTestApiKey(selectedApiKey.provider, selectedApiKey.api_key)}
-                                                disabled={testingKey === selectedApiKey.api_key}
-                                                className={`px-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all shadow-sm ${testingKey === selectedApiKey.api_key ? 'bg-yellow-50 text-yellow-600 border-yellow-100' : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-600 hover:text-white'}`}
-                                                title="Test Validity"
-                                            >
-                                                {testingKey === selectedApiKey.api_key ? '⏳...' : '🧪 Test'}
-                                            </button>
-                                        )}
+                            <div className="p-8 space-y-6">
+                                <div className="bg-blue-50/50 p-4 rounded-2xl text-center space-y-2">
+                                    <p className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest">Selected User</p>
+                                    <p className="text-sm font-bold text-blue-950">{selectedUserForCoins.email}</p>
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-blue-100 shadow-sm mt-2">
+                                        <span className="text-lg">💎</span>
+                                        <span className="text-sm font-black text-blue-950">{selectedUserForCoins.coins || 0} Coins</span>
                                     </div>
                                 </div>
-                                <p className="text-[9px] text-blue-400 font-bold mt-2 ml-2">
-                                    {selectedApiKey.provider === 'deapi' ? '💡 Enter valid DeAPI key(s) (e.g. 1234|abc...). Multiple keys allowed!' : '💡 Enter your provider API key'}
-                                </p>
-                            </div>
 
-                            {/* Limits Row */}
-                            <div className="grid grid-cols-2 gap-4">
-                                {/* Daily Limit */}
                                 <div>
-                                    <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Daily Limit</label>
+                                    <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Amount to Change</label>
                                     <input
                                         type="number"
-                                        className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all"
-                                        placeholder="Unlimited"
-                                        value={selectedApiKey.daily_limit || ''}
-                                        onChange={(e) => setSelectedApiKey({ ...selectedApiKey, daily_limit: e.target.value ? parseInt(e.target.value) : null })}
+                                        min="1"
+                                        value={coinAmount}
+                                        onChange={(e) => setCoinAmount(e.target.value)}
+                                        className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-2xl font-black text-center text-blue-950 outline-none transition-all placeholder-gray-300"
+                                        placeholder="0"
                                     />
                                 </div>
 
-                                {/* Total Limit */}
-                                <div>
-                                    <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Total Limit</label>
-                                    <input
-                                        type="number"
-                                        className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all"
-                                        placeholder="Unlimited"
-                                        value={selectedApiKey.total_limit || ''}
-                                        onChange={(e) => setSelectedApiKey({ ...selectedApiKey, total_limit: e.target.value ? parseInt(e.target.value) : null })}
-                                    />
+                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                    <button
+                                        onClick={() => handleSubmitCoinUpdate('remove')}
+                                        disabled={isSubmittingCoins || !coinAmount}
+                                        className="py-4 bg-red-50 text-red-500 border border-red-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white hover:shadow-lg hover:shadow-red-500/20 transition-all disabled:opacity-50 active:scale-95 flex flex-col items-center gap-1"
+                                    >
+                                        <span className="text-lg">Of Subtract</span>
+                                        <span>Remove Coins</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleSubmitCoinUpdate('add')}
+                                        disabled={isSubmittingCoins || !coinAmount}
+                                        className="py-4 bg-green-50 text-green-600 border border-green-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white hover:shadow-lg hover:shadow-green-600/20 transition-all disabled:opacity-50 active:scale-95 flex flex-col items-center gap-1"
+                                    >
+                                        <span className="text-lg">On Add</span>
+                                        <span>Add Coins</span>
+                                    </button>
                                 </div>
                             </div>
-
-                            {/* Enabled Toggle */}
-                            <div className="flex items-center justify-between bg-blue-50/30 p-4 rounded-2xl">
-                                <span className="text-sm font-black text-blue-950 uppercase tracking-widest">Enabled</span>
-                                <label className="flex items-center gap-4 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="hidden"
-                                        checked={selectedApiKey.is_enabled || false}
-                                        onChange={(e) => setSelectedApiKey({ ...selectedApiKey, is_enabled: e.target.checked })}
-                                    />
-                                    <div className={`w-12 h-6 rounded-full relative transition-all ${selectedApiKey.is_enabled ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${selectedApiKey.is_enabled ? 'left-7' : 'left-1'}`} />
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="p-6 border-t border-blue-50 bg-blue-50/10 flex justify-end gap-3 flex-shrink-0">
-                            <button
-                                onClick={() => { setShowApiKeyModal(false); setSelectedApiKey(null); }}
-                                className="px-8 py-3 bg-gray-100 text-blue-950 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveApiKey}
-                                disabled={savingApiKey}
-                                className={`px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 ${savingApiKey ? 'opacity-70 cursor-wait' : ''}`}
-                            >
-                                {savingApiKey ? 'Saving...' : (selectedApiKey.id ? 'Update Key' : 'Add Key')}
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
+
+            {/* API Key Add/Edit Modal */}
+            {
+                showApiKeyModal && selectedApiKey && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-950/20 backdrop-blur-md animate-fade-in">
+                        <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-up">
+                            <div className="p-6 border-b border-blue-50 flex items-center justify-between bg-blue-50/30 flex-shrink-0">
+                                <h2 className="text-xl font-black text-blue-950 tracking-tighter">
+                                    {selectedApiKey.id ? 'Edit API Key' : 'Add New API Key'}
+                                </h2>
+                                <button onClick={() => { setShowApiKeyModal(false); setSelectedApiKey(null); }} className="w-10 h-10 rounded-2xl bg-white border border-blue-100 flex items-center justify-center text-lg hover:bg-red-50 hover:text-red-500 transition-all">✕</button>
+                            </div>
+
+                            <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
+                                {/* Provider */}
+                                <div>
+                                    <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Provider</label>
+                                    <select
+                                        className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 outline-none transition-all"
+                                        value={selectedApiKey.provider}
+                                        onChange={(e) => setSelectedApiKey({ ...selectedApiKey, provider: e.target.value })}
+                                    >
+                                        <option value="deapi">DeAPI</option>
+                                        <option value="gradio">Gradio</option>
+                                    </select>
+                                </div>
+
+                                {/* Key Name */}
+                                <div>
+                                    <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Key Name</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all"
+                                        placeholder="e.g., DeAPI Key 1"
+                                        value={selectedApiKey.key_name}
+                                        onChange={(e) => setSelectedApiKey({ ...selectedApiKey, key_name: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* API Key */}
+                                <div>
+                                    <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">API Key</label>
+                                    <div className="relative group">
+                                        <textarea
+                                            className="w-full p-4 pr-32 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-black text-blue-950 placeholder-blue-900/20 outline-none transition-all font-mono tracking-tight resize-y min-h-[100px]"
+                                            placeholder="Paste your API key(s) here. Separate multiple keys with commas or new lines."
+                                            value={selectedApiKey.api_key}
+                                            onChange={(e) => setSelectedApiKey({ ...selectedApiKey, api_key: e.target.value })}
+                                        />
+                                        <div className="absolute right-2 top-2 flex flex-col gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    try {
+                                                        const text = await navigator.clipboard.readText();
+                                                        setSelectedApiKey({ ...selectedApiKey, api_key: text });
+                                                        showToast("Pasted from clipboard!");
+                                                    } catch (err) {
+                                                        showToast("Failed to paste", "error");
+                                                    }
+                                                }}
+                                                className="px-3 bg-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 border border-blue-100 transition-all shadow-sm"
+                                                title="Paste from Clipboard"
+                                            >
+                                                📋 Paste
+                                            </button>
+                                            {selectedApiKey.api_key && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleTestApiKey(selectedApiKey.provider, selectedApiKey.api_key)}
+                                                    disabled={testingKey === selectedApiKey.api_key}
+                                                    className={`px-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all shadow-sm ${testingKey === selectedApiKey.api_key ? 'bg-yellow-50 text-yellow-600 border-yellow-100' : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-600 hover:text-white'}`}
+                                                    title="Test Validity"
+                                                >
+                                                    {testingKey === selectedApiKey.api_key ? '⏳...' : '🧪 Test'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-blue-400 font-bold mt-2 ml-2">
+                                        {selectedApiKey.provider === 'deapi' ? '💡 Enter valid DeAPI key(s) (e.g. 1234|abc...). Multiple keys allowed!' : '💡 Enter your provider API key'}
+                                    </p>
+                                </div>
+
+                                {/* Limits Row */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Daily Limit */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Daily Limit</label>
+                                        <input
+                                            type="number"
+                                            className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all"
+                                            placeholder="Unlimited"
+                                            value={selectedApiKey.daily_limit || ''}
+                                            onChange={(e) => setSelectedApiKey({ ...selectedApiKey, daily_limit: e.target.value ? parseInt(e.target.value) : null })}
+                                        />
+                                    </div>
+
+                                    {/* Total Limit */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block">Total Limit</label>
+                                        <input
+                                            type="number"
+                                            className="w-full p-4 bg-blue-50/50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 placeholder-blue-900/20 outline-none transition-all"
+                                            placeholder="Unlimited"
+                                            value={selectedApiKey.total_limit || ''}
+                                            onChange={(e) => setSelectedApiKey({ ...selectedApiKey, total_limit: e.target.value ? parseInt(e.target.value) : null })}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Enabled Toggle */}
+                                <div className="flex items-center justify-between bg-blue-50/30 p-4 rounded-2xl">
+                                    <span className="text-sm font-black text-blue-950 uppercase tracking-widest">Enabled</span>
+                                    <label className="flex items-center gap-4 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={selectedApiKey.is_enabled || false}
+                                            onChange={(e) => setSelectedApiKey({ ...selectedApiKey, is_enabled: e.target.checked })}
+                                        />
+                                        <div className={`w-12 h-6 rounded-full relative transition-all ${selectedApiKey.is_enabled ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${selectedApiKey.is_enabled ? 'left-7' : 'left-1'}`} />
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="p-6 border-t border-blue-50 bg-blue-50/10 flex justify-end gap-3 flex-shrink-0">
+                                <button
+                                    onClick={() => { setShowApiKeyModal(false); setSelectedApiKey(null); }}
+                                    className="px-8 py-3 bg-gray-100 text-blue-950 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveApiKey}
+                                    disabled={savingApiKey}
+                                    className={`px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 ${savingApiKey ? 'opacity-70 cursor-wait' : ''}`}
+                                >
+                                    {savingApiKey ? 'Saving...' : (selectedApiKey.id ? 'Update Key' : 'Add Key')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
 
             {/* Member Profile Modal */}
             {
@@ -1799,6 +1976,6 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
