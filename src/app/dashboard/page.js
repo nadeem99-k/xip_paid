@@ -459,7 +459,7 @@ function DashboardContent() {
                                 </button>
                                 <button onClick={() => setActiveTab('billing')} className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'billing' ? 'bg-blue-600 text-white font-bold shadow-[0_10px_20px_rgba(37,99,235,0.15)]' : 'text-blue-900/50 hover:text-blue-600 hover:bg-blue-50'}`}>
                                     <span className="text-xl">💳</span>
-                                    <span className="text-[10px] uppercase tracking-[0.2em]">Billing</span>
+                                    <span className="text-[10px] uppercase tracking-[0.2em]">Buy Coins</span>
                                 </button>
                                 <button onClick={() => setActiveTab('payments')} className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'payments' ? 'bg-blue-600 text-white font-bold shadow-[0_10px_20px_rgba(37,99,235,0.15)]' : 'text-blue-900/50 hover:text-blue-600 hover:bg-blue-50'}`}>
                                     <span className="text-xl">💸</span>
@@ -524,7 +524,7 @@ function DashboardContent() {
                     className={`flex flex-col items-center gap-1 p-2 transition-all ${activeTab === 'billing' ? 'text-blue-600' : 'text-blue-900/30'}`}
                 >
                     <span className="text-xl">💳</span>
-                    <span className="text-[8px] font-black uppercase tracking-widest">Refill</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Buy Coins</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('payments')}
@@ -1149,8 +1149,8 @@ function DashboardContent() {
                         <div className="space-y-12">
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
                                 <div className="space-y-2">
-                                    <h1 className="text-4xl font-black tracking-tighter text-blue-950">Billing <span className="text-blue-600">& Refill</span></h1>
-                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Buy coins to create more photos</p>
+                                    <h1 className="text-4xl font-black tracking-tighter text-blue-950">Buy <span className="text-blue-600">Coins</span></h1>
+                                    <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Purchase credits to create more photos</p>
                                 </div>
                                 {selectedPackage && (
                                     <button onClick={() => setSelectedPackage(null)} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all">← Back to Plans</button>

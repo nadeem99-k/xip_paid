@@ -28,6 +28,8 @@ export default function AdminDashboard() {
     const [showApiKeyModal, setShowApiKeyModal] = useState(false);
     const [testingKey, setTestingKey] = useState(null);
     const [envKeysInfo, setEnvKeysInfo] = useState({ count: 0, details: [] });
+    const [balances, setBalances] = useState({});
+    const [fetchingBalances, setFetchingBalances] = useState(false);
 
     // Calculate total remaining images from API keys
     const totalImagesLeft = useMemo(() => {
@@ -45,7 +47,11 @@ export default function AdminDashboard() {
             const validKeys = apiKeys.filter(k => k.status === 'active' || k.status === 'rate_limited');
 
             for (const key of validKeys) {
-                if (key.total_limit === null) {
+                // If we have live balance info, use it
+                const balanceInfo = balances[key.id];
+                if (balanceInfo && balanceInfo.success) {
+                    finiteTotal += balanceInfo.images_left;
+                } else if (key.total_limit === null) {
                     hasUnlimited = true;
                 } else if (key.usage?.total?.remaining !== undefined && key.usage?.total?.remaining !== null) {
                     finiteTotal += key.usage.total.remaining;
@@ -66,7 +72,7 @@ export default function AdminDashboard() {
 
         // Otherwise 0
         return 0;
-    }, [apiKeys, envKeysInfo]);
+    }, [apiKeys, envKeysInfo, balances]);
 
     // Admin email whitelist - add your admin emails here
     const ADMIN_EMAILS = [
@@ -192,6 +198,29 @@ export default function AdminDashboard() {
         } catch (e) {
             if (e.name === 'AbortError') return;
             console.error("Failed to fetch env keys info", e);
+        }
+    };
+
+    const fetchBalances = async () => {
+        setFetchingBalances(true);
+        try {
+            const res = await fetch('/api/admin/api-keys/balance');
+            const data = await res.json();
+            if (data.success) {
+                const balanceMap = {};
+                data.balances.forEach(b => {
+                    balanceMap[b.id] = b;
+                });
+                setBalances(balanceMap);
+                showToast("Balances updated successfully");
+            } else {
+                showToast("Failed to fetch balances", 'error');
+            }
+        } catch (e) {
+            console.error("Failed to fetch balances", e);
+            showToast("Failed to fetch balances", 'error');
+        } finally {
+            setFetchingBalances(false);
         }
     };
 
@@ -849,10 +878,17 @@ export default function AdminDashboard() {
                                     🧪 Test All Keys
                                 </button>
                                 <button
+                                    onClick={() => fetchBalances()}
+                                    disabled={fetchingBalances}
+                                    className="px-6 py-3 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 shadow-lg shadow-purple-600/20 transition-all disabled:opacity-50"
+                                >
+                                    {fetchingBalances ? '⌛ Fetching...' : '💰 Refresh Balances'}
+                                </button>
+                                <button
                                     onClick={() => fetchApiKeys()}
                                     className="px-6 py-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all"
                                 >
-                                    🔄 Refresh
+                                    🔄 Refresh List
                                 </button>
                             </div>
                         </div>
@@ -921,7 +957,8 @@ export default function AdminDashboard() {
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Provider</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Key Name</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Status</th>
-                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Added On</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Balance</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Images Left</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Daily Usage</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Total Usage</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Last Used</th>
@@ -1099,10 +1136,16 @@ export default function AdminDashboard() {
                                                             )}
                                                         </td>
                                                         <td className="p-6">
-                                                            <div className="text-[10px] font-bold text-blue-950/40 uppercase">
-                                                                {new Date(item.created_at).toLocaleDateString()}
-                                                                <div className="text-[8px] opacity-70">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                            <div className="font-black text-blue-950 text-sm">
+                                                                {balances[item.id]?.success ? `$${balances[item.id].balance.toFixed(2)}` : (item.provider === 'deapi' ? '---' : 'N/A')}
                                                             </div>
+                                                            {balances[item.id]?.error && <div className="text-[8px] text-red-500 font-bold uppercase tracking-tight">Error</div>}
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="font-black text-blue-600 text-sm">
+                                                                {balances[item.id]?.success ? `≈${balances[item.id].images_left}` : (item.provider === 'deapi' ? '---' : 'N/A')}
+                                                            </div>
+                                                            {balances[item.id]?.success && <div className="text-[8px] text-blue-400 font-bold uppercase tracking-tight">Est. Images</div>}
                                                         </td>
                                                         <td className="p-6">
                                                             <div className="flex items-center gap-3">
