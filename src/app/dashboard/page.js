@@ -31,6 +31,12 @@ function DashboardContent() {
     const [copiedField, setCopiedField] = useState(null);
     const [referrals, setReferrals] = useState([]);
     const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
+    const [bonusStatus, setBonusStatus] = useState({ canClaim: false, message: '', timeRemaining: '' });
+    const [isClaimingBonus, setIsClaimingBonus] = useState(false);
+    const [claimMessage, setClaimMessage] = useState({ text: '', type: '' });
+
+    // Derived user data
+    const displayUser = authUser ? { ...authUser, ...user } : user;
 
     const handleCopy = (text, field) => {
         navigator.clipboard.writeText(text);
@@ -128,8 +134,43 @@ function DashboardContent() {
         } else if (activeTab === 'referral') {
             fetchReferrals(controller.signal);
         }
-        return () => controller.abort();
+
+        return () => {
+            controller.abort();
+        };
     }, [activeTab]);
+
+    // Bonus Countdown Effect - separate to ensure reactivity to claim time updates
+    useEffect(() => {
+        const updateCountdown = () => {
+            if (displayUser?.last_bonus_claim) {
+                const now = new Date();
+                const lastClaim = new Date(displayUser.last_bonus_claim);
+                const twentyFourHours = 24 * 60 * 60 * 1000;
+                const timeSinceClaim = now - lastClaim;
+
+                if (timeSinceClaim < twentyFourHours) {
+                    const remaining = twentyFourHours - timeSinceClaim;
+                    const hours = Math.floor(remaining / (1000 * 60 * 60));
+                    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                    setBonusStatus({
+                        canClaim: false,
+                        message: "Next Claim In",
+                        timeRemaining: `${hours}h ${minutes}m ${seconds}s`
+                    });
+                } else {
+                    setBonusStatus({ canClaim: true, message: "Claim Available!", timeRemaining: "" });
+                }
+            } else {
+                setBonusStatus({ canClaim: true, message: "Claim Available!", timeRemaining: "" });
+            }
+        };
+
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000);
+        return () => clearInterval(interval);
+    }, [displayUser?.last_bonus_claim]);
 
     const searchParams = useSearchParams();
 
@@ -206,6 +247,34 @@ function DashboardContent() {
             console.error("Fetch referrals error:", err);
         } finally {
             if (!signal?.aborted) setIsLoadingReferrals(false);
+        }
+    };
+
+    const handleClaimBonus = async () => {
+        if (!bonusStatus.canClaim || isClaimingBonus) return;
+        setIsClaimingBonus(true);
+        try {
+            const res = await fetch('/api/user/claim-bonus', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                // Update local coins
+                setUser(prev => ({
+                    ...prev,
+                    coins: data.coins,
+                    last_bonus_claim: data.lastClaim
+                }));
+                setClaimMessage({ text: data.message, type: 'success' });
+                setTimeout(() => setClaimMessage({ text: '', type: '' }), 5000);
+            } else {
+                setClaimMessage({ text: data.error, type: 'error' });
+                setTimeout(() => setClaimMessage({ text: '', type: '' }), 5000);
+            }
+        } catch (err) {
+            console.error("Claim bonus error:", err);
+            setClaimMessage({ text: "Connection error. Try again.", type: 'error' });
+            setTimeout(() => setClaimMessage({ text: '', type: '' }), 5000);
+        } finally {
+            setIsClaimingBonus(false);
         }
     };
 
@@ -307,10 +376,6 @@ function DashboardContent() {
         );
     }
 
-    // Use `user` state for coins display if available (fetched from API), else fallback to `authUser` (from session/db hook)
-    // We merge these to ensure that fields like referral_code (from profile sync) aren't lost 
-    // if the history API (which sets 'user' state) doesn't catch them immediately.
-    const displayUser = authUser ? { ...authUser, ...user } : user;
 
     const handleGenerate = async (e) => {
         if (e) e.preventDefault();
@@ -482,24 +547,38 @@ function DashboardContent() {
                 <div className="max-w-6xl mx-auto space-y-16 animate-slide-up">
                     {activeTab === 'studio' ? (
                         <div className="space-y-16">
-                            <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
                                 <div className="space-y-2">
                                     <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-blue-950">AI Image <span className="text-blue-600">Studio</span></h1>
                                     <p className="text-[10px] font-black text-blue-900/30 uppercase tracking-[0.3em]">Create beautiful photos with AI</p>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-4">
-                                    <button
-                                        onClick={() => setActiveTab('referral')}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-green-100 transition-all"
-                                    >
-                                        <span>🤝</span> Refer & Earn 10 Coins
-                                    </button>
-                                    <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
-                                        <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
-                                        <span className="text-xs font-black uppercase tracking-widest text-blue-950">{displayUser?.package || 'Starter'} Plan</span>
+                                <div className="flex flex-col items-end gap-3">
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        <button
+                                            onClick={handleClaimBonus}
+                                            disabled={!bonusStatus.canClaim || isClaimingBonus}
+                                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-all ${bonusStatus.canClaim ? 'bg-blue-600 text-white hover:bg-blue-700 animate-pulse' : 'bg-gray-50 text-blue-900/30'}`}
+                                        >
+                                            <span>🎁</span> {isClaimingBonus ? "Claiming..." : bonusStatus.canClaim ? "Claim Free Coin" : `${bonusStatus.message}: ${bonusStatus.timeRemaining}`}
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab('referral')}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-green-100 transition-all"
+                                        >
+                                            <span>🤝</span> Refer & Earn 10 Coins
+                                        </button>
+                                        <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
+                                            <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
+                                            <span className="text-xs font-black uppercase tracking-widest text-blue-950">{displayUser?.package || 'Starter'} Plan</span>
+                                        </div>
                                     </div>
+                                    {claimMessage.text && (
+                                        <p className={`text-[9px] font-black uppercase tracking-widest animate-slide-up-fade ${claimMessage.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                            {claimMessage.type === 'success' ? '✅' : '❌'} {claimMessage.text}
+                                        </p>
+                                    )}
                                 </div>
-                            </header>
+                            </div>
 
                             {/* Referral Banner */}
                             <div
