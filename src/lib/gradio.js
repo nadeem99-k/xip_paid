@@ -17,27 +17,28 @@ const SPACE_POOL = [
 ];
 
 export async function generateImage(prompt, initImgBuffer, mode) {
-    const identity_preservation = "(STRICT 1:1 FACE CLONE:3.2), (KEEP ORIGINAL HUMAN FEATURES:3.0), (LEAVE EYES NOSE MOUTH HAIR UNTOUCHED:3.2), (EXACT COPY OF INPUT FACE:3.2), (SAME PERSON:3.2).";
-    const anatomic_realism = "(BIOLOGICALLY ACCURATE ANATOMY:2.2), (NATURAL REAL SKIN TEXTURE:2.2), (SKIN PORES AND BUMPS:1.8), (REALISTIC BREASTS:2.0), (DETAILED REALISTIC VULVA/PUSSY:2.2), (SEAMLESS SKIN:1.5), (PHOTOREALISTIC:2.0).";
-    const masterpiece_enhancer = "masterpiece, raw photography, 8k resolution, natural light, (skin texture:1.5), depth of field, sharp focus, (unfiltered:1.2).";
-    const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime.";
+    const identity_preservation = "(STRICT 1:1 FACE CLONE:1.5), (STRICT FACIAL IDENTITY:1.4), (KEEP ORIGINAL HUMAN FEATURES:1.3), (STRICT FACE LOCK:1.4). (PROHIBIT FACIAL ALTERATION:1.5).";
+    const background_preservation = "(STRICT BACKGROUND LOCK:1.5), (KEEP ORIGINAL BACKGROUND 100% UNTOUCHED:1.5), (DO NOT ALTER BACKGROUND:1.4).";
+    const anatomic_realism = "(natural skin texture with imperfections:1.3), (raw photo:1.3), (iPhone camera quality:1.2), (natural body shape:1.3), (soft shadows:1.2), (natural anatomy:1.4), (realistic breast shape:1.3), (natural labia area:1.4), (subtle goosebumps:1.1).";
+    const masterpiece_enhancer = "(candid shot:1.3), (unfiltered phone photo:1.4), (natural lighting:1.2), (high resolution raw dslr:1.2), depth of field.";
+    const negative_base = "blurry, low quality, deformed, disfigured, ugly, bad anatomy, extra limbs, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, extra fingers, duplicate artifacts, morbid, gross proportions, missing arms, missing legs, extra arms, extra legs, mutated hands, fused fingers, too many fingers, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime, (changed face:1.5), (changed background:1.5).";
 
     let finalPrompt = "";
     let negativePrompt = negative_base;
 
     // Identity preservation & realism prompts
     if (mode === 'bikini') {
-        finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${masterpiece_enhancer} wearing a matching (bikini:1.4), realistic fabric physics. IMPORTANT: (STRICT COMPLIANCE: KEEP ORIGINAL FACE 100% UNTOUCHED:3.2), (IDENTICAL HEAD AND HAIR:2.8). (Perfect anatomy:1.6). High-resolution raw photography. (SAME FACE AS INPUT:3.2).`;
-        negativePrompt += " clothes, dress, shirt, pants, original clothing, covered body, modified face, changed features, different person, plastic surgery look, ai generated artifacts, smoothed skin.";
+        finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
+        finalPrompt += `${identity_preservation} ${background_preservation} ${masterpiece_enhancer} wearing a (bikini:1.3). (STRICT COMPLIANCE: KEEP ORIGINAL FACE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). Real photography.`;
+        negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face.";
     } else if (mode === 'nude') {
-        finalPrompt = prompt ? `(${prompt}:1.5), ` : "";
-        finalPrompt += `${identity_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:2.3), (REMOVE ALL CLOTHING:2.3), (FULLY NAKED:2.3). DELETE: clothing, dress, saree, pants, top, bra, underwear. REPLACE WITH: (flawless smooth real skin:2.3), (completely nude body:2.3). Full body naked, hyper-realistic natural female anatomy, highly detailed natural breasts, rendered realistic vulva/pussy area. Uniform skin texture, soft natural lighting. NEGATIVE: clothes, dress, fabric, garments, bra, underwear. IMPORTANT: (STRICT 1:1 FACE LOCK:3.2), (DO NOT MODIFY FACIAL FEATURES:3.2), (SAME PERSON:3.2). (Perfect anatomy:1.8). High-resolution raw photography. (SAME FACE AS INPUT:3.2).`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed skin, cgi.";
+        finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
+        finalPrompt += `${identity_preservation} ${background_preservation} ${anatomic_realism} ${masterpiece_enhancer} (STRICT CLOTHING REMOVAL:1.8), (COMPLETE NUDITY:1.6), (REMOVE ALL CLOTHES:1.6), (FULLY NAKED BARE SKIN:1.8). (Full body naked candid:1.4), (natural female anatomy:1.4), (detailed breasts:1.4), (natural vulva/pussy:1.5). (Natural shadows and depth:1.3). NEGATIVE: clothes, dress, fabric, bra, underwear, bikini, swimsuit, lingerie, (unremoved garments:1.6), (plastic skin:1.5). (STRICT 1:1 FACE LOCK:1.5). (BACKGROUND LOCK:1.5). High-resolution raw candid photo.`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, bikini, swimsuit, lingerie, strappy clothing, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background.";
     } else if (mode === 'remover') {
         const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
-        finalPrompt = `${remove_instruction} ${identity_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0).`;
-        negativePrompt += " sticker, emoji, graphic, text, watermark, occlusion, distorted face, changed identity, blur, plastic, low quality, changed background, changed eyes, changed nose, changed lips.";
+        finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
+        negativePrompt += " sticker, emoji, graphic, text, watermark, occlusion, distorted face, changed identity, blur, plastic, low quality, changed background, changed eyes, changed nose, changed lips, modified environment.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
@@ -65,10 +66,10 @@ export async function generateImage(prompt, initImgBuffer, mode) {
                         result = await client.predict("/generate", [
                             finalPrompt, imageFile ? [{ image: imageFile }] : [],
                             "Distilled (4 steps)", Math.floor(Math.random() * 2147483647),
-                            true, 1024, 1024, 8, 3.0, false
+                            true, 1024, 1024, 8, 1.8, false
                         ]);
                     } else if (space.type === "flux1_schnell" || space.type === "sdxl_turbo") {
-                        const strength = mode === 'nude' ? 0.55 : (mode === 'remover' ? 0.45 : 0.48);
+                        const strength = mode === 'nude' ? 0.72 : (mode === 'remover' ? 0.38 : 0.40);
                         const payload = [imageFile, finalPrompt, strength, Math.floor(Math.random() * 2147483647), 8];
 
                         const endpoints = (space.id.includes("SDXL") || space.id.includes("Animagine") || space.type === "sdxl_turbo")

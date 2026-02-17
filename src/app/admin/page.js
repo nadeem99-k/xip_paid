@@ -1322,9 +1322,9 @@ export default function AdminDashboard() {
                                                     <span
                                                         title={item.last_error}
                                                         className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-help ${item.status === 'active' ? 'bg-green-50 text-green-600' :
-                                                                item.status === 'invalid' ? 'bg-cyan-50 text-cyan-600' :
-                                                                    item.status === 'rate_limited' ? 'bg-amber-50 text-amber-600' :
-                                                                        'bg-gray-50 text-gray-600'
+                                                            item.status === 'invalid' ? 'bg-cyan-50 text-cyan-600' :
+                                                                item.status === 'rate_limited' ? 'bg-amber-50 text-amber-600' :
+                                                                    'bg-gray-50 text-gray-600'
                                                             }`}>
                                                         {item.status === 'rate_limited' ? 'RESTRICTED ⚠️' :
                                                             item.status === 'invalid' ? 'FROZEN ❄️' :
@@ -1892,6 +1892,30 @@ export default function AdminDashboard() {
                                 </div>
 
                                 <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xs font-black text-blue-950 uppercase tracking-widest">Coin Breakdown</h3>
+                                        <div className="flex gap-2">
+                                            <span className="px-2 py-1 bg-green-50 text-green-600 rounded-lg text-[8px] font-black uppercase">Paid: {selectedUser.stats.breakdown.paid}</span>
+                                            <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[8px] font-black uppercase">Ref: {selectedUser.stats.breakdown.referral}</span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {[
+                                            { label: 'Paid', value: selectedUser.stats.breakdown.paid, icon: '💰', color: 'text-green-600', bg: 'bg-green-50' },
+                                            { label: 'Referral', value: selectedUser.stats.breakdown.referral, icon: '🤝', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                                            { label: 'Bonus', value: selectedUser.stats.breakdown.bonus, icon: '🎁', color: 'text-purple-600', bg: 'bg-purple-50' },
+                                            { label: 'Manual', value: selectedUser.stats.breakdown.manual, icon: '⚙️', color: 'text-amber-600', bg: 'bg-amber-50' }
+                                        ].map((item, idx) => (
+                                            <div key={idx} className={`p-4 rounded-2xl border border-blue-50 ${item.bg} flex flex-col items-center justify-center text-center shadow-sm`}>
+                                                <span className="text-xl mb-1">{item.icon}</span>
+                                                <p className="text-[8px] font-black text-blue-900/40 uppercase tracking-widest mb-1">{item.label}</p>
+                                                <p className={`text-xl font-black ${item.color}`}>{item.value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
                                     <h3 className="text-xs font-black text-blue-950 uppercase tracking-widest">Recent Generations</h3>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
                                         {selectedUser.generations.map(gen => (
@@ -1921,6 +1945,61 @@ export default function AdminDashboard() {
                                             </div>
                                         ))}
                                         {selectedUser.payments.length === 0 && <p className="text-[10px] text-blue-900/30 font-bold py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">No payments found.</p>}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <h3 className="text-xs font-black text-blue-950 uppercase tracking-widest">Referral Network</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Referrer */}
+                                        <div className="p-6 bg-blue-50/30 border border-blue-100 rounded-3xl relative overflow-hidden group">
+                                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-3">Referred By</p>
+                                            {selectedUser.stats.referrer ? (
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg">
+                                                        {selectedUser.stats.referrer.email[0].toUpperCase()}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-blue-950 truncate">{selectedUser.stats.referrer.email}</p>
+                                                        <button
+                                                            onClick={() => fetchUserProfile(selectedUser.stats.referrer.id)}
+                                                            className="text-[9px] font-black text-blue-600 uppercase hover:underline mt-1"
+                                                        >
+                                                            View Referrer Profile ↗
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="py-4 text-center">
+                                                    <p className="text-[10px] text-blue-900/30 font-bold italic">No Referrer (Direct Signup)</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Referrals (Direct tree) */}
+                                        <div className="p-6 bg-blue-50/30 border border-blue-100 rounded-3xl relative overflow-hidden group">
+                                            <p className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-3">Direct Referrals ({selectedUser.stats.referrals.length})</p>
+                                            <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                                {selectedUser.stats.referrals.map(ref => (
+                                                    <div key={ref.id} className="flex items-center justify-between p-3 bg-white border border-blue-50 rounded-xl hover:border-blue-200 transition-all shadow-sm">
+                                                        <div className="min-w-0">
+                                                            <p className="text-[10px] font-bold text-blue-950 truncate">{ref.email}</p>
+                                                            <p className="text-[8px] font-black text-blue-400 uppercase mt-0.5">Joined {new Date(ref.created_at).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => fetchUserProfile(ref.id)}
+                                                            className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center text-xs hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                                            title="View Profile"
+                                                        >
+                                                            👁️
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {selectedUser.stats.referrals.length === 0 && (
+                                                    <p className="text-[10px] text-blue-900/30 font-bold italic py-6 text-center">No referrals yet.</p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
