@@ -4,6 +4,7 @@ import { generateImage as generateImageDeapi } from "@/lib/deapi";
 import { supabase as adminDb } from "@/lib/supabase";
 import { sendGenerationAlert, sendGenerationResult } from "@/lib/telegram";
 import { getAuthenticatedUser } from "@/lib/auth-helpers";
+import { acquireSlot, releaseSlot } from "@/lib/concurrency";
 
 export const maxDuration = 60; // Allow 60s for generation
 
@@ -44,11 +45,23 @@ export async function POST(req) {
             provider: provider,
         }, buffer).catch(err => console.error("Generation alert failed:", err));
 
+        // Acquire concurrency slot
+        try {
+            await acquireSlot(user.id);
+        } catch (slotErr) {
+            return NextResponse.json({ error: slotErr.message }, { status: 429 });
+        }
+
         let resultUrls;
-        if (provider === "deapi") {
-            resultUrls = await generateImageDeapi(prompt, buffer, mode, model);
-        } else {
-            resultUrls = await generateImageGradio(prompt, buffer, mode);
+        try {
+            if (provider === "deapi") {
+                resultUrls = await generateImageDeapi(prompt, buffer, mode, model);
+            } else {
+                resultUrls = await generateImageGradio(prompt, buffer, mode);
+            }
+        } finally {
+            // Always release the slot, even if generation fails
+            releaseSlot(user.id);
         }
 
         // Process generated images and upload to Supabase Storage

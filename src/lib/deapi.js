@@ -3,6 +3,10 @@ import { supabase } from '@/lib/supabase';
 // In-memory blacklist to skip failed keys immediately in the current process
 const sessionBlacklist = new Set();
 const blacklistTimes = new Map(); // key -> expiry timestamp
+const failureCounter = new Map(); // key -> consecutive failure count
+
+const COOLDOWN_DURATION = 60 * 1000; // 60 seconds
+const FAILURE_THRESHOLD = 3;
 
 // Helper function to track API key usage directly in DB
 async function trackUsage(apiKey, success = false, failure = false, rateLimit = false, errorMsg = null) {
@@ -97,65 +101,16 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     } else if (mode === 'nude') {
         const userSpecificPrompt = "[EXACT SAME PHOTO]: COPYRIGHT CLONE. KEEP SAME FACE. KEEP SAME POSE. KEEP SAME BACKGROUND. KEEP SAME LIGHTING. [ACTION]: REMOVE CLOTHES ONLY. UNDRESS GIRL. REMOVE BRA. REMOVE NIKAR. REMOVE PANTIES. REMOVE DRESS. REMOVE ALL CLOTHING LAYERS. [RESULT]: NUDE BODY. BARE SKIN. [IMPORTANT]: DO NOT CHANGE SKIN COLOR. DO NOT CHANGE ART STYLE. DO NOT REDRAW. JUST REMOVE CLOTHES. romve NIKAR NIKAR Ral body nude show all photos";
         finalPrompt = prompt ? `(${prompt}:1.4), ${userSpecificPrompt}` : userSpecificPrompt;
-        negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), (visible clothing:2.0), changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:2.0), (visible fabric:2.0).";
+        negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), (visible clothing:2.0), changed_pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:2.0), (visible fabric:2.0).";
     } else if (mode === 'remover') {
-        const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
-        finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
-        negativePrompt += " sticker, emoji, graphic, text, watermark, occlusion, distorted face, changed identity, blur, plastic, low quality, changed background, changed eyes, changed nose, changed lips, modified environment.";
+        const remove_instruction = "(0 TOUCHING:2.0), (ERASE ONLY STICKER/EMOJI:2.0), (REVEAL UNDERLYING IDENTITY:2.0), (REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:2.0).";
+        finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Show his real face, lips, and eyes. Reveal the real human features hidden behind the stickers. 0 TOUCHING TO ORIGINAL FACE. Keep hair, ears, neck, and background EXACTLY as they are. High quality 1:1 restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
+        negativePrompt += " (altered face:2.0), (changed lips:2.0), (modified eyes:2.0), sticker, emoji, graphic, text, watermark, occlusion, distorted face, changed identity, blur, plastic, low quality, changed background, changed eyes, changed nose, changed lips, modified environment.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
 
-    // Filter out known bad keys (those that returned 401 recently in this session)
-    // In a real app we'd persistent this, but for now we'll just track it in a local set if needed
-    // However, the requested change is to skip them during the loop if 401 is encountered.
-
-
-    // Fetch API keys from database first (Direct Supabase Query)
-    const dbKeys = [];
-    if (supabase) {
-        try {
-            const { data: keys, error } = await supabase
-                .from('api_keys')
-                .select('api_key, status')
-                .eq('provider', 'deapi')
-                .eq('is_enabled', true);
-
-            if (!error && keys && keys.length > 0) {
-                // Prioritize 'active' keys, then unknown/others
-                const sortedKeys = keys.sort((a, b) => {
-                    if (a.status === 'active' && b.status !== 'active') return -1;
-                    if (a.status !== 'active' && b.status === 'active') return 1;
-                    return 0;
-                });
-
-                sortedKeys.forEach(k => {
-                    if (k.api_key && k.api_key.trim()) {
-                        dbKeys.push(k.api_key.trim());
-                    }
-                });
-                console.log(`Loaded ${dbKeys.length} DeAPI keys from database (Prioritizing Active)`);
-            } else if (error) {
-                console.warn('Supabase DB error fetching keys:', error.message);
-            }
-        } catch (dbError) {
-            console.warn('Failed to fetch keys from database:', dbError.message);
-        }
-    } else {
-        console.warn('Supabase client not available, skipping DB keys.');
-    }
-
-    // Load environment keys
-    const envKeysRaw = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',');
-    const envKeys = envKeysRaw.map(k => k.trim()).filter(k => k.length > 0);
-    if (envKeys.length > 0) {
-        console.log(`Loaded ${envKeys.length} DeAPI keys from environment`);
-    }
-
-    // Merge and deduplicate while preserving order (Active DB keys first)
-    const allKeys = [...new Set([...dbKeys, ...envKeys])];
-
-    // Clean up expired blacklist items
+    // Clean up local session blacklist (local convenience)
     const now = Date.now();
     for (const [key, expiry] of blacklistTimes.entries()) {
         if (now > expiry) {
@@ -164,138 +119,161 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         }
     }
 
+    // Fetch API keys from database (LRU + Distributed Restoration)
+    let allKeys = [];
+    if (supabase) {
+        try {
+            // Fetch keys that are either active or rate_limited (to check for restoration)
+            const { data: keys, error } = await supabase
+                .from('api_keys')
+                .select('api_key, status, last_used_at, updated_at')
+                .eq('provider', 'deapi')
+                .eq('is_enabled', true)
+                .neq('status', 'invalid')
+                .order('last_used_at', { ascending: true }); // LRU Logic
+
+            if (!error && keys) {
+                for (const k of keys) {
+                    const apiKey = k.api_key.trim();
+
+                    // Skip if locally blacklisted
+                    if (sessionBlacklist.has(apiKey)) continue;
+
+                    if (k.status === 'active') {
+                        allKeys.push(apiKey);
+                    } else if (k.status === 'rate_limited') {
+                        // Distributed restoration check: 
+                        // If 60s passed since it was marked as rate_limited, we can use it again.
+                        const updatedAt = new Date(k.updated_at || 0).getTime();
+                        if (now - updatedAt > COOLDOWN_DURATION) {
+                            allKeys.push(apiKey);
+                            // Set back to active in background
+                            trackUsage(apiKey, true, false, false);
+                            console.log(`[DeAPI] Distributed restore for key ${apiKey.slice(0, 8)}...`);
+                        }
+                    }
+                }
+                console.log(`[DeAPI] Loaded ${allKeys.length} available/LRU keys from database`);
+            }
+        } catch (dbError) {
+            console.warn('[DeAPI] Database error fetching keys:', dbError.message);
+        }
+    }
+
+    // Fallback/Merge with Environment keys (if DB failed or empty)
     if (allKeys.length === 0) {
-        console.warn("No DeAPI keys found in database or environment!");
+        const envKeysRaw = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',');
+        allKeys = envKeysRaw.map(k => k.trim()).filter(k => k.length > 0 && !sessionBlacklist.has(k));
+        console.log(`[DeAPI] Loaded ${allKeys.length} keys from environment (Fallback/Merge)`);
+    }
+
+    if (allKeys.length === 0) {
+        throw new Error("No active DeAPI keys available (all cooling or invalid).");
     }
 
     const model = modelOverride || "Flux_2_Klein_4B_BF16";
-
-    // Retry mechanism for rate limits
-    let lastError = null;
-    const maxRetries = 2; // Try the whole set of keys twice
-
     const blob = new Blob([initImgBuffer], { type: 'image/jpeg' });
+    let lastError = null;
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        // Only shuffle the keys if this isn't the first attempt or if we want randomness.
-        // For premium speed, we'll keep the ordered ones first if attempt === 0.
-        const keysToTry = attempt === 0 ? allKeys : [...allKeys].sort(() => Math.random() - 0.5);
+    // Try each key in LRU order
+    for (let i = 0; i < allKeys.length; i++) {
+        const apiKey = allKeys[i];
 
-        for (let i = 0; i < keysToTry.length; i++) {
-            const apiKey = keysToTry[i].trim();
+        try {
+            process.stdout.write(`.`); // Progress indicator
 
-            // FAST FAIL: Skip blacklisted keys immediately
-            if (sessionBlacklist.has(apiKey)) {
-                continue;
-            }
+            let modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
+            if (mode === 'remover') modelsToTry = ["Flux_2_Klein_4B_BF16", "flux-dev", "flux"];
 
-            try {
-                if (attempt > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Shorter delay
-                }
+            const guidance = mode === 'nude' ? 4.5 : (mode === 'remover' ? 2.0 : 3.0);
+            const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.35 : 0.55);
+            const imageStrength = mode === 'nude' ? 0.1 : (mode === 'remover' ? 1.0 : 0.96);
 
-                // Shorter log
-                process.stdout.write(`.`); // Loading indicator instead of long log
+            for (const currentModel of modelsToTry) {
+                const formData = new FormData();
+                formData.append('image', blob, 'image.jpg');
+                formData.append('prompt', finalPrompt);
+                formData.append('negative_prompt', negativePrompt);
+                formData.append('model', currentModel);
+                formData.append('steps', '4');
+                formData.append('width', '1024');
+                formData.append('height', '1024');
+                formData.append('guidance_scale', guidance.toString());
+                formData.append('strength', strength.toString());
+                formData.append('image_strength', imageStrength.toString())
+                formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
 
-                // Try preferred model first
-                let modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
-                // Remover mode: Prefer Flux for identity, Qwen might be too strong
-                if (mode === 'remover') {
-                    modelsToTry = ["Flux_2_Klein_4B_BF16", "flux-dev", "flux"];
-                }
+                const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
+                    method: 'POST',
+                    headers: {
+                        'accept': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: formData
+                });
 
-                // Dynamic parameters based on mode for optimal results
-                // REMOVER: Lower strength preserves MORE of the original image (especially the face)
-                const guidance = mode === 'nude' ? 4.5 : (mode === 'remover' ? 2.5 : 3.0);
-                const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.38 : 0.55);
-                const imageStrength = mode === 'nude' ? 0.1 : (mode === 'remover' ? 0.99 : 0.96);
-
-                for (const currentModel of modelsToTry) {
-                    const formData = new FormData();
-                    formData.append('image', blob, 'image.jpg');
-                    formData.append('prompt', finalPrompt);
-                    formData.append('negative_prompt', negativePrompt);
-                    formData.append('model', currentModel);
-                    formData.append('steps', '4');
-                    formData.append('width', '1024');
-                    formData.append('height', '1024');
-                    formData.append('guidance_scale', guidance.toString());
-                    formData.append('strength', strength.toString());
-                    formData.append('image_strength', imageStrength.toString())
-                    formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
-
-                    const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
-                        method: 'POST',
-                        headers: {
-                            'accept': 'application/json',
-                            'Authorization': `Bearer ${apiKey}`
-                        },
-                        body: formData
-                    });
-
-                    if (response.status === 429) {
-                        const errorText = await response.text();
-                        // Blacklist for 5 minutes
-                        sessionBlacklist.add(apiKey);
-                        blacklistTimes.set(apiKey, Date.now() + 5 * 60 * 1000);
-
-                        await trackUsage(apiKey, false, false, true, `Rate Limited (429)`);
-                        lastError = new Error(`DeAPI key rate limited`);
-                        break; // Exit model loop, try next key
-                    }
-
-                    if (response.status === 401) {
-                        // Blacklist indefinitely (until restart)
-                        sessionBlacklist.add(apiKey);
-                        blacklistTimes.set(apiKey, Date.now() + 24 * 60 * 60 * 1000);
-
-                        console.error(`\nDeAPI key is INVALID (401). Blacklisting...`);
-                        lastError = new Error(`Invalid key`);
-                        break;
-                    }
-
-                    if (response.status === 422) {
-                        console.warn(`DeAPI key ${i} does not support model ${currentModel}. Trying next fallback...`);
-                        allKeysRateLimited = false;
-                        continue;
-                    }
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error(`DeAPI key ${i} error ${response.status}: ${errorText}`);
-                        await trackUsage(apiKey, false, true, false, `Error ${response.status}: ${errorText.slice(0, 100)}`);
-                        lastError = new Error(`DeAPI error ${response.status}: ${errorText}`);
-                        allKeysRateLimited = false;
-                        break;
-                    }
-
-                    console.log(`\n✓ DeAPI success with model ${currentModel}`);
-                    const data = await response.json();
-                    const requestId = data.data?.request_id || data.request_id;
-
-                    if (!requestId) {
-                        continue;
-                    }
-
-                    // Track successful request
-                    const result = await pollStatus(requestId, apiKey);
-                    await trackUsage(apiKey, true, false, false);
-                    return result;
-                }
-            } catch (error) {
-                // If it's a fetch failure, blacklist briefly
-                if (error.message.includes('fetch failed')) {
+                if (response.status === 429) {
+                    console.log(`\n[DeAPI] Key ${i} hit 429. Cooling for 60s.`);
                     sessionBlacklist.add(apiKey);
-                    blacklistTimes.set(apiKey, Date.now() + 60 * 1000); // 1 min blacklist
+                    blacklistTimes.set(apiKey, Date.now() + COOLDOWN_DURATION);
+                    await trackUsage(apiKey, false, false, true, "Rate Limited (429)");
+                    break; // Try next key immediately (as requested: "Immediately retry with another active API")
                 }
-                lastError = error;
+
+                if (response.status === 401) {
+                    console.error(`\n[DeAPI] Key ${i} is INVALID (401). Disabling.`);
+                    await trackUsage(apiKey, false, true, false, "Invalid Key (401)");
+                    break; // Try next key
+                }
+
+                if (response.status === 422) {
+                    continue; // Try next model
+                }
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`\n[DeAPI] Key ${i} error ${response.status}: ${errorText}`);
+
+                    // Handle failure threshold
+                    const fails = (failureCounter.get(apiKey) || 0) + 1;
+                    failureCounter.set(apiKey, fails);
+
+                    if (fails >= FAILURE_THRESHOLD) {
+                        console.error(`[DeAPI] Key ${i} exceeded failure threshold (${FAILURE_THRESHOLD}). Disabling.`);
+                        await trackUsage(apiKey, false, true, false, `Failed ${fails} times: ${errorText.slice(0, 50)}`);
+                    } else {
+                        await trackUsage(apiKey, false, false, false, `Error ${response.status}: ${errorText.slice(0, 50)}`);
+                    }
+                    break; // Try next key
+                }
+
+                // Success!
+                console.log(`\n✓ DeAPI success with model ${currentModel}`);
+                const data = await response.json();
+                const requestId = data.data?.request_id || data.request_id;
+
+                if (!requestId) continue;
+
+                const result = await pollStatus(requestId, apiKey);
+
+                // Reset failure counter on success
+                failureCounter.delete(apiKey);
+                await trackUsage(apiKey, true, false, false);
+                return result;
             }
+        } catch (error) {
+            console.error(`\n[DeAPI] Unexpected error with key ${i}:`, error.message);
+            lastError = error;
+            // Brief session cooldown for unexpected network errors
+            sessionBlacklist.add(apiKey);
+            blacklistTimes.set(apiKey, Date.now() + 10000);
         }
     }
-    console.log(""); // New line after dots
 
-    throw lastError || new Error("All DeAPI keys failed or were rate-limited. Please try again later.");
+    console.log(""); // Final newline
+    throw lastError || new Error("All DeAPI keys exhausted or rate-limited. Please try again later.");
 }
+
 
 async function pollStatus(requestId, apiKey) {
     let attempts = 0;
