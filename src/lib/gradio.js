@@ -33,9 +33,9 @@ export async function generateImage(prompt, initImgBuffer, mode) {
         finalPrompt += `${identity_preservation} ${background_preservation} ${pose_preservation} ${masterpiece_enhancer} (wearing a bikini:1.6), (FORCED BIKINI TRANSFORMATION:1.5). (STRICT COMPLIANCE: KEEP ORIGINAL FACE, POSE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). (Anatomic correctness:1.5). Real photography.`;
         negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, (extra limbs:1.5), changed pose, modified pose, swapped pose, (unremoved clothes:1.6), (visible original clothes:1.6).";
     } else if (mode === 'nude') {
-        finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} ${background_preservation} ${pose_preservation} ${anatomic_realism} ${masterpiece_enhancer} (STRICT CLOTHING REMOVAL:2.0), (COMPLETE NUDITY:1.8), (REMOVE ALL CLOTHES:1.8), (FULLY NAKED BARE SKIN:2.0), (TOTAL SKIN EXPOSURE:1.8). (Full body naked candid:1.4), (natural anatomy:1.5), (perfect human structure:1.5), (no extra parts:1.6), (detailed breasts:1.4), (natural vulva:1.5). (Natural shadows and depth:1.3). NEGATIVE: clothes, dress, fabric, bra, underwear, bikini, swimsuit, lingerie, (unremoved garments:1.8), (plastic skin:1.5). (STRICT 1:1 FACE LOCK:1.5). (POSE LOCK:1.5). (BACKGROUND LOCK:1.5). High-resolution raw candid photo.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, bikini, swimsuit, lingerie, strappy clothing, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes visible:1.8).";
+        const userSpecificPrompt = "[EXACT SAME PHOTO]: COPYRIGHT CLONE. KEEP SAME FACE. KEEP SAME POSE. KEEP SAME BACKGROUND. KEEP SAME LIGHTING. [ACTION]: REMOVE CLOTHES ONLY. UNDRESS GIRL. REMOVE BRA. REMOVE NIKAR. REMOVE PANTIES. REMOVE DRESS. REMOVE ALL CLOTHING LAYERS. [RESULT]: NUDE BODY. BARE SKIN. [IMPORTANT]: DO NOT CHANGE SKIN COLOR. DO NOT CHANGE ART STYLE. DO NOT REDRAW. JUST REMOVE CLOTHES. romve NIKAR NIKAR Ral body nude show all photos";
+        finalPrompt = prompt ? `(${prompt}:1.4), ${userSpecificPrompt}` : userSpecificPrompt;
+        negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), (visible clothing:2.0), changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes visible:1.8).";
     } else if (mode === 'remover') {
         const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
@@ -70,7 +70,7 @@ export async function generateImage(prompt, initImgBuffer, mode) {
                             true, 1024, 1024, 8, 1.8, false
                         ]);
                     } else if (space.type === "flux1_schnell" || space.type === "sdxl_turbo") {
-                        const strength = mode === 'nude' ? 0.72 : (mode === 'remover' ? 0.38 : 0.55);
+                        const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.38 : 0.55);
                         const payload = [imageFile, finalPrompt, strength, Math.floor(Math.random() * 2147483647), 8];
 
                         const endpoints = (space.id.includes("SDXL") || space.id.includes("Animagine") || space.type === "sdxl_turbo")
