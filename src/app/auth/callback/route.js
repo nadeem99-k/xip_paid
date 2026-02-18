@@ -14,8 +14,12 @@ export async function GET(request) {
         const supabase = await createClient()
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error) {
+            // Extract IP address
+            const forwardedFor = request.headers.get('x-forwarded-for');
+            const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : request.ip || '127.0.0.1';
+
             // Ensure user record exists in database (syncing coins, role, etc.)
-            const user = await getAuthenticatedUser();
+            const user = await getAuthenticatedUser(ip);
 
             // Handle referral processing
             const referralCode = (await cookies()).get("referral_code")?.value;

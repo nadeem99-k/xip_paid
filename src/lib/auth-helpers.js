@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { supabase as adminDb } from "@/lib/supabase";
 
-export async function getAuthenticatedUser() {
+export async function getAuthenticatedUser(ipAddress = null) {
     const supabase = await createClient();
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
@@ -53,15 +53,28 @@ export async function getAuthenticatedUser() {
             referral_count: 0,
             referral_rewarded_count: 0,
             password: "", // Satistfy NOT NULL constraint if present
-            joined_whatsapp: false
+            joined_whatsapp: false,
+            ip_address: ipAddress
         };
 
         console.log("[Auth Helpers] Attempting to insert new user:", newUserData.email);
-        const { data: newUser, error: createError } = await adminDb
+        let { data: newUser, error: createError } = await adminDb
             .from("users")
             .insert([newUserData])
             .select("*")
             .single();
+
+        if (createError && createError.message?.includes('ip_address')) {
+            console.warn("[Auth Helpers] ip_address column missing, retrying without it...");
+            const { ip_address, ...resilientUserData } = newUserData;
+            const { data: retryNewUser, error: retryError } = await adminDb
+                .from("users")
+                .insert([resilientUserData])
+                .select("*")
+                .single();
+            newUser = retryNewUser;
+            createError = retryError;
+        }
 
         if (createError) {
             console.error("[Auth Helpers] CRITICAL: Failed to create user record:", createError.message, createError.details);
@@ -184,13 +197,33 @@ export async function processReferral(newUserEmail, referralCode) {
         // 2. Update the new user with referred_by
         const { data: newcomer, error: fetchNewUserError } = await adminDb
             .from("users")
-            .select("id, referred_by")
+            .select("id, referred_by, ip_address")
             .eq("email", newUserEmail)
             .single();
 
         if (fetchNewUserError || !newcomer) {
             console.error(`[Referral] CRITICAL: New user ${newUserEmail} not found in DB. Data:`, newcomer, "Error:", fetchNewUserError?.message);
             return;
+        }
+
+        // 2.5 Multi-Account Check (IP based)
+        // Check if there are other users with the same IP address
+        if (newcomer.ip_address) {
+            const { count, error: ipCheckError } = await adminDb
+                .from("users")
+                .select('*', { count: 'exact', head: true })
+                .eq('ip_address', newcomer.ip_address)
+                .neq('email', newUserEmail);
+
+            if (ipCheckError) {
+                console.error(`[Referral] IP check error for ${newUserEmail}:`, ipCheckError.message);
+            } else if (count > 0) {
+                console.warn(`[Referral] Potential multi-account detected for ${newUserEmail} (IP: ${newcomer.ip_address}). Referral reward blocked.`);
+                // We still link them for tracking, but we won't increment the reward counter later
+                // Just log it and return or set a flag
+                await adminDb.from("users").update({ referred_by: referrer.id }).eq("id", newcomer.id);
+                return;
+            }
         }
 
         console.log(`[Referral] Linking newcomer ${newcomer.id} to referrer ${referrer.email} (${referrer.id})`);

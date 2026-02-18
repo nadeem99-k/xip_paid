@@ -965,6 +965,7 @@ export default function AdminDashboard() {
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">User</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Role</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Coins</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">IP Address</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Joined</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Actions</th>
                                                 </>
@@ -1066,7 +1067,12 @@ export default function AdminDashboard() {
                                                             </div>
                                                         </td>
                                                         <td className="p-6">
-                                                            <div className="text-[10px] font-bold text-blue-950/40 uppercase">{new Date(item.created_at).toLocaleDateString()}</div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[11px] font-bold text-blue-950">{item.ip_address || '---'}</span>
+                                                                {item.ip_address && users.filter(u => u.ip_address === item.ip_address).length > 1 && (
+                                                                    <span className="text-[8px] font-black text-red-500 uppercase tracking-tighter mt-0.5">⚠️ Duplicate IP</span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="p-6">
                                                             <div className="text-[10px] font-bold text-blue-950/40 uppercase">{new Date(item.created_at).toLocaleDateString()}</div>
@@ -1295,6 +1301,14 @@ export default function AdminDashboard() {
                                                         <div className="flex items-center gap-2 mt-2">
                                                             <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${item.role === 'admin' ? 'bg-red-50 text-red-500' : item.role === 'banned' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'}`}>{item.role}</span>
                                                             <span className="text-[8px] text-blue-400 font-bold">Joined {new Date(item.created_at).toLocaleDateString()}</span>
+                                                            {item.ip_address && (
+                                                                <div className="mt-1 flex items-center gap-1.5">
+                                                                    <span className="text-[8px] font-black text-blue-950/40 uppercase tracking-widest">IP: {item.ip_address}</span>
+                                                                    {users.filter(u => u.ip_address === item.ip_address).length > 1 && (
+                                                                        <span className="text-[7px] font-black bg-red-50 text-red-500 px-1.5 py-0.5 rounded uppercase">DUP</span>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

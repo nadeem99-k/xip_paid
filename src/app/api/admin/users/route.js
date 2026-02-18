@@ -9,12 +9,22 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: users, error } = await adminDb
+        let { data: users, error } = await adminDb
             .from("users")
-            .select("id, email, package, coins, role, created_at")
+            .select("id, email, package, coins, role, created_at, ip_address")
             .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.warn("Retrying fetch without ip_address column:", error.message);
+            // Retry without ip_address if the column doesn't exist
+            const { data: retryUsers, error: retryError } = await adminDb
+                .from("users")
+                .select("id, email, package, coins, role, created_at")
+                .order("created_at", { ascending: false });
+
+            if (retryError) throw retryError;
+            users = retryUsers;
+        }
 
         return NextResponse.json({ success: true, users });
     } catch (error) {
