@@ -95,9 +95,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         finalPrompt += `${identity_preservation} ${background_preservation} ${pose_preservation} ${masterpiece_enhancer} (wearing a bikini:1.6), (FORCED BIKINI CHANGE:1.6). (STRICT COMPLIANCE: KEEP ORIGINAL FACE, POSE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). (Anatomic correctness:1.5). Real photography.`;
         negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, (extra limbs:1.5), changed pose, modified pose, swapped pose, (original clothes visible:1.6), (underlying clothes:1.6).";
     } else if (mode === 'nude') {
-        finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} ${background_preservation} ${pose_preservation} ${anatomic_realism} ${masterpiece_enhancer} (STRICT CLOTHING REMOVAL:2.0), (COMPLETE NUDITY:1.8), (REMOVE ALL CLOTHES:1.8), (FULLY NAKED BARE SKIN:2.0), (TOTAL SKIN EXPOSURE:1.8). (Full body naked candid:1.4), (natural anatomy:1.5), (perfect human structure:1.5), (no extra parts:1.6), (detailed breasts:1.3), (natural vulva:1.4). (Shadows and depth in intimate area:1.3). NEGATIVE: clothes, dress, fabric, bra, underwear, bikini, swimsuit, (plastic skin:1.5), (3d model:1.5). (STRICT 1:1 FACE LOCK:1.5). (POSE LOCK:1.5). (BACKGROUND LOCK:1.5). High-resolution raw candid photo.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, bikini, swimsuit, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:1.6).";
+        const userSpecificPrompt = "[EXACT SAME PHOTO]: COPYRIGHT CLONE. KEEP SAME FACE. KEEP SAME POSE. KEEP SAME BACKGROUND. KEEP SAME LIGHTING. [ACTION]: REMOVE CLOTHES ONLY. UNDRESS GIRL. REMOVE BRA. REMOVE NIKAR. REMOVE PANTIES. REMOVE DRESS. REMOVE ALL CLOTHING LAYERS. [RESULT]: NUDE BODY. BARE SKIN. [IMPORTANT]: DO NOT CHANGE SKIN COLOR. DO NOT CHANGE ART STYLE. DO NOT REDRAW. JUST REMOVE CLOTHES. romve NIKAR NIKAR Ral body nude show all photos";
+        finalPrompt = prompt ? `(${prompt}:1.4), ${userSpecificPrompt}` : userSpecificPrompt;
+        negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), (visible clothing:2.0), changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:2.0), (visible fabric:2.0).";
     } else if (mode === 'remover') {
         const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
@@ -206,9 +206,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
                 // Dynamic parameters based on mode for optimal results
                 // REMOVER: Lower strength preserves MORE of the original image (especially the face)
-                const guidance = mode === 'nude' ? 3.5 : (mode === 'remover' ? 2.5 : 3.0);
-                const strength = mode === 'nude' ? 0.72 : (mode === 'remover' ? 0.38 : 0.55);
-                const imageStrength = mode === 'nude' ? 0.94 : (mode === 'remover' ? 0.99 : 0.96);
+                const guidance = mode === 'nude' ? 4.5 : (mode === 'remover' ? 2.5 : 3.0);
+                const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.38 : 0.55);
+                const imageStrength = mode === 'nude' ? 0.1 : (mode === 'remover' ? 0.99 : 0.96);
 
                 for (const currentModel of modelsToTry) {
                     const formData = new FormData();
@@ -299,8 +299,8 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
 async function pollStatus(requestId, apiKey) {
     let attempts = 0;
-    const maxAttempts = 40; // Increased
-    let delay = 2000;
+    const maxAttempts = 40;
+    let delay = 1500; // Reduced initial delay for faster feedback
 
     while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -338,9 +338,9 @@ async function pollStatus(requestId, apiKey) {
                 throw new Error(`DeAPI processing failed: ${JSON.stringify(statusData)}`);
             }
 
-            // Success call but not done yet, reset delay slightly or keep it
-            if (delay > 2000) delay -= 500;
-            if (delay < 2000) delay = 2000;
+            // Success call but not done yet
+            if (attempts > 5 && delay < 2500) delay += 200; // Slightly increase delay if taking longer
+            if (delay > 3000) delay = 3000;
 
         } catch (pollError) {
             console.warn(`Polling error: ${pollError.message}`);
