@@ -510,7 +510,7 @@ export default function AdminDashboard() {
                 await fetch('/api/admin/api-keys/test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider: key.provider, apiKey: key.api_key })
+                    body: JSON.stringify({ provider: key.provider, api_key: key.api_key })
                 });
             } catch (e) {
                 console.error(`Testing key ${key.id} failed`, e);
