@@ -43,10 +43,10 @@ export default function AdminDashboard() {
 
         // 2. Check Database Keys
         if (apiKeys && apiKeys.length > 0) {
-            // Include both active and rate_limited keys
-            const validKeys = apiKeys.filter(k => k.status === 'active' || k.status === 'rate_limited');
+            // Only include active keys in capacity calculation (exclude restricted/rate_limited)
+            const activeKeys = apiKeys.filter(k => k.status === 'active');
 
-            for (const key of validKeys) {
+            for (const key of activeKeys) {
                 // If we have live balance info, use it
                 const balanceInfo = balances[key.id];
                 if (balanceInfo && balanceInfo.success) {
@@ -73,6 +73,22 @@ export default function AdminDashboard() {
         // Otherwise 0
         return 0;
     }, [apiKeys, envKeysInfo, balances]);
+
+    // Calculate total balance from API keys
+    const totalBalance = useMemo(() => {
+        let total = 0;
+        if (apiKeys && apiKeys.length > 0) {
+            // Only include active keys as per user request ("only count active apis")
+            const activeKeys = apiKeys.filter(k => k.status === 'active');
+            for (const key of activeKeys) {
+                const balanceInfo = balances[key.id];
+                if (balanceInfo && balanceInfo.success) {
+                    total += balanceInfo.balance;
+                }
+            }
+        }
+        return total;
+    }, [apiKeys, balances]);
 
     // Admin email whitelist - add your admin emails here
     const ADMIN_EMAILS = [
@@ -285,6 +301,17 @@ export default function AdminDashboard() {
         }
         return () => controller.abort();
     }, [isAdmin, showAllPayments]);
+
+    // Automatically fetch balances when api-keys tab is active or keys are loaded
+    useEffect(() => {
+        if (isAdmin && activeTab === 'api-keys' && apiKeys.length > 0) {
+            const hasNoBalances = apiKeys.some(k => k.provider === 'deapi' && !balances[k.id]);
+            if (hasNoBalances && !fetchingBalances) {
+                console.log('[Admin] auto-fetching balances...');
+                fetchBalances();
+            }
+        }
+    }, [isAdmin, activeTab, apiKeys.length]);
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -800,7 +827,10 @@ export default function AdminDashboard() {
                     {activeTab === 'api-keys' && (
                         <div className="p-6 space-y-6 bg-gradient-to-br from-blue-50 to-purple-50 border-b border-blue-100">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-black text-blue-950 uppercase tracking-widest">🔑 API Keys Management</h2>
+                                <div className="space-y-1">
+                                    <h2 className="text-xl font-black text-blue-950 uppercase tracking-widest">🔑 API Keys Management</h2>
+                                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">DeAPI Cost: $0.035 per image (Image-to-Image / img2img)</p>
+                                </div>
                                 {isTestingAll && (
                                     <div className="flex items-center gap-3 bg-blue-600 text-white px-4 py-2 rounded-xl animate-pulse">
                                         <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -824,7 +854,7 @@ export default function AdminDashboard() {
                             )}
 
                             {/* Statistics Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                                 <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm">
                                     <div className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Total Keys</div>
                                     <div className="text-3xl font-black text-blue-950">{apiKeys.length}</div>
@@ -834,12 +864,16 @@ export default function AdminDashboard() {
                                     <div className="text-3xl font-black text-green-600">{apiKeys.filter(k => k.status === 'active').length}</div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-yellow-100 shadow-sm">
-                                    <div className="text-[10px] font-black text-yellow-900/40 uppercase tracking-widest mb-2">Restricted (Limit)</div>
+                                    <div className="text-[10px] font-black text-yellow-900/40 uppercase tracking-widest mb-2">Restricted</div>
                                     <div className="text-3xl font-black text-yellow-600">{apiKeys.filter(k => k.status === 'rate_limited').length}</div>
                                 </div>
-                                <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm">
-                                    <div className="text-[10px] font-black text-red-900/40 uppercase tracking-widest mb-2">Frozen (Invalid)</div>
-                                    <div className="text-3xl font-black text-red-600">{apiKeys.filter(k => k.status === 'invalid').length}</div>
+                                <div className="bg-white p-6 rounded-2xl border border-purple-100 shadow-sm">
+                                    <div className="text-[10px] font-black text-purple-900/40 uppercase tracking-widest mb-2">Total Balance</div>
+                                    <div className="text-3xl font-black text-purple-600">${totalBalance.toFixed(2)}</div>
+                                </div>
+                                <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm">
+                                    <div className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-2">Images Capacity</div>
+                                    <div className="text-3xl font-black text-blue-600">{totalImagesLeft}</div>
                                 </div>
                             </div>
 
@@ -1136,10 +1170,10 @@ export default function AdminDashboard() {
                                                             )}
                                                         </td>
                                                         <td className="p-6">
-                                                            <div className="font-black text-blue-950 text-sm">
+                                                            <div className="font-black text-purple-600 text-sm">
                                                                 {balances[item.id]?.success ? `$${balances[item.id].balance.toFixed(2)}` : (item.provider === 'deapi' ? '---' : 'N/A')}
                                                             </div>
-                                                            {balances[item.id]?.error && <div className="text-[8px] text-red-500 font-bold uppercase tracking-tight">Error</div>}
+                                                            {balances[item.id]?.success && <div className="text-[8px] text-purple-400 font-bold uppercase tracking-tight">Current Credit</div>}
                                                         </td>
                                                         <td className="p-6">
                                                             <div className="font-black text-blue-600 text-sm">

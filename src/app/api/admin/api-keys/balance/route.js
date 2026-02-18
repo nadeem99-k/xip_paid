@@ -6,7 +6,7 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const COST_PER_IMAGE = 0.00268; // Flux 1024x1024, 4 steps
+const COST_PER_IMAGE = 0.035; // DeAPI Image-to-Image (img2img) standard cost
 
 export async function GET() {
     try {
