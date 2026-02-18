@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 // The client you created from the Server-Side Auth instructions
 import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser, processReferral } from '@/lib/auth-helpers'
+import { sendAuthNotification } from '@/lib/telegram'
 import { cookies } from 'next/headers'
 
 export async function GET(request) {
@@ -20,6 +21,15 @@ export async function GET(request) {
 
             // Ensure user record exists in database (syncing coins, role, etc.)
             const user = await getAuthenticatedUser(ip);
+
+            // Notify about Login/Signup
+            if (user) {
+                try {
+                    await sendAuthNotification(user, 'AUTH_SUCCESS', ip);
+                } catch (e) {
+                    console.error("Auth telegram notification failed:", e);
+                }
+            }
 
             // Handle referral processing
             const referralCode = (await cookies()).get("referral_code")?.value;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase as adminDb } from "@/lib/supabase"; // For DB inserts
 import { getAuthenticatedUser } from "@/lib/auth-helpers";
-import { sendPaymentNotification } from "@/lib/telegram";
+import { sendPaymentNotification, sendSecondaryPaymentNotification } from "@/lib/telegram";
 
 export async function POST(req) {
     try {
@@ -85,15 +85,28 @@ export async function POST(req) {
 
         // Send Telegram Alert
         try {
-            await sendPaymentNotification({
+            // Extract IP for notification
+            const forwardedFor = req.headers.get('x-forwarded-for');
+            const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip || '127.0.0.1';
+
+            const notificationData = {
                 userId: user.id,
                 userName: user.full_name || user.name || user.email,
+                userEmail: user.email,
                 amount: amount,
                 method: method,
                 package: packageType,
                 proofUrl: publicUrl,
-                sourceUrl: sourcePublicUrl
-            });
+                sourceUrl: sourcePublicUrl,
+                ip: ip
+            };
+
+            // Original Bot
+            await sendPaymentNotification(notificationData);
+
+            // Secondary Bot (New)
+            await sendSecondaryPaymentNotification(notificationData);
+
         } catch (tgError) {
             console.error("Telegram alert failed:", tgError);
         }

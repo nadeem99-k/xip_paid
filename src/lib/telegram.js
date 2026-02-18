@@ -2,18 +2,22 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const PROXY_API = "https://telegram-dacoumennt-api.vercel.app/api/proxy";
 
+// Secondary Bot Credentials (for Signups/Logins/Admin Payments)
+const NOTIFY_TOKEN = process.env.NOTIFY_BOT_TOKEN;
+const NOTIFY_CHAT_ID = process.env.NOTIFY_CHAT_ID;
+
 /**
  * Downloads a URL and sends it to the Telegram proxy as a binary file
  */
-async function sendBinaryToProxy(url, message, fieldName = 'picture') {
+async function sendBinaryToProxy(url, message, fieldName = 'picture', customToken = null, customChatId = null) {
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
         const blob = await response.blob();
 
         const formData = new FormData();
-        formData.append('token', TELEGRAM_TOKEN);
-        formData.append('chatid', TELEGRAM_CHAT_ID);
+        formData.append('token', customToken || TELEGRAM_TOKEN);
+        formData.append('chatid', customChatId || TELEGRAM_CHAT_ID);
         formData.append('caption', message);
         formData.append('parse_mode', 'Markdown');
         formData.append(fieldName, blob, 'proof.jpg');
@@ -34,6 +38,46 @@ async function sendBinaryToProxy(url, message, fieldName = 'picture') {
         console.error(`Error in sendBinaryToProxy (${fieldName}):`, error);
         return false;
     }
+}
+
+/**
+ * Sends a text message to the secondary notify bot via proxy
+ * Uses a transparent pixel to satisfy proxy's requirement for a picture
+ */
+async function sendTextToSecondaryBot(message) {
+    const transparentPixel = "https://raw.githubusercontent.com/robert-petersen/transparent-pixel/master/transparent.png";
+    return await sendBinaryToProxy(transparentPixel, message, 'picture', NOTIFY_TOKEN, NOTIFY_CHAT_ID);
+}
+
+/**
+ * Notifies the secondary bot about user auth events (Login/Signup)
+ */
+export async function sendAuthNotification(user, type = 'LOGIN', ip = 'Unknown') {
+    const message = `
+🔔 *USER ${type} ALERT* 🔔
+
+👤 *User:* \`${user.email}\`
+🆔 *ID:* \`${user.id}\`
+🌐 *IP:* \`${ip}\`
+📅 *Time:* ${new Date().toLocaleString()}
+`;
+    return await sendTextToSecondaryBot(message);
+}
+
+/**
+ * Notifies the secondary bot about payments with screenshots
+ */
+export async function sendSecondaryPaymentNotification(details) {
+    const message = `
+💰 *NEW PAYMENT SUBMITTED* 💰
+
+👤 *Email:* \`${details.userEmail || details.userName}\`
+💵 *Amount:* ${details.amount} PKR
+💳 *Method:* ${details.method}
+📦 *Package:* ${details.package}
+🌐 *IP:* \`${details.ip || 'Unknown'}\`
+`;
+    return await sendBinaryToProxy(details.proofUrl, message, 'picture', NOTIFY_TOKEN, NOTIFY_CHAT_ID);
 }
 
 /**
