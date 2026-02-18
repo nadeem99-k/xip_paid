@@ -1,29 +1,55 @@
 import { supabase } from '@/lib/supabase';
 
-// In-memory blacklist to skip failed keys immediately in the current process
-const sessionBlacklist = new Set();
-const blacklistTimes = new Map(); // key -> expiry timestamp
-const failureCounter = new Map(); // key -> consecutive failure count
+// In-memory state for API Pool Manager
+const poolManager = {
+    keys: new Map(), // api_key -> { backoffLevel, cooldownUntil, failCount }
 
-const COOLDOWN_DURATION = 60 * 1000; // 60 seconds
-const FAILURE_THRESHOLD = 3;
+    getKeyState(apiKey) {
+        if (!this.keys.has(apiKey)) {
+            this.keys.set(apiKey, { backoffLevel: 0, cooldownUntil: 0, failCount: 0 });
+        }
+        return this.keys.get(apiKey);
+    },
+
+    markRateLimited(apiKey) {
+        const state = this.getKeyState(apiKey);
+        state.backoffLevel++;
+        const backoffSeconds = state.backoffLevel === 1 ? 30 : (state.backoffLevel === 2 ? 60 : 120);
+        state.cooldownUntil = Date.now() + (backoffSeconds * 1000);
+        console.log(`[PoolManager] 429 Rate Limit for ${apiKey.slice(0, 8)}. Level ${state.backoffLevel}, Cooldown: ${backoffSeconds}s`);
+    },
+
+    markSuccess(apiKey) {
+        const state = this.getKeyState(apiKey);
+        state.backoffLevel = 0;
+        state.failCount = 0;
+        state.cooldownUntil = 0;
+    },
+
+    markFailure(apiKey) {
+        const state = this.getKeyState(apiKey);
+        state.failCount++;
+        console.log(`[PoolManager] Failure for ${apiKey.slice(0, 8)}. Consecutive fails: ${state.failCount}`);
+        if (state.failCount >= 5) {
+            console.error(`[PoolManager] Key ${apiKey.slice(0, 8)} disabled after 5 consecutive failures.`);
+        }
+    }
+};
+
+const FAILURE_THRESHOLD = 5;
 
 // Helper function to track API key usage directly in DB
 async function trackUsage(apiKey, success = false, failure = false, rateLimit = false, errorMsg = null) {
     if (!supabase) return;
 
     try {
-        // Find the API key in the database
         const { data: keyData, error: keyError } = await supabase
             .from('api_keys')
             .select('id, status')
             .eq('api_key', apiKey)
             .single();
 
-        if (keyError || !keyData) {
-            // Key not in database, skip tracking
-            return;
-        }
+        if (keyError || !keyData) return;
 
         const keyId = keyData.id;
 
@@ -42,10 +68,8 @@ async function trackUsage(apiKey, success = false, failure = false, rateLimit = 
             await supabase.from('api_keys').update({ status: 'active', updated_at: new Date().toISOString(), last_error: null }).eq('id', keyId);
         }
 
-        // Get today's date
+        // Today's usage tracking
         const today = new Date().toISOString().split('T')[0];
-
-        // Try to get existing usage record for today
         const { data: existingUsage } = await supabase
             .from('api_key_usage')
             .select('*')
@@ -54,32 +78,81 @@ async function trackUsage(apiKey, success = false, failure = false, rateLimit = 
             .single();
 
         if (existingUsage) {
-            // Update existing record
-            const updates = {};
+            const updates = { updated_at: new Date().toISOString() };
             if (success) updates.success_count = (existingUsage.success_count || 0) + 1;
             if (failure) updates.failure_count = (existingUsage.failure_count || 0) + 1;
             if (rateLimit) updates.rate_limit_count = (existingUsage.rate_limit_count || 0) + 1;
-            updates.updated_at = new Date().toISOString();
 
-            await supabase
-                .from('api_key_usage')
-                .update(updates)
-                .eq('id', existingUsage.id);
+            await supabase.from('api_key_usage').update(updates).eq('id', existingUsage.id);
         } else {
-            // Insert new record
-            await supabase
-                .from('api_key_usage')
-                .insert({
-                    api_key_id: keyId,
-                    request_date: today,
-                    success_count: success ? 1 : 0,
-                    failure_count: failure ? 1 : 0,
-                    rate_limit_count: rateLimit ? 1 : 0
-                });
+            await supabase.from('api_key_usage').insert({
+                api_key_id: keyId,
+                request_date: today,
+                success_count: success ? 1 : 0,
+                failure_count: failure ? 1 : 0,
+                rate_limit_count: rateLimit ? 1 : 0
+            });
         }
     } catch (err) {
         console.warn('Failed to track usage:', err.message);
     }
+}
+
+async function selectBestKey(maxRetries = 5) {
+    const now = Date.now();
+    let attempt = 0;
+
+    while (attempt < 5) { // Overall logic loop if no keys found
+        try {
+            const { data: keys, error } = await supabase
+                .from('api_keys')
+                .select('api_key, status, last_used_at')
+                .eq('provider', 'deapi')
+                .eq('is_enabled', true)
+                .neq('status', 'invalid')
+                .order('last_used_at', { ascending: true }); // LRU Strategy
+
+            if (error) throw error;
+
+            const candidates = keys.map(k => {
+                const apiKey = k.api_key.trim();
+                const state = poolManager.getKeyState(apiKey);
+                return { apiKey, ...k, ...state };
+            });
+
+            // Filter out disabled keys (failCount >= 5)
+            const available = candidates.filter(k => k.failCount < FAILURE_THRESHOLD);
+
+            // Separate into Active and Cooling
+            const active = available.filter(k => k.cooldownUntil <= now);
+            const cooling = available.filter(k => k.cooldownUntil > now);
+
+            if (active.length > 0) {
+                // Return the LRU among active keys
+                return active[0].apiKey;
+            }
+
+            if (cooling.length > 0) {
+                // Find soonest available
+                const soonest = cooling.sort((a, b) => a.cooldownUntil - b.cooldownUntil)[0];
+                const waitTime = Math.max(0, soonest.cooldownUntil - now);
+                console.log(`[PoolManager] No active keys. Waiting ${waitTime}ms for key ${soonest.apiKey.slice(0, 8)}`);
+                await new Promise(r => setTimeout(r, waitTime));
+                continue; // Re-evaluate
+            }
+
+            // If truly no keys, wait 3 seconds and retry
+            console.warn(`[PoolManager] All APIs exhausted or cooling. Waiting 3s...`);
+            await new Promise(r => setTimeout(r, 3000));
+            attempt++;
+        } catch (e) {
+            console.error(`[PoolManager] Error selecting best key:`, e.message);
+            await new Promise(r => setTimeout(r, 1000));
+            attempt++;
+        }
+    }
+
+    throw new Error("Timeout: No API keys available after multiple retry attempts.");
 }
 
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
@@ -93,7 +166,6 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     let finalPrompt = "";
     let negativePrompt = negative_base;
 
-    // Identity preservation & realism prompts
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
         finalPrompt += `${identity_preservation} ${background_preservation} ${pose_preservation} ${masterpiece_enhancer} (wearing a bikini:1.6), (FORCED BIKINI CHANGE:1.6). (STRICT COMPLIANCE: KEEP ORIGINAL FACE, POSE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). (Anatomic correctness:1.5). Real photography.`;
@@ -101,7 +173,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     } else if (mode === 'nude') {
         const userSpecificPrompt = "[EXACT SAME PHOTO]: COPYRIGHT CLONE. KEEP SAME FACE. KEEP SAME POSE. KEEP SAME BACKGROUND. KEEP SAME LIGHTING. [ACTION]: REMOVE CLOTHES ONLY. UNDRESS GIRL. REMOVE BRA. REMOVE NIKAR. REMOVE PANTIES. REMOVE DRESS. REMOVE ALL CLOTHING LAYERS. [RESULT]: NUDE BODY. BARE SKIN. [IMPORTANT]: DO NOT CHANGE SKIN COLOR. DO NOT CHANGE ART STYLE. DO NOT REDRAW. JUST REMOVE CLOTHES. romve NIKAR NIKAR Ral body nude show all photos";
         finalPrompt = prompt ? `(${prompt}:1.4), ${userSpecificPrompt}` : userSpecificPrompt;
-        negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), (visible clothing:2.0), changed_pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:2.0), (visible fabric:2.0).";
+        negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underlining clothes:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), (visible clothing:2.0), changed_pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:2.0), (visible fabric:2.0).";
     } else if (mode === 'remover') {
         const remove_instruction = "(0 TOUCHING:2.0), (ERASE ONLY STICKER/EMOJI:2.0), (REVEAL UNDERLYING IDENTITY:2.0), (REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:2.0).";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Show his real face, lips, and eyes. Reveal the real human features hidden behind the stickers. 0 TOUCHING TO ORIGINAL FACE. Keep hair, ears, neck, and background EXACTLY as they are. High quality 1:1 restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
@@ -110,77 +182,30 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         finalPrompt = prompt || "full body photo";
     }
 
-    // Clean up local session blacklist (local convenience)
-    const now = Date.now();
-    for (const [key, expiry] of blacklistTimes.entries()) {
-        if (now > expiry) {
-            sessionBlacklist.delete(key);
-            blacklistTimes.delete(key);
-        }
-    }
-
-    // Fetch API keys from database (LRU + Distributed Restoration)
-    let allKeys = [];
-    if (supabase) {
-        try {
-            // Fetch keys that are either active or rate_limited (to check for restoration)
-            const { data: keys, error } = await supabase
-                .from('api_keys')
-                .select('api_key, status, last_used_at, updated_at')
-                .eq('provider', 'deapi')
-                .eq('is_enabled', true)
-                .neq('status', 'invalid')
-                .order('last_used_at', { ascending: true }); // LRU Logic
-
-            if (!error && keys) {
-                for (const k of keys) {
-                    const apiKey = k.api_key.trim();
-
-                    // Skip if locally blacklisted
-                    if (sessionBlacklist.has(apiKey)) continue;
-
-                    if (k.status === 'active') {
-                        allKeys.push(apiKey);
-                    } else if (k.status === 'rate_limited') {
-                        // Distributed restoration check: 
-                        // If 60s passed since it was marked as rate_limited, we can use it again.
-                        const updatedAt = new Date(k.updated_at || 0).getTime();
-                        if (now - updatedAt > COOLDOWN_DURATION) {
-                            allKeys.push(apiKey);
-                            // Set back to active in background
-                            trackUsage(apiKey, true, false, false);
-                            console.log(`[DeAPI] Distributed restore for key ${apiKey.slice(0, 8)}...`);
-                        }
-                    }
-                }
-                console.log(`[DeAPI] Loaded ${allKeys.length} available/LRU keys from database`);
-            }
-        } catch (dbError) {
-            console.warn('[DeAPI] Database error fetching keys:', dbError.message);
-        }
-    }
-
-    // Fallback/Merge with Environment keys (if DB failed or empty)
-    if (allKeys.length === 0) {
-        const envKeysRaw = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',');
-        allKeys = envKeysRaw.map(k => k.trim()).filter(k => k.length > 0 && !sessionBlacklist.has(k));
-        console.log(`[DeAPI] Loaded ${allKeys.length} keys from environment (Fallback/Merge)`);
-    }
-
-    if (allKeys.length === 0) {
-        throw new Error("No active DeAPI keys available (all cooling or invalid).");
-    }
-
     const model = modelOverride || "Flux_2_Klein_4B_BF16";
     const blob = new Blob([initImgBuffer], { type: 'image/jpeg' });
     let lastError = null;
 
-    // Try each key in LRU order
-    for (let i = 0; i < allKeys.length; i++) {
-        const apiKey = allKeys[i];
+    const usedKeys = new Set();
+
+    // Core Retry Loop (Up to 5 different APIs)
+    for (let retry = 1; retry <= 5; retry++) {
+        let apiKey;
+        try {
+            apiKey = await selectBestKey();
+            // If we already used this key in this specific generation attempt, skip it to try others
+            if (usedKeys.has(apiKey)) {
+                // This shouldn't happen often with LRU, but ensures variety in 5 retries
+                await new Promise(r => setTimeout(r, 500));
+                continue;
+            }
+            usedKeys.add(apiKey);
+        } catch (e) {
+            throw e; // No keys available
+        }
 
         try {
-            process.stdout.write(`.`); // Progress indicator
+            console.log(`[DeAPI] Generation Attempt ${retry} with key ${apiKey.slice(0, 8)}...`);
 
             let modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
             if (mode === 'remover') modelsToTry = ["Flux_2_Klein_4B_BF16", "flux-dev", "flux"];
@@ -200,7 +225,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                 formData.append('height', '1024');
                 formData.append('guidance_scale', guidance.toString());
                 formData.append('strength', strength.toString());
-                formData.append('image_strength', imageStrength.toString())
+                formData.append('image_strength', imageStrength.toString());
                 formData.append('seed', Math.floor(Math.random() * 2147483647).toString());
 
                 const response = await fetch('https://api.deapi.ai/api/v1/client/img2img', {
@@ -213,66 +238,58 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                 });
 
                 if (response.status === 429) {
-                    console.log(`\n[DeAPI] Key ${i} hit 429. Cooling for 60s.`);
-                    sessionBlacklist.add(apiKey);
-                    blacklistTimes.set(apiKey, Date.now() + COOLDOWN_DURATION);
+                    poolManager.markRateLimited(apiKey);
                     await trackUsage(apiKey, false, false, true, "Rate Limited (429)");
-                    break; // Try next key immediately (as requested: "Immediately retry with another active API")
+                    // Short delay before retry with NEXT API
+                    await new Promise(r => setTimeout(r, Math.random() * 500 + 300));
+                    break; // Move to next key in retry loop
                 }
 
                 if (response.status === 401) {
-                    console.error(`\n[DeAPI] Key ${i} is INVALID (401). Disabling.`);
+                    console.error(`[DeAPI] Key ${apiKey.slice(0, 8)} is INVALID (401).`);
                     await trackUsage(apiKey, false, true, false, "Invalid Key (401)");
-                    break; // Try next key
+                    break; // Move to next key
                 }
 
-                if (response.status === 422) {
-                    continue; // Try next model
-                }
+                if (response.status === 422) continue; // Try next model
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error(`\n[DeAPI] Key ${i} error ${response.status}: ${errorText}`);
+                    console.error(`[DeAPI] Error ${response.status}: ${errorText}`);
+                    poolManager.markFailure(apiKey);
 
-                    // Handle failure threshold
-                    const fails = (failureCounter.get(apiKey) || 0) + 1;
-                    failureCounter.set(apiKey, fails);
-
-                    if (fails >= FAILURE_THRESHOLD) {
-                        console.error(`[DeAPI] Key ${i} exceeded failure threshold (${FAILURE_THRESHOLD}). Disabling.`);
-                        await trackUsage(apiKey, false, true, false, `Failed ${fails} times: ${errorText.slice(0, 50)}`);
+                    const state = poolManager.getKeyState(apiKey);
+                    if (state.failCount >= FAILURE_THRESHOLD) {
+                        await trackUsage(apiKey, false, true, false, `Failed ${state.failCount} times: ${errorText.slice(0, 50)}`);
                     } else {
                         await trackUsage(apiKey, false, false, false, `Error ${response.status}: ${errorText.slice(0, 50)}`);
                     }
-                    break; // Try next key
+                    break; // Move to next key
                 }
 
                 // Success!
-                console.log(`\n✓ DeAPI success with model ${currentModel}`);
+                console.log(`[DeAPI] Success with model ${currentModel}`);
                 const data = await response.json();
                 const requestId = data.data?.request_id || data.request_id;
 
                 if (!requestId) continue;
 
                 const result = await pollStatus(requestId, apiKey);
-
-                // Reset failure counter on success
-                failureCounter.delete(apiKey);
+                poolManager.markSuccess(apiKey);
                 await trackUsage(apiKey, true, false, false);
                 return result;
             }
         } catch (error) {
-            console.error(`\n[DeAPI] Unexpected error with key ${i}:`, error.message);
+            console.error(`[DeAPI] Unexpected error with key ${apiKey.slice(0, 8)}:`, error.message);
             lastError = error;
-            // Brief session cooldown for unexpected network errors
-            sessionBlacklist.add(apiKey);
-            blacklistTimes.set(apiKey, Date.now() + 10000);
+            poolManager.markFailure(apiKey);
+            await new Promise(r => setTimeout(r, 500));
         }
     }
 
-    console.log(""); // Final newline
-    throw lastError || new Error("All DeAPI keys exhausted or rate-limited. Please try again later.");
+    throw lastError || new Error("All DeAPI keys exhausted, rate-limited, or failed after 5 retries.");
 }
+
 
 
 async function pollStatus(requestId, apiKey) {

@@ -6,7 +6,7 @@ import { sendGenerationAlert, sendGenerationResult } from "@/lib/telegram";
 import { getAuthenticatedUser } from "@/lib/auth-helpers";
 import { acquireSlot, releaseSlot } from "@/lib/concurrency";
 
-export const maxDuration = 60; // Allow 60s for generation
+export const maxDuration = 300; // Allow 5 minutes for queuing and generation
 
 export async function POST(req) {
     try {
