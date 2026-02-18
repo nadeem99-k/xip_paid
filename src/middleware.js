@@ -1,8 +1,8 @@
 import { updateSession } from "@/lib/supabase/middleware";
-
 import { NextResponse } from "next/server";
 
 export async function middleware(request) {
+    console.log(`[Middleware] ${request.method} ${request.nextUrl.pathname}`);
     const response = await updateSession(request);
 
     // Capture referral code from URL and store in cookie
@@ -28,7 +28,7 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
+         * - Any file with an extension (e.g. .png, .jpg, .svg)
          */
         "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ],

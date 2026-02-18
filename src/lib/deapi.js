@@ -1,5 +1,9 @@
 import { supabase } from '@/lib/supabase';
 
+// In-memory blacklist to skip failed keys immediately in the current process
+const sessionBlacklist = new Set();
+const blacklistTimes = new Map(); // key -> expiry timestamp
+
 // Helper function to track API key usage directly in DB
 async function trackUsage(apiKey, success = false, failure = false, rateLimit = false, errorMsg = null) {
     if (!supabase) return;
@@ -75,11 +79,12 @@ async function trackUsage(apiKey, success = false, failure = false, rateLimit = 
 }
 
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(STRICT 1:1 FACE CLONE:1.5), (STRICT FACIAL IDENTITY:1.4), (KEEP ORIGINAL HUMAN FEATURES:1.3), (STRICT FACE LOCK:1.4). (PROHIBIT FACIAL ALTERATION:1.5). (IDENTICAL FACE:1.5).";
+    const identity_preservation = "(STRICT 1:1 FACE CLONE:1.5), (STRICT FACIAL IDENTITY:1.4), (KEEP ORIGINAL HUMAN FEATURES:1.3), (STRICT FACE LOCK:1.4), (IDENTICAL FACE:1.5), (SINGLE PERSON ONLY:1.5), (ONLY ONE PERSON:1.5). (PROHIBIT EXTRA PEOPLE:1.5).";
     const background_preservation = "(STRICT BACKGROUND LOCK:1.5), (KEEP ORIGINAL BACKGROUND 100% UNTOUCHED:1.5), (DO NOT ALTER BACKGROUND:1.4).";
-    const anatomic_realism = "(perfect human anatomy:1.4), (natural skin texture with imperfections:1.3), (raw photo:1.3), (iPhone camera quality:1.2), (natural body shape:1.3), (soft shadows:1.2), (realistic breast shape:1.3), (natural female features:1.4), (subtle goosebumps:1.1).";
-    const masterpiece_enhancer = "(candid shot:1.3), (unfiltered phone photo:1.4), (natural lighting:1.2), (high resolution raw dslr:1.2), depth of field.";
-    const negative_base = "(extra limbs, extra legs, extra arms, three legs, fused bodies, connected persons, mutated anatomy, deformed body:1.5), (extra fingers, fused fingers, too many fingers:1.4), blurry, low quality, deformed, disfigured, ugly, bad anatomy, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, duplicate artifacts, morbid, gross proportions, mutated hands, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime, (changed face:1.5), (changed background:1.5).";
+    const pose_preservation = "(STRICT POSE LOCK:1.5), (KEEP ORIGINAL POSE 100% UNTOUCHED:1.5), (STRICTLY PRESERVE BODY POSE:1.5), (SAME POSE:1.5), (SINGLE PERSON POSE:1.4).";
+    const anatomic_realism = "(perfect human anatomy:1.4), (natural skin texture with imperfections:1.3), (raw photo:1.3), (iPhone camera quality:1.2), (natural body shape:1.3), (soft shadows:1.2), (realistic breasts:1.3), (natural female features:1.4), (detailed skin:1.2).";
+    const masterpiece_enhancer = "(candid shot:1.3), (unfiltered phone photo:1.4), (natural lighting:1.2), (high resolution raw dslr:1.2), (photorealistic:1.3).";
+    const negative_base = "(extra limbs, extra legs, extra arms, three legs, fused bodies, connected persons, mutated anatomy, deformed body:1.5), (multiple people, group of people, twins, clones, extra people in background:1.6), (extra fingers, fused fingers, too many fingers:1.4), blurry, low quality, deformed, disfigured, ugly, bad anatomy, poorly drawn face, mutation, disconnected limbs, out of focus, long neck, long body, disgusting, poorly drawn, childish, mutilated, mangled, surreal, duplicate artifacts, morbid, gross proportions, mutated hands, malformed limbs, plastic skin, fake body, 3d render, cgi, cartoon, anime, (changed face:1.5), (changed background:1.5), (extra heads:1.5).";
 
     let finalPrompt = "";
     let negativePrompt = negative_base;
@@ -87,12 +92,12 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // Identity preservation & realism prompts
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} ${background_preservation} ${masterpiece_enhancer} wearing a (bikini:1.4). (STRICT COMPLIANCE: KEEP ORIGINAL FACE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). (Anatomic correctness:1.5). Real photography.`;
-        negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, (extra limbs:1.5).";
+        finalPrompt += `${identity_preservation} ${background_preservation} ${pose_preservation} ${masterpiece_enhancer} (wearing a bikini:1.6), (FORCED BIKINI CHANGE:1.6). (STRICT COMPLIANCE: KEEP ORIGINAL FACE, POSE AND BACKGROUND 100% UNTOUCHED:1.5). (Natural human body:1.3). (Anatomic correctness:1.5). Real photography.`;
+        negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, (extra limbs:1.5), changed pose, modified pose, swapped pose, (original clothes visible:1.6), (underlying clothes:1.6).";
     } else if (mode === 'nude') {
         finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${identity_preservation} ${background_preservation} ${anatomic_realism} ${masterpiece_enhancer} (COMPLETE NUDITY:1.6), (REMOVE ALL CLOTHES:1.6), (FULLY NAKED BARE SKIN:1.6). (Full body naked candid:1.4), (natural anatomy:1.5), (perfect human structure:1.5), (no extra parts:1.6), (detailed breasts:1.3), (natural vulva:1.4). (Shadows and depth in intimate area:1.3). NEGATIVE: clothes, dress, fabric, bra, underwear, bikini, swimsuit, (plastic skin:1.5), (3d model:1.5). (STRICT 1:1 FACE LOCK:1.5). (BACKGROUND LOCK:1.5). High-resolution raw candid photo.`;
-        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, bikini, swimsuit, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6).";
+        finalPrompt += `${identity_preservation} ${background_preservation} ${pose_preservation} ${anatomic_realism} ${masterpiece_enhancer} (STRICT CLOTHING REMOVAL:2.0), (COMPLETE NUDITY:1.8), (REMOVE ALL CLOTHES:1.8), (FULLY NAKED BARE SKIN:2.0), (TOTAL SKIN EXPOSURE:1.8). (Full body naked candid:1.4), (natural anatomy:1.5), (perfect human structure:1.5), (no extra parts:1.6), (detailed breasts:1.3), (natural vulva:1.4). (Shadows and depth in intimate area:1.3). NEGATIVE: clothes, dress, fabric, bra, underwear, bikini, swimsuit, (plastic skin:1.5), (3d model:1.5). (STRICT 1:1 FACE LOCK:1.5). (POSE LOCK:1.5). (BACKGROUND LOCK:1.5). High-resolution raw candid photo.`;
+        negativePrompt += " clothes, dress, fabric, garments, bra, underwear, bikini, swimsuit, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:1.6).";
     } else if (mode === 'remover') {
         const remove_instruction = "(REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:1.8).";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Remove any occlusions, stickers, emojis, graphics overlaying the face. Keep hair, ears, neck, and background EXACTLY as they are. High quality restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
@@ -112,17 +117,24 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         try {
             const { data: keys, error } = await supabase
                 .from('api_keys')
-                .select('api_key')
+                .select('api_key, status')
                 .eq('provider', 'deapi')
                 .eq('is_enabled', true);
 
             if (!error && keys && keys.length > 0) {
-                keys.forEach(k => {
+                // Prioritize 'active' keys, then unknown/others
+                const sortedKeys = keys.sort((a, b) => {
+                    if (a.status === 'active' && b.status !== 'active') return -1;
+                    if (a.status !== 'active' && b.status === 'active') return 1;
+                    return 0;
+                });
+
+                sortedKeys.forEach(k => {
                     if (k.api_key && k.api_key.trim()) {
                         dbKeys.push(k.api_key.trim());
                     }
                 });
-                console.log(`Loaded ${dbKeys.length} DeAPI keys from database (Direct DB)`);
+                console.log(`Loaded ${dbKeys.length} DeAPI keys from database (Prioritizing Active)`);
             } else if (error) {
                 console.warn('Supabase DB error fetching keys:', error.message);
             }
@@ -136,11 +148,21 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     // Load environment keys
     const envKeysRaw = (process.env.DEAPI_API_KEYS || process.env.DEAPI_API_KEY || "").split(',');
     const envKeys = envKeysRaw.map(k => k.trim()).filter(k => k.length > 0);
-    console.log(`Loaded ${envKeys.length} DeAPI keys from environment`);
+    if (envKeys.length > 0) {
+        console.log(`Loaded ${envKeys.length} DeAPI keys from environment`);
+    }
 
-    // Merge and deduplicate
+    // Merge and deduplicate while preserving order (Active DB keys first)
     const allKeys = [...new Set([...dbKeys, ...envKeys])];
-    console.log(`Total unique DeAPI keys available: ${allKeys.length}`);
+
+    // Clean up expired blacklist items
+    const now = Date.now();
+    for (const [key, expiry] of blacklistTimes.entries()) {
+        if (now > expiry) {
+            sessionBlacklist.delete(key);
+            blacklistTimes.delete(key);
+        }
+    }
 
     if (allKeys.length === 0) {
         console.warn("No DeAPI keys found in database or environment!");
@@ -155,19 +177,25 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
     const blob = new Blob([initImgBuffer], { type: 'image/jpeg' });
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
-        let allKeysRateLimited = true;
+        // Only shuffle the keys if this isn't the first attempt or if we want randomness.
+        // For premium speed, we'll keep the ordered ones first if attempt === 0.
+        const keysToTry = attempt === 0 ? allKeys : [...allKeys].sort(() => Math.random() - 0.5);
 
-        for (let i = 0; i < shuffledKeys.length; i++) {
-            const apiKey = shuffledKeys[i].trim();
+        for (let i = 0; i < keysToTry.length; i++) {
+            const apiKey = keysToTry[i].trim();
+
+            // FAST FAIL: Skip blacklisted keys immediately
+            if (sessionBlacklist.has(apiKey)) {
+                continue;
+            }
+
             try {
                 if (attempt > 0) {
-                    console.log(`Retry attempt ${attempt + 1}/${maxRetries} for DeAPI generation...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Shorter delay
                 }
 
-                // Skip if we hit 401 on this key before (optional enhancement, but let's just handle it in the loop)
-                console.log(`Attempting DeAPI generation directly with key index ${i}...`);
+                // Shorter log
+                process.stdout.write(`.`); // Loading indicator instead of long log
 
                 // Try preferred model first
                 let modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
@@ -178,9 +206,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
                 // Dynamic parameters based on mode for optimal results
                 // REMOVER: Lower strength preserves MORE of the original image (especially the face)
-                const guidance = mode === 'nude' ? 2.5 : (mode === 'remover' ? 2.0 : 2.5);
-                const strength = mode === 'nude' ? 0.62 : (mode === 'remover' ? 0.38 : 0.35);
-                const imageStrength = mode === 'nude' ? 0.98 : (mode === 'remover' ? 0.99 : 0.98);
+                const guidance = mode === 'nude' ? 3.5 : (mode === 'remover' ? 2.5 : 3.0);
+                const strength = mode === 'nude' ? 0.72 : (mode === 'remover' ? 0.38 : 0.55);
+                const imageStrength = mode === 'nude' ? 0.94 : (mode === 'remover' ? 0.99 : 0.96);
 
                 for (const currentModel of modelsToTry) {
                     const formData = new FormData();
@@ -207,16 +235,23 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
                     if (response.status === 429) {
                         const errorText = await response.text();
-                        console.warn(`DeAPI key ${i} rate limited (429) on POST. Details: ${errorText}`);
-                        await trackUsage(apiKey, false, false, true, `Rate Limited (429): ${errorText.slice(0, 100)}`);
-                        lastError = new Error(`DeAPI key ${i} rate limited: ${errorText}`);
+                        // Blacklist for 5 minutes
+                        sessionBlacklist.add(apiKey);
+                        blacklistTimes.set(apiKey, Date.now() + 5 * 60 * 1000);
+
+                        await trackUsage(apiKey, false, false, true, `Rate Limited (429)`);
+                        lastError = new Error(`DeAPI key rate limited`);
                         break; // Exit model loop, try next key
                     }
 
                     if (response.status === 401) {
-                        console.error(`DeAPI key ${i} is INVALID (401). Skipping...`);
-                        lastError = new Error(`Invalid key ${i}`);
-                        break; // Exit model loop, skip this key forever in this loop
+                        // Blacklist indefinitely (until restart)
+                        sessionBlacklist.add(apiKey);
+                        blacklistTimes.set(apiKey, Date.now() + 24 * 60 * 60 * 1000);
+
+                        console.error(`\nDeAPI key is INVALID (401). Blacklisting...`);
+                        lastError = new Error(`Invalid key`);
+                        break;
                     }
 
                     if (response.status === 422) {
@@ -234,11 +269,11 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                         break;
                     }
 
+                    console.log(`\n✓ DeAPI success with model ${currentModel}`);
                     const data = await response.json();
                     const requestId = data.data?.request_id || data.request_id;
 
                     if (!requestId) {
-                        console.warn(`No request_id returned from DeAPI with key ${i} and model ${currentModel}`);
                         continue;
                     }
 
@@ -248,12 +283,16 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                     return result;
                 }
             } catch (error) {
-                console.error(`DeAPI Attempt with key index ${i} failed:`, error.message);
+                // If it's a fetch failure, blacklist briefly
+                if (error.message.includes('fetch failed')) {
+                    sessionBlacklist.add(apiKey);
+                    blacklistTimes.set(apiKey, Date.now() + 60 * 1000); // 1 min blacklist
+                }
                 lastError = error;
-                allKeysRateLimited = false;
             }
         }
     }
+    console.log(""); // New line after dots
 
     throw lastError || new Error("All DeAPI keys failed or were rate-limited. Please try again later.");
 }

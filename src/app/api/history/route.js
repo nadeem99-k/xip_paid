@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase as adminDb } from "@/lib/supabase";
 import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'; // Trigger recompile
 
 export async function GET(req) {
     try {

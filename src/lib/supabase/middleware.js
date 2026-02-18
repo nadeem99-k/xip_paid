@@ -6,10 +6,6 @@ export async function updateSession(request) {
         request,
     })
 
-    // We are not using `createClient` from `@/lib/supabase/server` here
-    // because middleware requires a slightly different setup for cookies
-    // (returning the response with set-cookie header).
-
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -33,10 +29,6 @@ export async function updateSession(request) {
         }
     )
 
-    // Do not run Supabase auth logic on static files or images
-    // This is already handled by middleware matcher, but good to double check
-    // if you change matcher later.
-
     const {
         data: { user },
     } = await supabase.auth.getUser()
@@ -45,15 +37,22 @@ export async function updateSession(request) {
     if (
         !user &&
         (request.nextUrl.pathname.startsWith('/dashboard') ||
-            request.nextUrl.pathname.startsWith('/admin'))
+            request.nextUrl.pathname.startsWith('/admin') ||
+            request.nextUrl.pathname.startsWith('/api/'))
     ) {
-        // no user, potentially respond by redirecting the user to the login page
+        // Handle API routes differently to avoid returning HTML to fetch calls
+        if (request.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+
+        // For non-API routes, return a simple redirect or custom response
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
 
-    // IMPORTANT: You *must* return the supabaseResponse object as it is.
-    // If you're creating a new Response object, make sure to include server-side-set cookies.
     return supabaseResponse
 }
