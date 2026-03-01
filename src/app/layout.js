@@ -13,13 +13,13 @@ export default function RootLayout({ children }) {
   const isDashboard = pathname?.startsWith('/dashboard');
 
   return (
-    <html lang="en" className="dark scroll-smooth">
+    <html lang="en" className="dark scroll-smooth" suppressHydrationWarning>
       <head>
         <title>XIP AI | Elite Generative Aesthetics</title>
         <meta name="description" content="Pushing the boundaries of generative aesthetics through research and design excellence." />
         <link rel="icon" href="/logo.png" />
       </head>
-      <body className="antialiased selection:bg-white/10 selection:text-white pb-10">
+      <body className="antialiased selection:bg-white/10 selection:text-white pb-10" suppressHydrationWarning>
         <Providers>
           <BroadcastBanner />
           <Navbar />

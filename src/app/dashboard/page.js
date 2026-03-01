@@ -7,8 +7,10 @@ import { useUser } from '@/hooks/useUser';
 function DashboardContent() {
     const { user: authUser, isLoading: authLoading } = useUser();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     // UI State
+    const [isMounted, setIsMounted] = useState(false);
     const [prompt, setPrompt] = useState('');
     const [inputImage, setInputImage] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
@@ -117,28 +119,26 @@ function DashboardContent() {
         }
     }, [inputImage]);
 
+    // Unified Fetch Effect to prevent infinite loops
     useEffect(() => {
         const controller = new AbortController();
+        const signal = controller.signal;
+
         if (authUser) {
-            fetchUser(controller.signal);
+            fetchUser(signal);
         }
-        return () => controller.abort();
-    }, [authUser]);
 
-    useEffect(() => {
-        const controller = new AbortController();
         if (activeTab === 'history') {
-            fetchHistory(controller.signal);
+            fetchHistory(signal);
         } else if (activeTab === 'payments') {
-            fetchUserPayments(controller.signal);
+            fetchUserPayments(signal);
         } else if (activeTab === 'referral') {
-            fetchReferrals(controller.signal);
+            fetchReferrals(signal);
+            if (authUser) fetchUser(signal);
         }
 
-        return () => {
-            controller.abort();
-        };
-    }, [activeTab]);
+        return () => controller.abort();
+    }, [authUser, activeTab]);
 
     // Bonus Countdown Effect - separate to ensure reactivity to claim time updates
     useEffect(() => {
@@ -171,8 +171,6 @@ function DashboardContent() {
         const interval = setInterval(updateCountdown, 1000);
         return () => clearInterval(interval);
     }, [displayUser?.last_bonus_claim]);
-
-    const searchParams = useSearchParams();
 
     // Sync tab with URL query param
     useEffect(() => {
@@ -586,6 +584,8 @@ function DashboardContent() {
                                 className="group relative overflow-hidden p-8 rounded-[2.5rem] bg-gradient-to-r from-blue-600 to-indigo-600 text-white cursor-pointer hover:shadow-2xl hover:shadow-blue-600/20 transition-all animate-fade-in-down"
                             >
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/20 transition-all"></div>
+                                <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-400/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+
                                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                                     <div className="space-y-2 text-center md:text-left">
                                         <h2 className="text-2xl font-black tracking-tighter">Get 10 Free Premium Coins! 🎁</h2>
@@ -777,7 +777,7 @@ function DashboardContent() {
                                                     <div className="absolute inset-x-12 bottom-12 flex gap-4">
                                                         <button
                                                             onClick={() => handleDownload(generatedImages[0])}
-                                                            className="flex-1 h-20 bg-blue-600 text-white rounded-3xl font-black text-xs flex items-center justify-center uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-blue-600/20"
+                                                            className="flex-1 py-2.5 bg-blue-600 text-white rounded-3xl font-black text-xs flex items-center justify-center uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-blue-600/20"
                                                         >
                                                             Download Photo
                                                         </button>
@@ -813,20 +813,20 @@ function DashboardContent() {
                                             <div className="text-2xl font-black tracking-tighter text-blue-950">Active <span className="text-[10px] text-blue-600 ml-2">PRO</span></div>
                                         </div>
                                     </div>
-                                </div>
-                            </div >
-                            <Link href="/dashboard?tab=referral" className="block p-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-[3rem] text-white shadow-2xl shadow-blue-600/20 hover:scale-[1.01] transition-transform group">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-50/80">Referral Program</p>
-                                        <h3 className="text-2xl font-black tracking-tighter leading-tight">
-                                            Invite friends, get <span className="text-blue-100">Free Credits.</span>
-                                        </h3>
+                                </div >
+                                <Link href="/dashboard?tab=referral" className="block p-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-[3rem] text-white shadow-2xl shadow-blue-600/20 hover:scale-[1.01] transition-transform group">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-50/80">Referral Program</p>
+                                            <h3 className="text-2xl font-black tracking-tighter leading-tight">
+                                                Invite friends, get <span className="text-blue-100">Free Credits.</span>
+                                            </h3>
+                                        </div>
+                                        <div className="w-16 h-16 bg-white/10 backdrop-blur-md text-white rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-12 transition-transform border border-white/10">🤝</div>
                                     </div>
-                                    <div className="w-16 h-16 bg-white/10 backdrop-blur-md text-white rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-12 transition-transform border border-white/10">🤝</div>
-                                </div>
-                            </Link>
-                        </div >
+                                </Link>
+                            </div >
+                        </div>
                     ) : activeTab === 'history' ? (
                         <div className="space-y-12">
                             <header className="flex flex-col md:flex-row md:items-center justify-between gap-10 pb-12 border-b border-blue-50">
@@ -992,7 +992,7 @@ function DashboardContent() {
                                                 <div className="flex flex-col sm:flex-row gap-3">
                                                     <div className="flex-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold truncate flex items-center">
                                                         {displayUser?.referral_code ? (
-                                                            `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`
+                                                            `${isMounted ? window.location.origin : ''}?ref=${displayUser.referral_code}`
                                                         ) : (
                                                             <div className="flex items-center gap-3 w-full">
                                                                 <span className="opacity-40 italic">Initializing link...</span>
@@ -1008,8 +1008,8 @@ function DashboardContent() {
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => {
-                                                                if (displayUser?.referral_code) {
-                                                                    handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${displayUser.referral_code}`, 'ref');
+                                                                if (displayUser?.referral_code && isMounted) {
+                                                                    handleCopy(`${window.location.origin}?ref=${displayUser.referral_code}`, 'ref');
                                                                 }
                                                             }}
                                                             disabled={!displayUser?.referral_code}
@@ -1017,7 +1017,7 @@ function DashboardContent() {
                                                         >
                                                             {copiedField === 'ref' ? 'Copied' : 'Copy'}
                                                         </button>
-                                                        {typeof navigator !== 'undefined' && navigator.share && (
+                                                        {isMounted && navigator.share && (
                                                             <button
                                                                 onClick={() => {
                                                                     navigator.share({
