@@ -189,8 +189,8 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
     const usedKeys = new Set();
 
-    // Core Retry Loop (Up to 5 different APIs)
-    for (let retry = 1; retry <= 5; retry++) {
+    // Core Retry Loop (Up to 15 different APIs if we hit dead ends early)
+    for (let retry = 1; retry <= 15; retry++) {
         let apiKey;
         try {
             apiKey = await selectBestKey();
@@ -241,7 +241,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
                 if (response.status === 429) {
                     poolManager.markRateLimited(apiKey);
-                    await trackUsage(apiKey, false, false, true, "Rate Limited (429)");
+                    trackUsage(apiKey, false, false, true, "Rate Limited (429)").catch(console.error);
                     // Short delay before retry with NEXT API
                     await new Promise(r => setTimeout(r, Math.random() * 500 + 300));
                     break; // Move to next key in retry loop
@@ -250,7 +250,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                 if (response.status === 401 || response.status === 403) {
                     const errorMsg = response.status === 403 ? "Suspended (403)" : "Invalid (401)";
                     console.error(`[DeAPI] Key ${apiKey.slice(0, 8)} is ${errorMsg}.`);
-                    await trackUsage(apiKey, false, true, false, errorMsg);
+                    trackUsage(apiKey, false, true, false, errorMsg).catch(console.error);
 
                     // Force pool manager to disable this key immediately
                     const state = poolManager.getKeyState(apiKey);
