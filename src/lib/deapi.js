@@ -194,11 +194,12 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         let apiKey;
         try {
             apiKey = await selectBestKey();
-            // If we already used this key in this specific generation attempt, skip it to try others
+            // If we already used this key in this specific generation attempt, force it to cool down
+            // so we can grab a DIFFERENT key on the next iteration instead of just burning the same key.
             if (usedKeys.has(apiKey)) {
-                // This shouldn't happen often with LRU, but ensures variety in 5 retries
-                await new Promise(r => setTimeout(r, 500));
-                continue;
+                console.log(`[DeAPI] Key ${apiKey.slice(0, 8)} already tried. Artificially cooling down to force rotation.`);
+                poolManager.markRateLimited(apiKey); // Puts it on ice for 60s
+                continue; // Move to next retry attempt, guaranteed to get a new key
             }
             usedKeys.add(apiKey);
         } catch (e) {
@@ -246,9 +247,16 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
                     break; // Move to next key in retry loop
                 }
 
-                if (response.status === 401) {
-                    console.error(`[DeAPI] Key ${apiKey.slice(0, 8)} is INVALID (401).`);
-                    await trackUsage(apiKey, false, true, false, "Invalid Key (401)");
+                if (response.status === 401 || response.status === 403) {
+                    const errorMsg = response.status === 403 ? "Suspended (403)" : "Invalid (401)";
+                    console.error(`[DeAPI] Key ${apiKey.slice(0, 8)} is ${errorMsg}.`);
+                    await trackUsage(apiKey, false, true, false, errorMsg);
+
+                    // Force pool manager to disable this key immediately
+                    const state = poolManager.getKeyState(apiKey);
+                    state.failCount = FAILURE_THRESHOLD;
+
+                    lastError = new Error(`DeAPI API Key ${errorMsg}`);
                     break; // Move to next key
                 }
 
