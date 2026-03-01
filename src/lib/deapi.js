@@ -175,9 +175,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         finalPrompt = prompt ? `(${prompt}:1.4), ${userSpecificPrompt}` : userSpecificPrompt;
         negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underlining clothes:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), (visible clothing:2.0), changed_pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:2.0), (visible fabric:2.0).";
     } else if (mode === 'remover') {
-        const remove_instruction = "(0 TOUCHING:2.0), (ERASE ONLY STICKER/EMOJI:2.0), (REVEAL UNDERLYING IDENTITY:2.0), (REMOVE STICKER:2.0), (REMOVE EMOJI:2.0), (CLEAN FACE:2.0), (RESTORE ORIGINAL FACE:2.0).";
-        finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Show his real face, lips, and eyes. Reveal the real human features hidden behind the stickers. 0 TOUCHING TO ORIGINAL FACE. Keep hair, ears, neck, and background EXACTLY as they are. High quality 1:1 restoration. IMPORTANT: (SAME EYES:2.0), (SAME NOSE:2.0), (SAME LIPS:2.0), (EXACT FACE SHAPE:2.0). (STRICT BACKGROUND PRESERVATION:1.6).`;
-        negativePrompt += " (altered face:2.0), (changed lips:2.0), (modified eyes:2.0), sticker, emoji, graphic, text, watermark, occlusion, distorted face, changed identity, blur, plastic, low quality, changed background, changed eyes, changed nose, changed lips, modified environment.";
+        const remove_instruction = "[ACTION]: STRICTLY REMOVE ONLY MASKS, STICKERS, AND EMOJIS. REVEAL REAL HUMAN FACE UNDERNEATH. 0 TOUCHING TO ORIGINAL UNCOVERED PARTS. DO NOT REDRAW OR MODIFY THE UNDERLYING FACE.";
+        finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Perfect 1:1 facial identity restoration. Same eyes, same nose, same lips. Exactly the same person, just without the mask/sticker.`;
+        negativePrompt += " mask, sticker, emoji, drawn overlay, changed face, altered identity, modified eyes, modified lips, changed background, plastic skin, blurred details, distortion.";
     } else {
         finalPrompt = prompt || "full body photo";
     }
@@ -211,7 +211,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
             if (mode === 'remover') modelsToTry = ["Flux_2_Klein_4B_BF16", "flux-dev", "flux"];
 
             const guidance = mode === 'nude' ? 4.5 : (mode === 'remover' ? 2.0 : 3.0);
-            const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.35 : 0.55);
+            const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.40 : 0.55);
             const imageStrength = mode === 'nude' ? 0.1 : (mode === 'remover' ? 1.0 : 0.96);
 
             for (const currentModel of modelsToTry) {
