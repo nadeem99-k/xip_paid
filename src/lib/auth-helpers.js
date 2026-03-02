@@ -218,20 +218,33 @@ export async function processReferral(newUserEmail, referralCode) {
         // 2.5 Multi-Account Check (IP based)
         // Check if there are other users with the same IP address
         if (newcomer.ip_address) {
-            const { count, error: ipCheckError } = await adminDb
-                .from("users")
-                .select('*', { count: 'exact', head: true })
-                .eq('ip_address', newcomer.ip_address)
-                .neq('email', newUserEmail);
+            // Check whitelist first
+            const { data: whitelistData } = await adminDb
+                .from("system_settings")
+                .select("value")
+                .eq("key", "security_whitelist")
+                .maybeSingle();
 
-            if (ipCheckError) {
-                console.error(`[Referral] IP check error for ${newUserEmail}:`, ipCheckError.message);
-            } else if (count > 0) {
-                console.warn(`[Referral] Potential multi-account detected for ${newUserEmail} (IP: ${newcomer.ip_address}). Referral reward blocked.`);
-                // We still link them for tracking, but we won't increment the reward counter later
-                // Just log it and return or set a flag
-                await adminDb.from("users").update({ referred_by: referrer.id }).eq("id", newcomer.id);
-                return;
+            const whitelist = whitelistData?.value || [];
+            const isWhitelisted = whitelist.includes(newUserEmail) || whitelist.includes(newcomer.ip_address);
+
+            if (isWhitelisted) {
+                console.log(`[Referral] User ${newUserEmail} or IP ${newcomer.ip_address} is WHITELISTED. Bypassing multi-account check.`);
+            } else {
+                const { count, error: ipCheckError } = await adminDb
+                    .from("users")
+                    .select('*', { count: 'exact', head: true })
+                    .eq('ip_address', newcomer.ip_address)
+                    .neq('email', newUserEmail);
+
+                if (ipCheckError) {
+                    console.error(`[Referral] IP check error for ${newUserEmail}:`, ipCheckError.message);
+                } else if (count > 0) {
+                    console.warn(`[Referral] Potential multi-account detected for ${newUserEmail} (IP: ${newcomer.ip_address}). Referral reward blocked.`);
+                    // We still link them for tracking, but we won't increment the reward counter later
+                    await adminDb.from("users").update({ referred_by: referrer.id }).eq("id", newcomer.id);
+                    return;
+                }
             }
         }
 

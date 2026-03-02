@@ -90,6 +90,30 @@ export default function AdminDashboard() {
         return total;
     }, [apiKeys, balances]);
 
+    // Moderation Queue Logic
+    const moderationQueue = useMemo(() => {
+        if (!users) return [];
+
+        const banned = users.filter(u => u.package === 'banned');
+
+        // Find duplicate IPs
+        const ipCounts = {};
+        users.forEach(u => {
+            if (u.ip_address && u.ip_address !== 'unknown') {
+                ipCounts[u.ip_address] = (ipCounts[u.ip_address] || 0) + 1;
+            }
+        });
+
+        const duplicates = users.filter(u =>
+            u.ip_address &&
+            u.ip_address !== 'unknown' &&
+            ipCounts[u.ip_address] > 1 &&
+            u.package !== 'banned' // Don't show already banned in duplicates list to avoid noise
+        );
+
+        return { banned, duplicates };
+    }, [users]);
+
     // Admin email whitelist - add your admin emails here
     const ADMIN_EMAILS = [
         'nadeemalikalhoro310@gmail.com',
@@ -181,7 +205,7 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/settings', { signal });
             const data = await res.json();
             if (data.success) {
-                const settingsObj = {};
+                const settingsObj = { security_whitelist: [] };
                 data.settings.forEach(s => settingsObj[s.key] = s.value);
                 setSettings(settingsObj);
             }
@@ -779,7 +803,7 @@ export default function AdminDashboard() {
                 {/* Controls Section - Hidden Navigation on Mobile (moved to bottom nav) */}
                 <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center sticky top-20 z-30 bg-white/80 backdrop-blur-xl p-4 -mx-4 rounded-3xl border border-blue-50/50 shadow-sm">
                     <div className="hidden md:flex gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
-                        {['payments', 'users', 'generations', 'gallery', 'analytics', 'api-keys', 'settings', 'support'].map((tab) => (
+                        {['payments', 'users', 'generations', 'gallery', 'analytics', 'api-keys', 'moderation', 'settings', 'support'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -794,6 +818,7 @@ export default function AdminDashboard() {
                                 {tab === 'gallery' && `Gallery`}
                                 {tab === 'analytics' && `Analytics 📈`}
                                 {tab === 'api-keys' && `API Keys (${apiKeys.length}) 🔑`}
+                                {tab === 'moderation' && `Moderation (${moderationQueue.length}) 🛡️`}
                                 {tab === 'settings' && `Settings ⚙️`}
                                 {tab === 'support' && `Support (${tickets.filter(t => t.status === 'pending').length})`}
                             </button>
@@ -928,14 +953,14 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
-                    {paginatedData.length === 0 && !['settings', 'analytics'].includes(activeTab) ? (
+                    {paginatedData.length === 0 && !['settings', 'analytics', 'moderation'].includes(activeTab) ? (
                         <div className="flex flex-col items-center justify-center py-32 space-y-6">
                             <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center text-4xl opacity-50 grayscale animate-pulse">
-                                {activeTab === 'payments' ? '✅' : activeTab === 'users' ? '👥' : activeTab === 'api-keys' ? '🔑' : '📬'}
+                                {activeTab === 'payments' ? '✅' : activeTab === 'users' ? '👥' : activeTab === 'api-keys' ? '🔑' : activeTab === 'moderation' ? '🛡️' : '📬'}
                             </div>
                             <div className="text-center space-y-2">
                                 <p className="text-xs font-black uppercase tracking-[0.4em] text-blue-950 opacity-40">
-                                    {activeTab === 'api-keys' ? 'No API Keys Found' : 'No Data Found'}
+                                    {activeTab === 'api-keys' ? 'No API Keys Found' : activeTab === 'moderation' ? 'No Items in Moderation Queue' : 'No Data Found'}
                                 </p>
                                 <p className="text-[10px] text-blue-950/20 font-bold uppercase tracking-widest">
                                     {activeTab === 'api-keys' ? 'Add your first key using the button above' : 'Try adjusting your search filters.'}
@@ -1646,6 +1671,145 @@ export default function AdminDashboard() {
                                                         </span>
                                                     </div>
                                                 ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Moderation View */}
+                            {activeTab === 'moderation' && (
+                                <div className="p-4 md:p-8 space-y-12 animate-slide-up">
+                                    {/* Database Setup Warning */}
+                                    {settings.setup_required && (
+                                        <div className="bg-orange-50 border border-orange-200 rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-6 animate-pulse">
+                                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm">🛠️</div>
+                                            <div className="flex-1 text-center md:text-left">
+                                                <h3 className="text-lg font-black text-orange-950 uppercase tracking-widest">Database Setup Required</h3>
+                                                <p className="text-sm font-bold text-orange-800/70 mt-1 uppercase tracking-widest">The "System Settings" table is missing from your database.</p>
+                                                <div className="mt-4 p-4 bg-white/50 rounded-xl font-mono text-[10px] text-orange-900 border border-orange-100">
+                                                    Please run the SQL migration found in: <br />
+                                                    <span className="font-black">/migrations/create-system-settings.sql</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Banned Users Section */}
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-3 ml-2">
+                                            <div className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center text-lg">🚫</div>
+                                            <div>
+                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Banned Accounts</h3>
+                                                <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mt-1">{moderationQueue.banned.length} Users Restricted</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {moderationQueue.banned.map(item => (
+                                                <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-red-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform"></div>
+                                                    <div className="relative z-10 flex flex-col h-full gap-4">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-bold text-blue-950 text-sm break-all">{item.email}</h4>
+                                                            <div className="flex items-center gap-2 mt-2">
+                                                                <span className="text-[8px] text-red-500 font-black uppercase bg-red-50 px-2 py-0.5 rounded">BANNED</span>
+                                                                <span className="text-[8px] text-blue-400 font-bold">Joined {new Date(item.created_at).toLocaleDateString()}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                                            <button onClick={() => fetchUserProfile(item.id)} className="py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Profile</button>
+                                                            <button onClick={() => handleUserAction(item.id, 'unban')} className="py-2.5 bg-green-50 text-green-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all">Restore</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {moderationQueue.banned.length === 0 && (
+                                                <div className="col-span-full py-12 bg-blue-50/20 rounded-[2rem] border border-dashed border-blue-100 flex flex-col items-center justify-center text-center">
+                                                    <div className="text-2xl mb-2">✅</div>
+                                                    <p className="text-[10px] font-black text-blue-950/20 uppercase tracking-widest">Clean Slate</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Flagged Duplicates Section */}
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-3 ml-2">
+                                            <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-xl flex items-center justify-center text-lg">⚠️</div>
+                                            <div>
+                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Duplicate IP Detection</h3>
+                                                <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mt-1">{moderationQueue.duplicates.length} Potential Multi-Accounts</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {moderationQueue.duplicates.map(item => (
+                                                <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-orange-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-24 h-24 bg-orange-50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform"></div>
+                                                    <div className="relative z-10 flex flex-col h-full gap-4">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-bold text-blue-950 text-sm break-all">{item.email}</h4>
+                                                            <div className="mt-2 text-[9px] font-black text-blue-900/40 uppercase tracking-widest">IP: {item.ip_address}</div>
+                                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                                <span className="text-[8px] text-orange-500 font-black uppercase bg-orange-50 px-2 py-0.5 rounded">FLAGGED</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    const currentWhitelist = settings.security_whitelist || [];
+                                                                    const updatedSet = new Set([...currentWhitelist, item.email, item.ip_address]);
+                                                                    updateSetting('security_whitelist', Array.from(updatedSet));
+                                                                }}
+                                                                className="py-2.5 bg-green-50 text-green-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all"
+                                                            >
+                                                                Verify & Allow
+                                                            </button>
+                                                            <button onClick={() => handleUserAction(item.id, 'ban')} className="py-2.5 bg-red-50 text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">Ban Account</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {moderationQueue.duplicates.length === 0 && (
+                                                <div className="col-span-full py-12 bg-blue-50/20 rounded-[2rem] border border-dashed border-blue-100 flex flex-col items-center justify-center text-center">
+                                                    <div className="text-2xl mb-2">✨</div>
+                                                    <p className="text-[10px] font-black text-blue-950/20 uppercase tracking-widest">No IP Collisions Detected</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Whitelist Overview */}
+                                    <div className="bg-blue-950/5 p-8 md:p-10 rounded-[3rem] border border-blue-100/30 space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-sm font-black text-blue-950 uppercase tracking-widest">Security Whitelist</h3>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Verified Emails & IPs</p>
+                                            </div>
+                                            <button
+                                                onClick={() => updateSetting('security_whitelist', [])}
+                                                className="px-4 py-2 bg-white text-red-500 rounded-xl text-[8px] font-black uppercase border border-red-50 hover:bg-red-50 transition-all"
+                                            >
+                                                Clear All
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(settings.security_whitelist || []).map((entry, idx) => (
+                                                <div key={idx} className="bg-white px-4 py-2 rounded-xl border border-blue-100 shadow-sm flex items-center gap-3">
+                                                    <span className="text-[10px] font-black text-blue-950">{entry}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            const updated = settings.security_whitelist.filter(e => e !== entry);
+                                                            updateSetting('security_whitelist', updated);
+                                                        }}
+                                                        className="text-red-300 hover:text-red-500 transition-colors"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {(settings.security_whitelist || []).length === 0 && (
+                                                <p className="text-[9px] font-bold text-blue-900/20 uppercase tracking-[0.2em] italic">No active exceptions</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
