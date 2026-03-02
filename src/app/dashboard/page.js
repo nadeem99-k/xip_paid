@@ -374,6 +374,49 @@ function DashboardContent() {
         );
     }
 
+    if (displayUser?.package === 'banned') {
+        return (
+            <div className="pt-32 pb-20 px-6 text-center space-y-8 animate-slide-up bg-white min-h-screen">
+                <div className="text-6xl flex justify-center mb-4">
+                    <div className="relative">
+                        <span className="text-7xl">👤</span>
+                        <div className="absolute -bottom-2 -right-2 bg-red-500 text-white p-2 rounded-full border-4 border-white">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div className="max-w-md mx-auto space-y-4">
+                    <h1 className="text-4xl font-black text-blue-950">Account <span className="text-red-600">Restricted</span></h1>
+                    <div className="bg-red-50 p-6 rounded-[2.5rem] border border-red-100/50 shadow-sm shadow-red-500/5">
+                        <p className="text-blue-950/80 font-bold text-sm leading-relaxed">
+                            Your account (<span className="text-red-600 underline font-black">{displayUser?.email}</span>) has been restricted.
+                        </p>
+                        <p className="text-blue-950/80 font-bold text-sm mt-3 leading-relaxed">
+                            Please login with your <span className="text-blue-600 font-extrabold uppercase tracking-tight">real Gmail account</span> to continue.
+                        </p>
+                    </div>
+                    <p className="text-blue-900/40 font-black uppercase tracking-[0.2em] text-[10px]">Security enforcement active</p>
+                </div>
+                <div className="flex flex-col gap-3 max-w-xs mx-auto pt-6">
+                    <button
+                        onClick={() => signOut()}
+                        className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 active:scale-95"
+                    >
+                        Sign Out & Switch
+                    </button>
+                    <Link
+                        href="/support"
+                        className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all"
+                    >
+                        Contact Support
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
 
     const handleGenerate = async (e) => {
         if (e) e.preventDefault();

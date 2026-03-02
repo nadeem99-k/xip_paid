@@ -928,7 +928,7 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
-                    {paginatedData.length === 0 ? (
+                    {paginatedData.length === 0 && !['settings', 'analytics'].includes(activeTab) ? (
                         <div className="flex flex-col items-center justify-center py-32 space-y-6">
                             <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center text-4xl opacity-50 grayscale animate-pulse">
                                 {activeTab === 'payments' ? '✅' : activeTab === 'users' ? '👥' : activeTab === 'api-keys' ? '🔑' : '📬'}
@@ -997,6 +997,7 @@ export default function AdminDashboard() {
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Daily Usage</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Total Requests</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Lifetime Value</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Last Used</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Actions</th>
                                                 </>
                                             )}
@@ -1080,7 +1081,7 @@ export default function AdminDashboard() {
                                                         <td className="p-6 text-right">
                                                             <div className="flex justify-end gap-2">
                                                                 <button onClick={() => fetchUserProfile(item.id)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all" title="View Profile">👁️</button>
-                                                                {item.role === 'banned' ? (
+                                                                {item.package === 'banned' ? (
                                                                     <button onClick={() => handleUserAction(item.id, 'unban')} className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all" title='Unban User'>🔓</button>
                                                                 ) : (
                                                                     <button onClick={() => handleUserAction(item.id, 'ban')} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all" title='Ban User'>🚫</button>
@@ -1305,7 +1306,7 @@ export default function AdminDashboard() {
                                                     <div className="flex-1 min-w-0">
                                                         <h3 className="font-bold text-blue-950 text-sm break-all">{item.email}</h3>
                                                         <div className="flex items-center gap-2 mt-2">
-                                                            <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${item.role === 'admin' ? 'bg-red-50 text-red-500' : item.role === 'banned' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'}`}>{item.role}</span>
+                                                            <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${item.role === 'admin' ? 'bg-red-50 text-red-500' : item.package === 'banned' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'}`}>{item.role === 'admin' ? 'ADMIN' : item.package === 'banned' ? 'BANNED' : 'USER'}</span>
                                                             <span className="text-[8px] text-blue-400 font-bold">Joined {new Date(item.created_at).toLocaleDateString()}</span>
                                                             {item.ip_address && (
                                                                 <div className="mt-1 flex items-center gap-1.5">
@@ -1332,7 +1333,7 @@ export default function AdminDashboard() {
                                                     >
                                                         👁️ View Profile
                                                     </button>
-                                                    {item.role === 'banned' ? (
+                                                    {item.package === 'banned' ? (
                                                         <button
                                                             onClick={() => handleUserAction(item.id, 'unban')}
                                                             className="py-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all flex items-center justify-center gap-1"
@@ -1463,6 +1464,22 @@ export default function AdminDashboard() {
                                                                 className="h-full bg-purple-600 rounded-full transition-all duration-500"
                                                                 style={{ width: item.total_limit ? `${Math.min(100, (item.usage.total.requests / item.total_limit) * 100)}%` : '0%' }}
                                                             />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* New Analytics for Mobile */}
+                                                    <div className="grid grid-cols-2 gap-3 pt-1">
+                                                        <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100/30">
+                                                            <p className="text-[8px] font-black text-blue-900/40 uppercase tracking-widest mb-1">Live Credit</p>
+                                                            <p className="text-xs font-black text-purple-600">
+                                                                {balances[item.id]?.success ? `$${balances[item.id].balance.toFixed(2)}` : (item.provider === 'deapi' ? '---' : 'N/A')}
+                                                            </p>
+                                                        </div>
+                                                        <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100/30">
+                                                            <p className="text-[8px] font-black text-emerald-900/40 uppercase tracking-widest mb-1">Lifetime Cost</p>
+                                                            <p className="text-xs font-black text-emerald-600">
+                                                                ${(item.usage.total.requests * (settings?.deapi_cost_per_image ?? 0.035)).toFixed(2)}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1708,40 +1725,6 @@ export default function AdminDashboard() {
                                                         </div>
                                                     </div>
                                                 ))}
-                                                <div className="pt-8 border-t border-blue-50 mt-8">
-                                                    <div className="flex items-center gap-4 mb-6">
-                                                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl shadow-inner">💰</div>
-                                                        <div>
-                                                            <h4 className="text-[11px] font-black text-blue-950 uppercase tracking-widest">DeAPI Valuation</h4>
-                                                            <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">Cost estimation per image</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                        <div className="space-y-4">
-                                                            <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest block ml-2">Standard Cost (USD)</label>
-                                                            <div className="relative group/input">
-                                                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-300 font-black">$</span>
-                                                                <input
-                                                                    type="number"
-                                                                    step="0.001"
-                                                                    className="w-full p-6 pl-12 bg-blue-50/20 rounded-[1.5rem] border-2 border-transparent focus:border-blue-600/10 focus:bg-white text-sm font-black text-blue-950 outline-none transition-all shadow-inner"
-                                                                    value={settings.deapi_cost_per_image || 0.035}
-                                                                    onChange={(e) => setSettings({ ...settings, deapi_cost_per_image: parseFloat(e.target.value) || 0 })}
-                                                                />
-                                                            </div>
-                                                            <p className="text-[9px] text-blue-400/60 font-medium px-2">💡 This value is used to estimate "Images Left" across all active DeAPI keys.</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-end mt-8">
-                                                        <button
-                                                            onClick={() => updateSetting('deapi_cost_per_image', settings.deapi_cost_per_image)}
-                                                            disabled={savingSettings}
-                                                            className="px-12 py-5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-700 hover:shadow-2xl hover:shadow-indigo-600/40 transition-all disabled:opacity-50 active:scale-95"
-                                                        >
-                                                            {savingSettings ? 'Syncing...' : 'Update Cost Profile'}
-                                                        </button>
-                                                    </div>
-                                                </div>
                                             </div>
                                             <div className="flex justify-end">
                                                 <button
@@ -1750,6 +1733,49 @@ export default function AdminDashboard() {
                                                     className="w-full sm:w-auto px-12 py-5 bg-green-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-green-700 hover:shadow-2xl hover:shadow-green-600/40 transition-all disabled:opacity-50 active:scale-95"
                                                 >
                                                     {savingSettings ? 'Syncing...' : 'Update Valuation'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* DeAPI Valuation Card */}
+                                    <div className="bg-white p-6 md:p-10 rounded-[3rem] border border-blue-100/50 shadow-sm space-y-10 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-indigo-100 transition-all duration-1000"></div>
+                                        <div className="relative z-10 flex items-center gap-6">
+                                            <div className="w-16 h-16 bg-indigo-600 shadow-xl shadow-indigo-600/20 text-white rounded-[1.5rem] flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform duration-500">💰</div>
+                                            <div className="space-y-1">
+                                                <h3 className="text-base font-black text-blue-950 uppercase tracking-widest">System Valuation</h3>
+                                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">API burn rate calculation</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="relative z-10 space-y-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="space-y-4">
+                                                    <label className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest block ml-2">DeAPI Cost Per Image (USD)</label>
+                                                    <div className="relative group/input">
+                                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-300 font-black">$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.001"
+                                                            className="w-full p-6 pl-12 bg-blue-50/20 rounded-[1.5rem] border-2 border-transparent focus:border-blue-600/10 focus:bg-white text-sm font-black text-blue-950 outline-none transition-all shadow-inner"
+                                                            value={settings.deapi_cost_per_image || 0.035}
+                                                            onChange={(e) => setSettings({ ...settings, deapi_cost_per_image: parseFloat(e.target.value) || 0 })}
+                                                        />
+                                                    </div>
+                                                    <p className="text-[9px] text-blue-400/60 font-medium px-2 leading-relaxed">
+                                                        💡 This factor determines the "Estimated Images Left" and "Lifetime Burn" across all merchant keys.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-end pt-4">
+                                                <button
+                                                    onClick={() => updateSetting('deapi_cost_per_image', settings.deapi_cost_per_image)}
+                                                    disabled={savingSettings}
+                                                    className="w-full sm:w-auto px-12 py-5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-700 hover:shadow-2xl hover:shadow-indigo-600/40 transition-all disabled:opacity-50 active:scale-95"
+                                                >
+                                                    {savingSettings ? 'Syncing...' : 'Save Cost Profile'}
                                                 </button>
                                             </div>
                                         </div>

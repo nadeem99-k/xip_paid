@@ -10,6 +10,10 @@ export async function POST(req) {
             return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
         }
 
+        const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0] ||
+            req.headers.get("x-real-ip") ||
+            "unknown";
+
         const { data: existingUser } = await supabase
             .from("users")
             .select("id")
@@ -50,7 +54,8 @@ export async function POST(req) {
                     referral_code: referralCode,
                     referral_count: 0,
                     referral_rewarded_count: 0,
-                    joined_whatsapp: false
+                    joined_whatsapp: false,
+                    ip_address: ipAddress
                 }
             ]);
 

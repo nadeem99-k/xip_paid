@@ -27,6 +27,15 @@ export async function getAuthenticatedUser(ipAddress = null) {
         return null;
     }
 
+    // Update IP if missing or changed
+    if (dbUser && ipAddress && ipAddress !== 'unknown' && dbUser.ip_address !== ipAddress) {
+        console.log(`[Auth Helpers] Updating IP for ${dbUser.email}: ${dbUser.ip_address} -> ${ipAddress}`);
+        adminDb.from("users").update({ ip_address: ipAddress }).eq("id", dbUser.id).then(({ error }) => {
+            if (error) console.error("[Auth Helpers] Failed to update user IP:", error.message);
+        });
+        dbUser.ip_address = ipAddress;
+    }
+
     if (!dbUser) {
         console.log("[Auth Helpers] No DB user found for:", authUser.email, "Creating new record...");
 

@@ -15,16 +15,16 @@ export async function POST(req) {
             return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
         }
 
-        let newRole;
-        if (action === 'promote') newRole = 'admin';
-        else if (action === 'demote') newRole = 'user';
-        else if (action === 'ban') newRole = 'banned';
-        else if (action === 'unban') newRole = 'user';
+        let updateData;
+        if (action === 'promote') updateData = { role: 'admin' };
+        else if (action === 'demote') updateData = { role: 'user' };
+        else if (action === 'ban') updateData = { package: 'banned' };
+        else if (action === 'unban') updateData = { package: 'free' };
         else return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 
         const { error } = await adminDb
             .from("users")
-            .update({ role: newRole })
+            .update(updateData)
             .eq("id", userId);
 
         if (error) throw error;

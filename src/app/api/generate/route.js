@@ -15,6 +15,10 @@ export async function POST(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        if (user.package === 'banned') {
+            return NextResponse.json({ error: "Your account has been restricted. Please login with your real Gmail account to continue." }, { status: 403 });
+        }
+
         const formData = await req.formData();
         const prompt = formData.get("prompt");
         const file = formData.get("image");
