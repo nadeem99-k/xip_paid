@@ -6,10 +6,19 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const COST_PER_IMAGE = 0.035; // DeAPI Image-to-Image (img2img) standard cost
+const FALLBACK_COST_PER_IMAGE = 0.035;
 
 export async function GET() {
     try {
+        // Fetch cost per image from settings
+        const { data: settings } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'deapi_cost_per_image')
+            .single();
+
+        const costPerImage = settings ? parseFloat(settings.value) : FALLBACK_COST_PER_IMAGE;
+
         // Fetch all enabled DeAPI keys
         const { data: keys, error: keysError } = await supabase
             .from('api_keys')
@@ -39,7 +48,7 @@ export async function GET() {
                     return {
                         id: key.id,
                         balance: balance,
-                        images_left: Math.floor(balance / COST_PER_IMAGE),
+                        images_left: Math.floor(balance / costPerImage),
                         success: true
                     };
                 } else {
@@ -63,7 +72,7 @@ export async function GET() {
         return NextResponse.json({
             success: true,
             balances,
-            cost_per_image: COST_PER_IMAGE
+            cost_per_image: costPerImage
         });
 
     } catch (error) {
