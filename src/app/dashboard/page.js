@@ -5,11 +5,15 @@ import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 
 function DashboardContent() {
-    const { user: authUser, isLoading: authLoading } = useUser();
+    const { user: authUser, isLoading: authLoading, refreshUser } = useUser();
     const router = useRouter();
     const searchParams = useSearchParams();
 
     // UI State
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const [isMounted, setIsMounted] = useState(false);
     const [prompt, setPrompt] = useState('');
     const [inputImage, setInputImage] = useState(null);
