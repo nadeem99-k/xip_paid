@@ -214,7 +214,7 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
 
             const guidance = mode === 'nude' ? 4.5 : (mode === 'remover' ? 2.0 : 3.0);
             const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.40 : 0.55);
-            const imageStrength = mode === 'nude' ? 0.1 : (mode === 'remover' ? 1.0 : 0.96);
+            const imageStrength = mode === 'nude' ? 0.15 : (mode === 'remover' ? 1.0 : 0.96);
 
             for (const currentModel of modelsToTry) {
                 const formData = new FormData();
