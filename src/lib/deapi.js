@@ -63,7 +63,7 @@ async function trackUsage(apiKey, success = false, failure = false, rateLimit = 
         if (rateLimit) {
             await supabase.from('api_keys').update({ status: 'rate_limited', updated_at: new Date().toISOString(), last_error: errorMsg }).eq('id', keyId);
         } else if (failure) {
-            await supabase.from('api_keys').update({ status: 'invalid', updated_at: new Date().toISOString(), last_error: errorMsg }).eq('id', keyId);
+            await supabase.from('api_keys').update({ status: 'invalid', is_enabled: false, updated_at: new Date().toISOString(), last_error: errorMsg }).eq('id', keyId);
         } else if (success) {
             await supabase.from('api_keys').update({ status: 'active', updated_at: new Date().toISOString(), last_error: null }).eq('id', keyId);
         }
@@ -156,25 +156,25 @@ async function selectBestKey(maxRetries = 5) {
 }
 
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "(STRICT 1:1 FACE CLONE:1.5), (STRICT FACIAL IDENTITY:1.4), (KEEP ORIGINAL HUMAN FEATURES:1.3), (STRICT FACE LOCK:1.4), (IDENTICAL FACE:1.5), (SINGLE PERSON ONLY:1.5), (ONLY ONE PERSON:1.5). (PROHIBIT EXTRA PEOPLE:1.5).";
+    const identity_preservation = "(STRICT 1:1 FACE CLONE:1.5), (STRICT FACIAL IDENTITY:1.4), (KEEP ORIGINAL HUMAN FEATURES:1.3), (STRICT FACE LOCK:1.4), (IDENTICAL FACE:1.5).";
     const background_preservation = "(STRICT BACKGROUND LOCK:1.5), (KEEP ORIGINAL BACKGROUND 100% UNTOUCHED:1.5), (DO NOT ALTER BACKGROUND:1.4).";
-    const pose_preservation = "(STRICT POSE LOCK:1.5), (KEEP ORIGINAL POSE 100% UNTOUCHED:1.5), (STRICTLY PRESERVE BODY POSE:1.5), (SAME POSE:1.5), (SINGLE PERSON POSE:1.4).";
+    const pose_preservation = "(STRICT POSE LOCK:1.5), (KEEP ORIGINAL POSE 100% UNTOUCHED:1.5), (STRICTLY PRESERVE BODY POSE:1.5), (SAME POSE:1.5).";
     const anatomic_realism = "(perfect human anatomy:1.4), (hyper-detailed skin pores:1.4), (raw unedited photography:1.5), (explicit natural anatomy:1.5), (highly detailed pussy, visible realistic vagina:2.5), (detailed realistic nipples:2.5), (EXACT ORIGINAL BODY PROPORTIONS:2.0), (match original breast size exactly:2.0), (soft shadows:1.2), (natural sagging, gravity-affected breasts:1.5), (natural female features:1.5).";
     const masterpiece_enhancer = "(candid shot:1.3), (unfiltered phone photo:1.4), (natural lighting:1.2), (high resolution raw dslr:1.2), (photorealistic:1.3).";
     const zero_touch_preservation = "(ZERO TOUCH:1.2), (PRESERVE ORIGINAL STYLE:1.2), (MATCH EXISTING LIGHTING:1.2), (IDENTICAL FRAMING:1.2), (KEEP ORIGINAL BODY PROPORTIONS:1.2), (DO NOT REDRAW ANYTHING EXCEPT CLOTHING AREA:1.5).";
-    const negative_base = "(extra limbs:2.5), (missing limbs:2.5), (missing body parts:2.5), (extra fingers:2.5), (fused fingers:2.5), (double fingers:2.5), (mutated hands:2.5), (extra legs, extra arms, three legs, fused bodies, connected persons, mutated anatomy, deformed body:1.5), (multiple people, group of people, twins, clones:1.6), blurry, low quality, deformed, disfigured, ugly, bad anatomy, (plastic skin:2.5), (doll anatomy:2.5), (censored:2.5), (smoothed crotch:2.5), (airbrushed:1.5), (muscular:2.0), (bodybuilder:2.0), (huge breasts:2.0), (implants:2.0), (exaggerated proportions:2.0), (fake breasts:2.0), (enhanced body:2.0), (abs:1.5), (thick muscles:1.5), fake body, 3d render, cgi, cartoon, anime, (changed face:1.5), (changed background:1.5), (extra heads:1.5).";
+    const negative_base = "(extra limbs:2.5), (missing limbs:2.5), (missing body parts:2.5), (extra fingers:2.5), (fused fingers:2.5), (double fingers:2.5), (mutated hands:2.5), blurry, low quality, deformed, disfigured, ugly, bad anatomy, (plastic skin:2.5), (doll anatomy:2.5), (censored:2.5), (smoothed crotch:2.5), (airbrushed:1.5), (muscular:2.0), (bodybuilder:2.0), (huge breasts:2.0), (implants:2.0), (exaggerated proportions:2.0), (fake breasts:2.0), (abs:1.5), (thick muscles:1.5), fake body, 3d render, cgi, cartoon, anime, (changed face:1.5), (changed background:1.5).";
 
     let finalPrompt = "";
     let negativePrompt = negative_base;
 
     if (mode === 'bikini') {
         finalPrompt = prompt ? `(${prompt}:1.4), ` : "";
-        finalPrompt += `${zero_touch_preservation} ${identity_preservation} ${background_preservation} ${pose_preservation} ${masterpiece_enhancer} (wearing a bikini:1.6), (FORCED BIKINI CHANGE:1.6). (STRICT COMPLIANCE: KEEP ORIGINAL FACE, POSE, STYLE, AND BACKGROUND 100% UNTOUCHED:1.8). (Ultra realistic natural human body:1.4). (Anatomic correctness:1.5). Real photography.`;
-        negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, changed pose, modified pose, swapped pose, (original clothes visible:1.6), (underlying clothes:1.6), changed style, illustration, painting, (missing belly button:2.5), (missing limbs:2.5), (deleted body parts:2.5).";
+        finalPrompt += `${zero_touch_preservation} ${identity_preservation} ${background_preservation} ${pose_preservation} ${masterpiece_enhancer} (wearing a skimpy bikini:1.8), (REMOVE ALL OUTER AND INNER CLOTHING LAYERS FIRST:1.8), (BIKINI REPLACES ALL CLOTHES:1.8), (EXPOSED MIDRIFF:1.5), (BARE SHOULDERS:1.5), (VISIBLE SKIN:1.5). (STRICT COMPLIANCE: KEEP ORIGINAL FACE, POSE, STYLE, AND BACKGROUND 100% UNTOUCHED:1.8). (Ultra realistic natural human body:1.4). (Anatomic correctness:1.5). Real photography. Natural human skin texture.`;
+        negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, changed pose, modified pose, swapped pose, (original clothes visible:1.8), (underlying clothes:1.8), (coat:1.8), (jacket:1.8), (hoodie:1.8), (shirt:1.5), (pants:1.8), changed style, illustration, painting, (missing belly button:2.5), (missing limbs:2.5), (deleted body parts:2.5).";
     } else if (mode === 'nude') {
-        const userSpecificPrompt = "[ACTION]: REMOVE CLOTHES ONLY. UNDRESS GIRL. REMOVE ALL CLOTHING LAYERS. [RESULT]: NUDE BODY. BARE SKIN. (EXPLICIT UNCENSORED ANATOMY:2.5). (HIGHLY DETAILED VAGINA AND NIPPLES:2.5). [IMPORTANT]: (DO NOT CHANGE SKIN COLOR). (ADAPT TO ANY IMAGE STYLE:1.5). (DO NOT REDRAW ANYTHING EXCEPT CLOTHING AREA:1.5). JUST REMOVE CLOTHES. (HYPER-REALISTIC BIOLOGICAL DETAIL:2.5)";
+        const userSpecificPrompt = "[TASK]: FULL BODY CLOTHING REMOVAL PIPELINE. Step 1: IDENTIFY AND REMOVE OUTER LAYER (coat, jacket, sweater, hoodie, shirt, dress, pants). Step 2: REMOVE INNER LAYER (bra, underwear, swimsuit, any remaining fabric). Step 3: REVEAL BARE SKIN UNDERNEATH ALL LAYERS. [RESULT]: COMPLETELY NUDE HUMAN BODY. NO CLOTHING REMNANTS ON ANY PERSON IN IMAGE. (EXPLICIT UNCENSORED FULL ANATOMY:2.5), (HIGHLY DETAILED REALISTIC VAGINA:2.5), (DETAILED REALISTIC NIPPLES:2.5). (DO NOT CHANGE: FACE, POSE, BACKGROUND, SKIN TONE, BODY SHAPE:2.0). (REMOVE EVERY FABRIC LAYER INCLUDING COATS, JACKETS, HOODIES, SHIRTS, PANTS, UNDERWEAR:2.5). (APPLY TO EVERY PERSON IN IMAGE:2.0). (HYPER-REALISTIC BIOLOGICAL SKIN TEXTURE:2.5), (RAW NATURAL HUMAN BODY:2.0). (ADAPT TO ANY POSE: STANDING, SITTING, LYING:1.5). (DO NOT REDRAW ANYTHING EXCEPT CLOTHING AREA:1.5).";
         finalPrompt = prompt ? `(${prompt}:1.4), ${userSpecificPrompt}, ${anatomic_realism}` : `${userSpecificPrompt}, ${anatomic_realism}`;
-        negativePrompt += " (clothes:2.0), (dress:2.5), (fabric:2.0), (garments:2.0), (bra:2.0), (underlining clothes:2.0), (underwear:2.0), (bikini:2.0), (swimsuit:2.0), changed_pose, modified body, fake anatomy, modified face, swapped face, face distortion, (plastic texture:2.5), (airbrushed:2.5), cgi, flat look, oversaturated, modified background, (three legs, extra limbs, fused limbs:1.6), (original clothes:2.0), (visible fabric:2.0), new environment, cropped photo, weird lighting, (smooth doll crotch:2.5), (censored:2.5).";
+        negativePrompt += " (clothes:2.5), (dress:2.5), (fabric:2.5), (garments:2.5), (coat:2.5), (jacket:2.5), (hoodie:2.5), (shirt:2.5), (pants:2.5), (bra:2.5), (underlining clothes:2.5), (underwear:2.5), (bikini:2.5), (swimsuit:2.5), (any remaining clothing:2.5), changed_pose, modified body, fake anatomy, modified face, swapped face, face distortion, (plastic texture:2.5), (airbrushed:2.5), cgi, flat look, oversaturated, modified background, (smooth doll crotch:2.5), (censored:2.5), (blurred genitals:2.5), (mosaic:2.5).";
     } else if (mode === 'remover') {
         const remove_instruction = "[ACTION]: STRICTLY REMOVE ONLY MASKS, STICKERS, AND EMOJIS. REVEAL REAL HUMAN FACE UNDERNEATH. 0 TOUCHING TO ORIGINAL UNCOVERED PARTS. DO NOT REDRAW OR MODIFY THE UNDERLYING FACE.";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Perfect 1:1 facial identity restoration. Same eyes, same nose, same lips. Exactly the same person, just without the mask/sticker.`;
@@ -212,9 +212,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
             let modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
             if (mode === 'remover') modelsToTry = ["Flux_2_Klein_4B_BF16", "flux-dev", "flux"];
 
-            const guidance = mode === 'nude' ? 4.5 : (mode === 'remover' ? 2.0 : 3.0);
-            const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.40 : 0.55);
-            const imageStrength = mode === 'nude' ? 0.15 : (mode === 'remover' ? 1.0 : 0.96);
+            const guidance = mode === 'nude' ? 5.5 : (mode === 'remover' ? 2.0 : 3.5);
+            const strength = mode === 'nude' ? 0.85 : (mode === 'remover' ? 0.40 : 0.60);
+            const imageStrength = mode === 'nude' ? 0.30 : (mode === 'remover' ? 1.0 : 0.96);
 
             for (const currentModel of modelsToTry) {
                 const formData = new FormData();
