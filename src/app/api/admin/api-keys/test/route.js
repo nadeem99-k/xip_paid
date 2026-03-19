@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,6 +10,12 @@ const supabase = createClient(
 // POST - Test an API key to see if it works
 export async function POST(request) {
     try {
+        // ✅ Real admin auth check
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { provider, api_key } = body;
 
