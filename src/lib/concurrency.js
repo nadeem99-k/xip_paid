@@ -8,8 +8,8 @@
 // Global state in-memory (note: this is per-instance in serverless)
 const activeGenerations = new Set(); // Set of user IDs
 const queue = [];
-const GLOBAL_LIMIT = 3;
-const QUEUE_TIMEOUT_MS = 120000; // 2 minutes
+const GLOBAL_LIMIT = 10;
+const QUEUE_TIMEOUT_MS = 300000; // 5 minutes
 
 export async function acquireSlot(userId) {
     return new Promise((resolve, reject) => {
