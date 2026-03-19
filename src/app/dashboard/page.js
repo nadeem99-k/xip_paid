@@ -921,14 +921,17 @@ function DashboardContent() {
                                                     >
                                                         📋
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleDelete(item.id)}
-                                                        className="px-4 py-2.5 bg-white/10 text-white rounded-xl text-[10px] hover:bg-red-500 transition-colors"
-                                                    >
-                                                        🗑️
-                                                    </button>
+
                                                 </div>
                                             </div>
+                                            {/* Always visible delete button - top right corner */}
+                                            <button
+                                                onClick={() => handleDelete(item.id)}
+                                                className="absolute top-3 right-3 w-9 h-9 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center text-sm shadow-lg transition-all hover:scale-110 active:scale-95 z-10"
+                                                title="Delete"
+                                            >
+                                                🗑️
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
