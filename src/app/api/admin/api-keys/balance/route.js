@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -10,6 +11,11 @@ const FALLBACK_COST_PER_IMAGE = 0.035;
 
 export async function GET() {
     try {
+        // ✅ Real admin auth check
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
         // Fetch cost per image from settings
         const { data: settings } = await supabase
             .from('settings')
@@ -43,12 +49,15 @@ export async function GET() {
 
                 if (response.ok) {
                     const data = await response.json();
-                    // Some DeAPI endpoints wrap results in a data object
-                    const balance = data.data?.balance ?? data.balance ?? data.data?.credits ?? data.credits ?? 0;
+                    const balance = data.data?.balance ?? data.balance ?? data.data?.credits ?? data.credits;
+                    if (balance === undefined || balance === null) {
+                        console.warn(`[Balance] Key ${key.id}: Balance field not found in DeAPI response. Raw:`, JSON.stringify(data).slice(0, 100));
+                    }
+                    const safeBalance = balance ?? 0;
                     return {
                         id: key.id,
-                        balance: balance,
-                        images_left: Math.floor(balance / costPerImage),
+                        balance: safeBalance,
+                        images_left: Math.floor(safeBalance / costPerImage),
                         success: true
                     };
                 } else {

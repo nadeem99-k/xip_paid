@@ -1,14 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-// Admin authentication check
-function isAdmin(request) {
-    const ADMIN_SECRET = process.env.ADMIN_SECRET;
-    const authHeader = request.headers.get('authorization');
-    // In a real app, verify the user's session/token
-    // For now, we'll rely on the frontend admin check
-    return true; // Rely on frontend auth for now
-}
+import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -18,6 +10,12 @@ const supabase = createClient(
 // GET - Fetch all API keys with usage statistics
 export async function GET(request) {
     try {
+        // ✅ Real admin auth check
+        const user = await getAuthenticatedUser();
+        if (!user || user.role !== 'admin') {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         // Fetch all API keys
         const { data: keys, error: keysError } = await supabase
             .from('api_keys')
@@ -29,31 +27,34 @@ export async function GET(request) {
             return NextResponse.json({ success: false, error: 'Failed to fetch API keys' }, { status: 500 });
         }
 
-        // Fetch usage statistics for each key
-        const keysWithStats = await Promise.all(keys.map(async (key) => {
-            // Get total usage
-            const { data: totalUsage } = await supabase
-                .from('api_key_usage')
-                .select('success_count, failure_count, rate_limit_count')
-                .eq('api_key_id', key.id);
+        const keyIds = keys.map(k => k.id);
+        const today = new Date().toISOString().split('T')[0];
 
-            // Get today's usage
-            const today = new Date().toISOString().split('T')[0];
-            const { data: todayUsage } = await supabase
-                .from('api_key_usage')
-                .select('success_count, failure_count, rate_limit_count')
-                .eq('api_key_id', key.id)
-                .eq('request_date', today)
-                .single();
+        // ✅ Single query for ALL usage stats (no N+1)
+        const { data: allUsage } = await supabase
+            .from('api_key_usage')
+            .select('api_key_id, request_date, success_count, failure_count, rate_limit_count')
+            .in('api_key_id', keyIds);
 
-            const totalSuccess = totalUsage?.reduce((sum, u) => sum + (u.success_count || 0), 0) || 0;
-            const totalFailure = totalUsage?.reduce((sum, u) => sum + (u.failure_count || 0), 0) || 0;
-            const totalRateLimit = totalUsage?.reduce((sum, u) => sum + (u.rate_limit_count || 0), 0) || 0;
+        // Group usage by key id
+        const usageByKey = {};
+        for (const u of allUsage || []) {
+            if (!usageByKey[u.api_key_id]) usageByKey[u.api_key_id] = { total: [], today: null };
+            usageByKey[u.api_key_id].total.push(u);
+            if (u.request_date === today) usageByKey[u.api_key_id].today = u;
+        }
+
+        const keysWithStats = keys.map((key) => {
+            const usage = usageByKey[key.id] || { total: [], today: null };
+
+            const totalSuccess = usage.total.reduce((sum, u) => sum + (u.success_count || 0), 0);
+            const totalFailure = usage.total.reduce((sum, u) => sum + (u.failure_count || 0), 0);
+            const totalRateLimit = usage.total.reduce((sum, u) => sum + (u.rate_limit_count || 0), 0);
             const totalRequests = totalSuccess + totalFailure + totalRateLimit;
 
-            const todaySuccess = todayUsage?.success_count || 0;
-            const todayFailure = todayUsage?.failure_count || 0;
-            const todayRateLimit = todayUsage?.rate_limit_count || 0;
+            const todaySuccess = usage.today?.success_count || 0;
+            const todayFailure = usage.today?.failure_count || 0;
+            const todayRateLimit = usage.today?.rate_limit_count || 0;
             const todayRequests = todaySuccess + todayFailure + todayRateLimit;
 
             const remainingTotal = key.total_limit ? Math.max(0, key.total_limit - totalRequests) : null;
@@ -62,23 +63,11 @@ export async function GET(request) {
             return {
                 ...key,
                 usage: {
-                    total: {
-                        requests: totalRequests,
-                        success: totalSuccess,
-                        failure: totalFailure,
-                        rate_limit: totalRateLimit,
-                        remaining: remainingTotal
-                    },
-                    today: {
-                        requests: todayRequests,
-                        success: todaySuccess,
-                        failure: todayFailure,
-                        rate_limit: todayRateLimit,
-                        remaining: remainingDaily
-                    }
+                    total: { requests: totalRequests, success: totalSuccess, failure: totalFailure, rate_limit: totalRateLimit, remaining: remainingTotal },
+                    today: { requests: todayRequests, success: todaySuccess, failure: todayFailure, rate_limit: todayRateLimit, remaining: remainingDaily }
                 }
             };
-        }));
+        });
 
         return NextResponse.json({
             success: true,
@@ -94,6 +83,10 @@ export async function GET(request) {
 
 // POST - Create or update an API key
 export async function POST(request) {
+    const user = await getAuthenticatedUser();
+    if (!user || user.role !== 'admin') {
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
     try {
         const body = await request.json();
         const { id, provider, key_name, api_key, daily_limit, total_limit, is_enabled, status } = body;
@@ -179,6 +172,10 @@ export async function POST(request) {
 
 // DELETE - Delete an API key
 export async function DELETE(request) {
+    const user = await getAuthenticatedUser();
+    if (!user || user.role !== 'admin') {
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
     try {
         const body = await request.json();
         const { id } = body;
