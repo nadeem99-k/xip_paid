@@ -44,13 +44,14 @@ export default function PricingPage() {
             features: ['9 Premium Photos', 'Bikini Mode (4.5 Images)', 'Nude Mode (1.5 Images)', 'Priority Speed']
         },
         {
-            id: '21_coins',
-            name: 'Elite Pack',
-            coins: 21,
+            id: '50_coins',
+            name: 'Eid Special Pack',
+            coins: 50,
             price: 300,
-            icon: '🔥',
-            description: 'Best value for creators.',
-            features: ['21 Elite Photos', 'Bikini Mode (10.5 Images)', 'Nude Mode (3.5 Images)', 'Super Fast Speed']
+            originalPrice: 500,
+            icon: '🌙',
+            description: '3 Days Only! Mega Eid Offer.',
+            features: ['50 Premium Photos', 'Bikini Mode (25 Images)', 'Nude Mode (8+ Images)', 'Super Fast Speed']
         },
         {
             id: '100_coins',

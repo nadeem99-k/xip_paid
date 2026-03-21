@@ -40,6 +40,8 @@ function DashboardContent() {
     const [bonusStatus, setBonusStatus] = useState({ canClaim: false, message: '', timeRemaining: '' });
     const [isClaimingBonus, setIsClaimingBonus] = useState(false);
     const [claimMessage, setClaimMessage] = useState({ text: '', type: '' });
+    const [isClaimingEid, setIsClaimingEid] = useState(false);
+    const [eidClaimMessage, setEidClaimMessage] = useState({ text: '', type: '' });
 
     // Derived user data
     const displayUser = authUser ? { ...authUser, ...user } : user;
@@ -71,13 +73,14 @@ function DashboardContent() {
             features: ['9 Premium Credits', 'Bikini Mode (4.5 Images)', 'Nude Mode (1.5 Images)', 'Priority Queue']
         },
         {
-            id: '21_coins',
-            name: 'Elite Pack',
-            coins: 21,
+            id: '50_coins',
+            name: 'Eid Special Pack',
+            coins: 50,
             price: 300,
-            icon: '🔥',
-            description: 'Best value for creators.',
-            features: ['21 Elite Credits', 'Bikini Mode (10.5 Images)', 'Nude Mode (3.5 Images)', 'Ultra Fast Speed']
+            originalPrice: 500,
+            icon: '🌙',
+            description: '3 Days Only! Mega Eid Offer.',
+            features: ['50 Elite Credits', 'Bikini Mode (25 Images)', 'Nude Mode (8+ Images)', 'Ultra Fast Speed']
         },
         {
             id: '100_coins',
@@ -277,6 +280,33 @@ function DashboardContent() {
             setTimeout(() => setClaimMessage({ text: '', type: '' }), 5000);
         } finally {
             setIsClaimingBonus(false);
+        }
+    };
+
+    const handleClaimEid = async () => {
+        if (displayUser?.eid_gift_claimed || isClaimingEid) return;
+        setIsClaimingEid(true);
+        try {
+            const res = await fetch('/api/user/claim-eid', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                setUser(prev => ({
+                    ...prev,
+                    coins: data.coins,
+                    eid_gift_claimed: data.eid_gift_claimed
+                }));
+                setEidClaimMessage({ text: data.message, type: 'success' });
+                setTimeout(() => setEidClaimMessage({ text: '', type: '' }), 8000);
+            } else {
+                setEidClaimMessage({ text: data.error, type: 'error' });
+                setTimeout(() => setEidClaimMessage({ text: '', type: '' }), 5000);
+            }
+        } catch (err) {
+            console.error("Eid claim error:", err);
+            setEidClaimMessage({ text: "Connection error. Try again.", type: 'error' });
+            setTimeout(() => setEidClaimMessage({ text: '', type: '' }), 5000);
+        } finally {
+            setIsClaimingEid(false);
         }
     };
 
@@ -625,6 +655,38 @@ function DashboardContent() {
                                 </div>
                             </div>
 
+                            {/* Eid Gift Banner */}
+                            {user !== null && !displayUser?.eid_gift_claimed && (
+                                <div className="group relative overflow-hidden p-8 rounded-[2.5rem] bg-gradient-to-r from-yellow-500 to-amber-600 text-white shadow-2xl shadow-yellow-600/20 transition-all animate-fade-in-down mb-8 border-2 border-yellow-300/30">
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/30 transition-all"></div>
+                                    <div className="absolute bottom-0 left-0 w-40 h-40 bg-yellow-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+                                    
+                                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                                        <div className="space-y-2 text-center md:text-left">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-900/30 text-yellow-100 rounded-full border border-yellow-300/30 mb-2">
+                                                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1">🌙 Eid ul Fitr Special</span>
+                                            </div>
+                                            <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-white drop-shadow-md">Get Your Eidi: 8 Free Coins! 🎁</h2>
+                                            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-yellow-100 opacity-90 drop-shadow-sm">Celebrate Eid with unlimited creativity. Claim your gift now!</p>
+                                        </div>
+                                        <div className="flex flex-col items-center gap-2">
+                                            <button 
+                                                onClick={handleClaimEid}
+                                                disabled={isClaimingEid}
+                                                className="px-8 py-4 bg-white text-yellow-600 rounded-2xl font-black text-[10px] md:text-[12px] uppercase tracking-widest flex items-center gap-3 shadow-xl hover:scale-105 hover:bg-yellow-50 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0"
+                                            >
+                                                {isClaimingEid ? "Claiming..." : "Claim Eidi Now 🌙"}
+                                            </button>
+                                            {eidClaimMessage.text && (
+                                                <p className={`text-[10px] font-black uppercase tracking-widest animate-slide-up-fade ${eidClaimMessage.type === 'success' ? 'text-green-100 drop-shadow-md' : 'text-red-200'}`}>
+                                                    {eidClaimMessage.type === 'success' ? '✅' : '❌'} {eidClaimMessage.text}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Referral Banner */}
                             <div
                                 onClick={() => setActiveTab('referral')}
@@ -647,13 +709,19 @@ function DashboardContent() {
                             <div className="grid lg:grid-cols-11 gap-8 md:gap-16">
                                 {/* Left Side: Controls */}
                                 <div className="lg:col-span-5 space-y-12">
-                                    {/* Buy Coins Info */}
-                                    <div className="p-6 bg-blue-600 rounded-3xl border border-blue-400 flex items-center justify-between text-white shadow-xl shadow-blue-600/20">
-                                        <div className="space-y-1">
-                                            <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">Master Offer</p>
-                                            <p className="text-xl font-black text-white tracking-tighter">100 Coins for RS 800</p>
+                                    {/* Eid Mega Sale Buy Box */}
+                                    <div 
+                                        onClick={() => { setActiveTab('billing'); setSelectedPackage('50_coins'); }}
+                                        className="group p-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl border border-blue-400 flex items-center justify-between text-white shadow-xl shadow-blue-600/20 cursor-pointer hover:scale-[1.02] hover:shadow-2xl transition-all relative overflow-hidden"
+                                    >
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-white/20 transition-all"></div>
+                                        <div className="space-y-1 relative z-10">
+                                            <p className="text-[10px] font-black text-yellow-300 uppercase tracking-widest flex items-center gap-1">🌙 3 Days Eid Sale</p>
+                                            <p className="text-xl md:text-2xl font-black text-white tracking-tighter">50 Coins for Rs 300</p>
                                         </div>
-                                        <Link href="/pricing" className="px-6 py-3 bg-white text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-lg">Buy Now</Link>
+                                        <div className="px-6 py-3 bg-white text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest group-hover:bg-blue-50 transition-all shadow-lg relative z-10 shrink-0">
+                                            Grab Offer
+                                        </div>
                                     </div>
 
                                     <div className="space-y-6">
