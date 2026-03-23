@@ -156,13 +156,13 @@ async function selectBestKey(maxRetries = 5) {
 }
 
 export async function generateImage(prompt, initImgBuffer, mode, modelOverride) {
-    const identity_preservation = "Strict 1:1 face clone, strict facial identity, keep original human features exactly, strict face lock, absolutely identical face.";
-    const background_preservation = "Strict background lock, keep original background 100% untouched, do not alter background.";
-    const pose_preservation = "Strict pose lock, keep original pose 100% untouched, strictly preserve body pose, same exact posture.";
-    const anatomic_realism = "Perfect human anatomy, hyper-detailed skin pores, raw unedited photography, explicit natural anatomy, exact original body proportions, match original breast size exactly, soft shadows, natural sagging gravity-affected breasts, natural female features.";
-    const masterpiece_enhancer = "Candid shot, unfiltered phone photo, natural lighting, high resolution raw DSLR, photorealistic.";
-    const zero_touch_preservation = "Zero touch approach, preserve original style, match existing lighting perfectly, identical framing, keep original body proportions, do not redraw anything except the targeted clothing area.";
-    const negative_base = "extra limbs, missing limbs, missing body parts, extra fingers, fused fingers, double fingers, mutated hands, multiple arms, floating hands, floating fingers, extra arms, blurry, low quality, deformed, disfigured, ugly, bad anatomy, plastic skin, doll anatomy, censored, smoothed crotch, airbrushed, muscular, bodybuilder, huge breasts, implants, exaggerated proportions, fake breasts, abs, thick muscles, fake body, 3d render, cgi, cartoon, anime, changed face, changed background";
+    const identity_preservation = "Absolute zero-touch on the face. Strict 1:1 facial identity clone, exact original human features, identical face, 100% same person. Do not modify the head, hair, or face in any way.";
+    const background_preservation = "Absolute zero-touch on the background. Strict background lock, keep original background 100% untouched. Do not add, remove, or change any objects in the background.";
+    const pose_preservation = "Strict pose lock, keep original pose strictly untouched, same exact posture.";
+    const anatomic_realism = "Perfect human anatomy, flawless body structure, hyper-detailed skin pores, intricate biological details, raw unedited 8k photography, explicit natural anatomy, exact original body proportions, natural sagging gravity-affected breasts, highly detailed areolas and nipples, visible realistic female genitalia, soft realistic lighting, Kodak Portra 400 style natural coloring, intricate micro-details on skin.";
+    const masterpiece_enhancer = "Candid amateur photograph, unfiltered smartphone camera, natural volumetric lighting, high dynamic range, photorealistic 8k.";
+    const zero_touch_preservation = "Zero touch approach on anything that is not clothing. Seamlessly undress the subject without altering the original photography style. Preserve original lighting precisely, identical framing, do not redraw anything except the targeted clothing area.";
+    const negative_base = "extra limbs, missing limbs, missing body parts, extra fingers, fused fingers, mutated hands, multiple arms, floating hands, floating fingers, blurry, low resolution, deformed, disfigured, ugly, bad anatomy, plastic skin, doll anatomy, censored, smoothed crotch, airbrushed, muscular, huge breasts, implants, exaggerated proportions, fake body, 3d render, cgi, cartoon, changed face, changed background, conjoined bodies, morphed flesh, blurred intertwining limbs, weird hand placement, clothing outlines.";
 
     let finalPrompt = "";
     let negativePrompt = negative_base;
@@ -172,9 +172,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
         finalPrompt += `${zero_touch_preservation} ${identity_preservation} ${background_preservation} ${pose_preservation} ${masterpiece_enhancer} wearing a skimpy bikini, remove all outer and inner clothing layers first, bikini replaces all clothes, exposed midriff, bare shoulders, visible skin. Strict compliance: keep original face, pose, style, and background 100% untouched. Ultra realistic natural human body. Anatomic correctness. Real photography. Natural human skin texture.`;
         negativePrompt += " artificial, 3d render, cartoon, digital art, airbrushed skin, plastic texture, smoothed face, fake lighting, changed background, modified face, changed pose, modified pose, swapped pose, original clothes visible, underlying clothes, coat, jacket, hoodie, shirt, pants, changed style, illustration, painting, missing belly button, missing limbs, deleted body parts, extra floating hands.";
     } else if (mode === 'nude') {
-        const userSpecificPrompt = "A hyper-realistic, completely unedited raw photograph of a person who is entirely naked and fully nude. They have absolutely zero clothing on, no underwear, no bra, no swimsuit, and no bikini. Explicit and uncensored full biological anatomic details, raw natural human skin texture, highly detailed visible realistic female genitalia, and natural nipples. The person's identity, face, background, and original body pose remain completely 100% strictly identical to the original image. Ensure there are absolutely no garments or fabrics anywhere on their body.";
-        finalPrompt = prompt ? `${prompt}, ${userSpecificPrompt}` : `${userSpecificPrompt}`;
-        negativePrompt += " clothes, dress, fabric, garments, coat, jacket, hoodie, shirt, pants, bra, underwear, panties, bikini, lingerie, swimsuit, thong, changed_pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, smooth doll crotch, censored, blurred genitals, mosaic, black bars.";
+        const userSpecificPrompt = "Zero touch on background, faces, hair, and hands. Seamlessly blend the clothing away into pure, completely bare naked skin. The subjects are fully stripped, wearing absolutely no underwear, no bra, no panties, no thong, and no swimsuit. Their bodies are fully exposed with explicit biological anatomy and flawless bare skin replacing the entire clothing area. Total absence of garments, fabric textures, or clothing outlines. Highly detailed, visible, realistic female anatomy and natural nipples. The person's face, identity, background, and exact body pose are preserved perfectly from the original image. Ensure there is no body paint and no residual fabric patterns.";
+        finalPrompt = prompt ? `${prompt}, ${userSpecificPrompt}, ${anatomic_realism}, ${identity_preservation}, ${background_preservation}` : `${userSpecificPrompt}, ${anatomic_realism}, ${identity_preservation}, ${background_preservation}`;
+        negativePrompt += " clothes, dress, fabric, garments, coat, jacket, hoodie, shirt, pants, bra, underwear, panties, bikini, lingerie, swimsuit, thong, body paint, lace patterns, painted on clothes, residual clothing outlines, clothing texture on skin, changed pose, modified body, fake anatomy, modified face, swapped face, face distortion, plastic texture, airbrushed, cgi, flat look, oversaturated, modified background, smooth doll crotch, censored, blurred genitals, mosaic, black bars, fabric folds.";
     } else if (mode === 'remover') {
         const remove_instruction = "[ACTION]: STRICTLY REMOVE ONLY MASKS, STICKERS, AND EMOJIS. REVEAL REAL HUMAN FACE UNDERNEATH. 0 TOUCHING TO ORIGINAL UNCOVERED PARTS. DO NOT REDRAW OR MODIFY THE UNDERLYING FACE.";
         finalPrompt = `${remove_instruction} ${identity_preservation} ${background_preservation} ${masterpiece_enhancer} Perfect 1:1 facial identity restoration. Same eyes, same nose, same lips. Exactly the same person, just without the mask/sticker.`;
@@ -212,9 +212,9 @@ export async function generateImage(prompt, initImgBuffer, mode, modelOverride) 
             let modelsToTry = [model, "flux-dev", "flux", "stable-diffusion-xl"];
             if (mode === 'remover') modelsToTry = ["Flux_2_Klein_4B_BF16", "flux-dev", "flux"];
 
-            const guidance = mode === 'nude' ? 4.5 : (mode === 'remover' ? 2.0 : 3.5);
-            const strength = mode === 'nude' ? 0.95 : (mode === 'remover' ? 0.40 : 0.60);
-            const imageStrength = mode === 'nude' ? 0.30 : (mode === 'remover' ? 1.0 : 0.96);
+            const guidance = mode === 'nude' ? 3.0 : (mode === 'remover' ? 2.0 : 3.5);
+            const strength = mode === 'nude' ? 0.98 : (mode === 'remover' ? 0.40 : 0.60);
+            const imageStrength = mode === 'nude' ? 0.15 : (mode === 'remover' ? 1.0 : 0.96);
 
             for (const currentModel of modelsToTry) {
                 const formData = new FormData();
