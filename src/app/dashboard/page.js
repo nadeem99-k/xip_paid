@@ -40,8 +40,7 @@ function DashboardContent() {
     const [bonusStatus, setBonusStatus] = useState({ canClaim: false, message: '', timeRemaining: '' });
     const [isClaimingBonus, setIsClaimingBonus] = useState(false);
     const [claimMessage, setClaimMessage] = useState({ text: '', type: '' });
-    const [isClaimingEid, setIsClaimingEid] = useState(false);
-    const [eidClaimMessage, setEidClaimMessage] = useState({ text: '', type: '' });
+
 
     // Derived user data
     const displayUser = authUser ? { ...authUser, ...user } : user;
@@ -72,16 +71,7 @@ function DashboardContent() {
             description: 'Most popular for regular users.',
             features: ['9 Premium Credits', 'Bikini Mode (4.5 Images)', 'Nude Mode (1.5 Images)', 'Priority Queue']
         },
-        {
-            id: '50_coins',
-            name: 'Eid Special Pack',
-            coins: 50,
-            price: 300,
-            originalPrice: 500,
-            icon: '🌙',
-            description: '3 Days Only! Mega Eid Offer.',
-            features: ['50 Elite Credits', 'Bikini Mode (25 Images)', 'Nude Mode (8+ Images)', 'Ultra Fast Speed']
-        },
+
         {
             id: '100_coins',
             name: 'Master Pack',
@@ -188,8 +178,9 @@ function DashboardContent() {
     }, [searchParams]);
 
     const fetchUser = async (signal) => {
+        const fetchSignal = signal instanceof AbortSignal ? signal : null;
         try {
-            const res = await fetch('/api/history', { signal });
+            const res = await fetch('/api/history', { signal: fetchSignal });
             const data = await res.json();
             if (data.success) {
                 // Merge the fresh user data into our local state
@@ -202,9 +193,10 @@ function DashboardContent() {
     };
 
     const fetchHistory = async (signal) => {
+        const fetchSignal = signal instanceof AbortSignal ? signal : null;
         setIsLoadingHistory(true);
         try {
-            const res = await fetch('/api/history', { signal });
+            const res = await fetch('/api/history', { signal: fetchSignal });
             const data = await res.json();
             if (data.success) {
                 setHistory(data.history);
@@ -213,14 +205,16 @@ function DashboardContent() {
             if (err.name === 'AbortError') return;
             console.error("Fetch history error:", err);
         } finally {
-            if (!signal?.aborted) setIsLoadingHistory(false);
+            if (fetchSignal && !fetchSignal.aborted) setIsLoadingHistory(false);
+            else if (!fetchSignal) setIsLoadingHistory(false);
         }
     };
 
     const fetchUserPayments = async (signal) => {
+        const fetchSignal = signal instanceof AbortSignal ? signal : null;
         setIsLoadingPayments(true);
         try {
-            const res = await fetch('/api/user/payments', { signal });
+            const res = await fetch('/api/user/payments', { signal: fetchSignal });
             if (!res.ok) {
                 const text = await res.text();
                 console.error(`[fetchUserPayments] API Error ${res.status}: ${text.substring(0, 100)}`);
@@ -235,14 +229,16 @@ function DashboardContent() {
             if (err.name === 'AbortError') return;
             console.error("Fetch payments error:", err);
         } finally {
-            if (!signal?.aborted) setIsLoadingPayments(false);
+            if (fetchSignal && !fetchSignal.aborted) setIsLoadingPayments(false);
+            else if (!fetchSignal) setIsLoadingPayments(false);
         }
     };
 
     const fetchReferrals = async (signal) => {
+        const fetchSignal = signal instanceof AbortSignal ? signal : null;
         setIsLoadingReferrals(true);
         try {
-            const res = await fetch('/api/user/referrals', { signal });
+            const res = await fetch('/api/user/referrals', { signal: fetchSignal });
             const data = await res.json();
             if (data.success) {
                 setReferrals(data.referrals);
@@ -251,7 +247,8 @@ function DashboardContent() {
             if (err.name === 'AbortError') return;
             console.error("Fetch referrals error:", err);
         } finally {
-            if (!signal?.aborted) setIsLoadingReferrals(false);
+            if (fetchSignal && !fetchSignal.aborted) setIsLoadingReferrals(false);
+            else if (!fetchSignal) setIsLoadingReferrals(false);
         }
     };
 
@@ -283,32 +280,7 @@ function DashboardContent() {
         }
     };
 
-    const handleClaimEid = async () => {
-        if (displayUser?.eid_gift_claimed || isClaimingEid) return;
-        setIsClaimingEid(true);
-        try {
-            const res = await fetch('/api/user/claim-eid', { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                setUser(prev => ({
-                    ...prev,
-                    coins: data.coins,
-                    eid_gift_claimed: data.eid_gift_claimed
-                }));
-                setEidClaimMessage({ text: data.message, type: 'success' });
-                setTimeout(() => setEidClaimMessage({ text: '', type: '' }), 8000);
-            } else {
-                setEidClaimMessage({ text: data.error, type: 'error' });
-                setTimeout(() => setEidClaimMessage({ text: '', type: '' }), 5000);
-            }
-        } catch (err) {
-            console.error("Eid claim error:", err);
-            setEidClaimMessage({ text: "Connection error. Try again.", type: 'error' });
-            setTimeout(() => setEidClaimMessage({ text: '', type: '' }), 5000);
-        } finally {
-            setIsClaimingEid(false);
-        }
-    };
+
 
     const handleDelete = async (imageId) => {
         if (!confirm("Are you sure you want to delete this visual log?")) return;
@@ -655,37 +627,7 @@ function DashboardContent() {
                                 </div>
                             </div>
 
-                            {/* Eid Gift Banner */}
-                            {user !== null && !displayUser?.eid_gift_claimed && (
-                                <div className="group relative overflow-hidden p-8 rounded-[2.5rem] bg-gradient-to-r from-yellow-500 to-amber-600 text-white shadow-2xl shadow-yellow-600/20 transition-all animate-fade-in-down mb-8 border-2 border-yellow-300/30">
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/30 transition-all"></div>
-                                    <div className="absolute bottom-0 left-0 w-40 h-40 bg-yellow-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
-                                    
-                                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                                        <div className="space-y-2 text-center md:text-left">
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-900/30 text-yellow-100 rounded-full border border-yellow-300/30 mb-2">
-                                                <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1">🌙 Eid ul Fitr Special</span>
-                                            </div>
-                                            <h2 className="text-2xl md:text-3xl font-black tracking-tighter text-white drop-shadow-md">Get Your Eidi: 8 Free Coins! 🎁</h2>
-                                            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-yellow-100 opacity-90 drop-shadow-sm">Celebrate Eid with unlimited creativity. Claim your gift now!</p>
-                                        </div>
-                                        <div className="flex flex-col items-center gap-2">
-                                            <button 
-                                                onClick={handleClaimEid}
-                                                disabled={isClaimingEid}
-                                                className="px-8 py-4 bg-white text-yellow-600 rounded-2xl font-black text-[10px] md:text-[12px] uppercase tracking-widest flex items-center gap-3 shadow-xl hover:scale-105 hover:bg-yellow-50 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0"
-                                            >
-                                                {isClaimingEid ? "Claiming..." : "Claim Eidi Now 🌙"}
-                                            </button>
-                                            {eidClaimMessage.text && (
-                                                <p className={`text-[10px] font-black uppercase tracking-widest animate-slide-up-fade ${eidClaimMessage.type === 'success' ? 'text-green-100 drop-shadow-md' : 'text-red-200'}`}>
-                                                    {eidClaimMessage.type === 'success' ? '✅' : '❌'} {eidClaimMessage.text}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+
 
                             {/* Referral Banner */}
                             <div
@@ -709,20 +651,7 @@ function DashboardContent() {
                             <div className="grid lg:grid-cols-11 gap-8 md:gap-16">
                                 {/* Left Side: Controls */}
                                 <div className="lg:col-span-5 space-y-12">
-                                    {/* Eid Mega Sale Buy Box */}
-                                    <div 
-                                        onClick={() => { setActiveTab('billing'); setSelectedPackage('50_coins'); }}
-                                        className="group p-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl border border-blue-400 flex items-center justify-between text-white shadow-xl shadow-blue-600/20 cursor-pointer hover:scale-[1.02] hover:shadow-2xl transition-all relative overflow-hidden"
-                                    >
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-white/20 transition-all"></div>
-                                        <div className="space-y-1 relative z-10">
-                                            <p className="text-[10px] font-black text-yellow-300 uppercase tracking-widest flex items-center gap-1">🌙 3 Days Eid Sale</p>
-                                            <p className="text-xl md:text-2xl font-black text-white tracking-tighter">50 Coins for Rs 300</p>
-                                        </div>
-                                        <div className="px-6 py-3 bg-white text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest group-hover:bg-blue-50 transition-all shadow-lg relative z-10 shrink-0">
-                                            Grab Offer
-                                        </div>
-                                    </div>
+
 
                                     <div className="space-y-6">
                                         <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-900/30 ml-1">1. Choose AI Speed</label>
