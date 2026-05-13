@@ -13,6 +13,23 @@ export async function getAuthenticatedUser(ipAddress = null) {
         .eq("email", authUser.email)
         .maybeSingle();
 
+    // FALLBACK: Check old_users table
+    if (!dbUser && !error) {
+        console.log("[Auth Helpers] User not in 'users', checking 'old_users' for:", authUser.email);
+        const { data: oldUser, error: oldError } = await adminDb
+            .from("old_users")
+            .select("*")
+            .eq("email", authUser.email)
+            .maybeSingle();
+        
+        if (oldUser) {
+            console.log("[Auth Helpers] Found user in 'old_users' table.");
+            dbUser = oldUser;
+        } else if (oldError) {
+            console.warn("[Auth Helpers] Error checking 'old_users':", oldError.message);
+        }
+    }
+
     // Admin emails whitelist
     const ADMIN_EMAILS = ['nadeemalikalhoro310@gmail.com'];
 
@@ -29,9 +46,10 @@ export async function getAuthenticatedUser(ipAddress = null) {
 
     // Update IP if missing or changed
     if (dbUser && ipAddress && ipAddress !== 'unknown' && dbUser.ip_address !== ipAddress) {
-        console.log(`[Auth Helpers] Updating IP for ${dbUser.email}: ${dbUser.ip_address} -> ${ipAddress}`);
-        adminDb.from("users").update({ ip_address: ipAddress }).eq("id", dbUser.id).then(({ error }) => {
-            if (error) console.error("[Auth Helpers] Failed to update user IP:", error.message);
+        const targetTable = dbUser.id ? (await adminDb.from("users").select('id').eq('id', dbUser.id).maybeSingle()).data ? "users" : "old_users" : "users";
+        console.log(`[Auth Helpers] Updating IP for ${dbUser.email} in ${targetTable}: ${dbUser.ip_address} -> ${ipAddress}`);
+        adminDb.from(targetTable).update({ ip_address: ipAddress }).eq("id", dbUser.id).then(({ error }) => {
+            if (error) console.error(`[Auth Helpers] Failed to update user IP in ${targetTable}:`, error.message);
         });
         dbUser.ip_address = ipAddress;
     }
@@ -185,12 +203,28 @@ export async function processReferral(newUserEmail, referralCode) {
     console.log(`[Referral] Processing referral for ${newUserEmail} with code: ${referralCode}`);
 
     try {
-        // 1. Find the referrer
-        const { data: referrer, error: referrerError } = await adminDb
+        // 1. Find the referrer (Check both tables)
+        let { data: referrer, error: referrerError } = await adminDb
             .from("users")
             .select("id, referral_count, referral_rewarded_count, coins, email")
             .eq("referral_code", referralCode)
-            .single();
+            .maybeSingle();
+
+        let referrerTable = "users";
+
+        if (!referrer && !referrerError) {
+            const { data: oldReferrer, error: oldReferrerError } = await adminDb
+                .from("old_users")
+                .select("id, referral_count, referral_rewarded_count, coins, email")
+                .eq("referral_code", referralCode)
+                .maybeSingle();
+            
+            if (oldReferrer) {
+                referrer = oldReferrer;
+                referrerTable = "old_users";
+            }
+            referrerError = oldReferrerError;
+        }
 
         if (referrerError || !referrer) {
             console.warn(`[Referral] Referrer not found for code: ${referralCode}`);
@@ -203,12 +237,28 @@ export async function processReferral(newUserEmail, referralCode) {
             return;
         }
 
-        // 2. Update the new user with referred_by
-        const { data: newcomer, error: fetchNewUserError } = await adminDb
+        // 2. Update the new user with referred_by (Check both tables)
+        let { data: newcomer, error: fetchNewUserError } = await adminDb
             .from("users")
             .select("id, referred_by, ip_address")
             .eq("email", newUserEmail)
-            .single();
+            .maybeSingle();
+
+        let newcomerTable = "users";
+
+        if (!newcomer && !fetchNewUserError) {
+            const { data: oldNewcomer, error: oldNewcomerError } = await adminDb
+                .from("old_users")
+                .select("id, referred_by, ip_address")
+                .eq("email", newUserEmail)
+                .maybeSingle();
+            
+            if (oldNewcomer) {
+                newcomer = oldNewcomer;
+                newcomerTable = "old_users";
+            }
+            fetchNewUserError = oldNewcomerError;
+        }
 
         if (fetchNewUserError || !newcomer) {
             console.error(`[Referral] CRITICAL: New user ${newUserEmail} not found in DB. Data:`, newcomer, "Error:", fetchNewUserError?.message);
@@ -231,18 +281,26 @@ export async function processReferral(newUserEmail, referralCode) {
             if (isWhitelisted) {
                 console.log(`[Referral] User ${newUserEmail} or IP ${newcomer.ip_address} is WHITELISTED. Bypassing multi-account check.`);
             } else {
-                const { count, error: ipCheckError } = await adminDb
+                const { count: countUsers, error: ipCheckErrorUsers } = await adminDb
                     .from("users")
                     .select('*', { count: 'exact', head: true })
                     .eq('ip_address', newcomer.ip_address)
                     .neq('email', newUserEmail);
 
-                if (ipCheckError) {
-                    console.error(`[Referral] IP check error for ${newUserEmail}:`, ipCheckError.message);
+                const { count: countOldUsers, error: ipCheckErrorOld } = await adminDb
+                    .from("old_users")
+                    .select('*', { count: 'exact', head: true })
+                    .eq('ip_address', newcomer.ip_address)
+                    .neq('email', newUserEmail);
+
+                const count = (countUsers || 0) + (countOldUsers || 0);
+
+                if (ipCheckErrorUsers || ipCheckErrorOld) {
+                    console.error(`[Referral] IP check error for ${newUserEmail}:`, ipCheckErrorUsers?.message || ipCheckErrorOld?.message);
                 } else if (count > 0) {
                     console.warn(`[Referral] Potential multi-account detected for ${newUserEmail} (IP: ${newcomer.ip_address}). Referral reward blocked.`);
                     // We still link them for tracking, but we won't increment the reward counter later
-                    await adminDb.from("users").update({ referred_by: referrer.id }).eq("id", newcomer.id);
+                    await adminDb.from(newcomerTable).update({ referred_by: referrer.id }).eq("id", newcomer.id);
                     return;
                 }
             }
@@ -257,7 +315,7 @@ export async function processReferral(newUserEmail, referralCode) {
         }
 
         const { error: updateNewUserError } = await adminDb
-            .from("users")
+            .from(newcomerTable)
             .update({ referred_by: referrer.id })
             .eq("id", newcomer.id);
 
@@ -280,7 +338,7 @@ export async function processReferral(newUserEmail, referralCode) {
         }
 
         const { error: updateReferrerError } = await adminDb
-            .from("users")
+            .from(referrerTable)
             .update({
                 referral_count: newCount,
                 referral_rewarded_count: newRewardedCount,
