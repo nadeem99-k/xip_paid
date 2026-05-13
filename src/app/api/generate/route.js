@@ -33,6 +33,24 @@ export async function POST(req) {
             return NextResponse.json({ error: `Insufficient coins. ${mode} mode costs ${cost} coins.` }, { status: 403 });
         }
 
+        // 2. CHECK DAILY LIMITS
+        const today = new Date().toISOString().split('T')[0];
+        const { data: usageData, error: usageError } = await adminDb
+            .from("daily_usage")
+            .select("generation_count")
+            .eq("user_id", user.id)
+            .eq("usage_date", today)
+            .maybeSingle();
+
+        const currentUsage = usageData?.generation_count || 0;
+        const isFreeUser = !user.package || user.package === 'free' || user.package === 'trial';
+
+        if (isFreeUser && currentUsage >= 1) {
+            return NextResponse.json({ 
+                error: "Daily limit reached for Free plan (1 image/day). Please upgrade your plan for unlimited generations." 
+            }, { status: 403 });
+        }
+
         if (!file) {
             return NextResponse.json({ error: "Image file is required" }, { status: 400 });
         }
@@ -146,6 +164,19 @@ export async function POST(req) {
 
             if (deductError) {
                 console.error("Critical: Coin deduction failed:", deductError);
+            }
+            
+            // 3. Update DAILY USAGE
+            const { error: usageUpdateError } = await adminDb
+                .from("daily_usage")
+                .upsert({ 
+                    user_id: user.id, 
+                    usage_date: today, 
+                    generation_count: currentUsage + 1 
+                }, { onConflict: 'user_id,usage_date' });
+            
+            if (usageUpdateError) {
+                console.error("Daily usage update failed:", usageUpdateError.message);
             }
 
             // Send Telegram Generation Result (Async)

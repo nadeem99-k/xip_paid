@@ -55,7 +55,10 @@ export default function SupportPage() {
                                 <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-xl">⏱️</div>
                                 <div>
                                     <p className="text-[10px] font-black uppercase text-blue-600">Response Latency</p>
-                                    <p className="font-bold">Under 2 Hours</p>
+                                    <div className="space-y-1">
+                                        <p className="font-bold text-sm">Under 2 Hours</p>
+                                        <p className="text-[11px] font-bold text-blue-600/80">nkteamxip@gmail.com</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>

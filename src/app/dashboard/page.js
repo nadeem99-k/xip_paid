@@ -34,12 +34,15 @@ function DashboardContent() {
     const [paymentProof, setPaymentProof] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [paymentMessage, setPaymentMessage] = useState({ type: null, text: null });
-    const [copiedField, setCopiedField] = useState(null);
-    const [referrals, setReferrals] = useState([]);
-    const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
     const [bonusStatus, setBonusStatus] = useState({ canClaim: false, message: '', timeRemaining: '' });
     const [isClaimingBonus, setIsClaimingBonus] = useState(false);
     const [claimMessage, setClaimMessage] = useState({ text: '', type: '' });
+    const [currentUsage, setCurrentUsage] = useState(0);
+    const [isLoadingUsage, setIsLoadingUsage] = useState(false);
+    const [redeemCode, setRedeemCode] = useState('');
+    const [isRedeeming, setIsRedeeming] = useState(false);
+    const [redeemMessage, setRedeemMessage] = useState({ text: '', type: '' });
+    const isFreeUser = !displayUser?.package || displayUser?.package === 'free' || displayUser?.package === 'trial';
 
 
     // Derived user data
@@ -123,6 +126,7 @@ function DashboardContent() {
 
         if (authUser) {
             fetchUser(signal);
+            fetchUsage(signal);
         }
 
         if (activeTab === 'history') {
@@ -234,6 +238,24 @@ function DashboardContent() {
         }
     };
 
+    const fetchUsage = async (signal) => {
+        const fetchSignal = signal instanceof AbortSignal ? signal : null;
+        setIsLoadingUsage(true);
+        try {
+            const res = await fetch('/api/user/usage', { signal: fetchSignal });
+            const data = await res.json();
+            if (data.success) {
+                setCurrentUsage(data.usage);
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            console.error("Fetch usage error:", err);
+        } finally {
+            if (fetchSignal && !fetchSignal.aborted) setIsLoadingUsage(false);
+            else if (!fetchSignal) setIsLoadingUsage(false);
+        }
+    };
+
     const fetchReferrals = async (signal) => {
         const fetchSignal = signal instanceof AbortSignal ? signal : null;
         setIsLoadingReferrals(true);
@@ -294,6 +316,34 @@ function DashboardContent() {
             }
         } catch (err) {
             console.error("Delete error:", err);
+        }
+    };
+
+    const handleRedeem = async (e) => {
+        e.preventDefault();
+        if (!redeemCode.trim() || isRedeeming) return;
+        setIsRedeeming(true);
+        try {
+            const res = await fetch('/api/user/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: redeemCode })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Update local user state
+                setUser(prev => ({ ...prev, coins: data.newCoins }));
+                setRedeemMessage({ text: data.message, type: 'success' });
+                setRedeemCode('');
+            } else {
+                setRedeemMessage({ text: data.error || "Redemption failed", type: 'error' });
+            }
+        } catch (err) {
+            console.error("Redeem error:", err);
+            setRedeemMessage({ text: "Connection failure. Please retry.", type: 'error' });
+        } finally {
+            setIsRedeeming(false);
+            setTimeout(() => setRedeemMessage({ text: '', type: '' }), 5000);
         }
     };
 
@@ -462,6 +512,7 @@ function DashboardContent() {
                 if (displayUser) {
                     setUser({ ...displayUser, coins: data.remainingCoins });
                 }
+                setCurrentUsage(prev => prev + 1);
 
                 // Optimistically add to history state
                 const newGen = {
@@ -614,9 +665,19 @@ function DashboardContent() {
                                         >
                                             <span>🤝</span> Refer & Earn 10 Coins
                                         </button>
-                                        <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
-                                            <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
-                                            <span className="text-xs font-black uppercase tracking-widest text-blue-950">{displayUser?.package || 'Starter'} Plan</span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <div className="flex items-center gap-5 bg-blue-50/50 p-2 pr-8 rounded-2xl border border-blue-100">
+                                                <div className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20">🪙 {displayUser?.coins || 0} Coins</div>
+                                                <span className="text-xs font-black uppercase tracking-widest text-blue-950">{displayUser?.package || 'Starter'} Plan</span>
+                                            </div>
+                                            {isFreeUser && (
+                                                <div className="flex flex-col items-end gap-1 mt-1 pr-2">
+                                                    <span className="text-[8px] font-black text-blue-900/40 uppercase tracking-widest">Daily Limit Status</span>
+                                                    <div className="w-32 h-1 bg-blue-100 rounded-full overflow-hidden">
+                                                        <div className={`h-full transition-all duration-1000 ${currentUsage >= 1 ? 'w-full bg-red-400' : 'w-0'}`}></div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     {claimMessage.text && (
@@ -1219,39 +1280,87 @@ function DashboardContent() {
                             )}
 
                             {!selectedPackage ? (
-                                <div className="grid md:grid-cols-3 gap-8">
-                                    {COIN_PACKS.map((pack) => (
-                                        <div
-                                            key={pack.id}
-                                            onClick={() => setSelectedPackage(pack.id)}
-                                            className={`group relative p-8 rounded-[3rem] transition-all cursor-pointer shadow-xl hover:-translate-y-2 border ${pack.name === 'Pro Pack' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-white border-blue-50 hover:border-blue-200 text-blue-950'}`}
-                                        >
-                                            <div className="space-y-8 relative z-10">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="text-[9px] font-black uppercase tracking-widest opacity-50">{pack.name}</div>
-                                                    {pack.name === 'Pro Pack' && <div className="px-3 py-1 bg-white/20 rounded-full text-[8px] font-black uppercase tracking-widest text-white">Best Value</div>}
+                                <div className="space-y-16">
+                                    <div className="grid md:grid-cols-3 gap-8">
+                                        {COIN_PACKS.map((pack) => (
+                                            <div
+                                                key={pack.id}
+                                                onClick={() => setSelectedPackage(pack.id)}
+                                                className={`group relative p-8 rounded-[3rem] transition-all cursor-pointer shadow-xl hover:-translate-y-2 border ${pack.name === 'Pro Pack' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-white border-blue-50 hover:border-blue-200 text-blue-950'}`}
+                                            >
+                                                <div className="space-y-8 relative z-10">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="text-[9px] font-black uppercase tracking-widest opacity-50">{pack.name}</div>
+                                                        {pack.name === 'Pro Pack' && <div className="px-3 py-1 bg-white/20 rounded-full text-[8px] font-black uppercase tracking-widest text-white">Best Value</div>}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <div className="text-5xl font-black tracking-tighter flex items-baseline gap-2">
+                                                            <span className="text-2xl opacity-50">Rs</span>
+                                                            {pack.price}
+                                                            {pack.originalPrice && (
+                                                                <span className="text-lg opacity-40 line-through decoration-2">Rs {pack.originalPrice}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-sm font-bold opacity-60">For {pack.coins} Coins</div>
+                                                    </div>
+                                                    <ul className="space-y-3">
+                                                        {pack.features.map((feature, i) => (
+                                                            <li key={i} className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider opacity-80">
+                                                                <span className="w-1 h-1 rounded-full bg-current"></span>
+                                                                {feature.replace('Credits', 'Photos').replace('Queue', 'Speed').replace('Generation', 'Speed')}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <div className="text-5xl font-black tracking-tighter flex items-baseline gap-2">
-                                                        <span className="text-2xl opacity-50">Rs</span>
-                                                        {pack.price}
-                                                        {pack.originalPrice && (
-                                                            <span className="text-lg opacity-40 line-through decoration-2">Rs {pack.originalPrice}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Redeem Gift Code Section */}
+                                    <div className="max-w-4xl mx-auto p-12 rounded-[3.5rem] bg-blue-50 border border-blue-100 shadow-sm space-y-10 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/50 rounded-full blur-3xl -mr-32 -mt-32 transition-transform duration-1000 group-hover:scale-110"></div>
+                                        <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
+                                            <div className="flex-1 space-y-4 text-center md:text-left">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white rounded-full text-[9px] font-black uppercase tracking-widest text-blue-600 border border-blue-100">
+                                                    🎁 Exclusive Vault
+                                                </div>
+                                                <h3 className="text-3xl font-black tracking-tighter text-blue-950">Redeem <span className="text-blue-600">Gift ID</span></h3>
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-900/30 leading-relaxed">
+                                                    Found a magic code? Enter it below to unlock instant premium credits for your account.
+                                                </p>
+                                            </div>
+                                            <div className="w-full md:w-auto flex-1">
+                                                <form onSubmit={handleRedeem} className="space-y-4">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            value={redeemCode}
+                                                            onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+                                                            placeholder="ENTER-MAGIC-CODE"
+                                                            className="w-full px-8 py-5 bg-white border border-blue-100 rounded-3xl text-sm font-black uppercase tracking-widest focus:border-blue-600 focus:outline-none shadow-sm placeholder:opacity-20"
+                                                        />
+                                                        {isRedeeming && (
+                                                            <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                                                <div className="w-4 h-4 border-2 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                                                            </div>
                                                         )}
                                                     </div>
-                                                    <div className="text-sm font-bold opacity-60">For {pack.coins} Coins</div>
-                                                </div>
-                                                <ul className="space-y-3">
-                                                    {pack.features.map((feature, i) => (
-                                                        <li key={i} className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider opacity-80">
-                                                            <span className="w-1 h-1 rounded-full bg-current"></span>
-                                                            {feature.replace('Credits', 'Photos').replace('Queue', 'Speed').replace('Generation', 'Speed')}
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                                                    <button
+                                                        type="submit"
+                                                        disabled={isRedeeming || !redeemCode.trim()}
+                                                        className="w-full py-4 bg-blue-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] hover:bg-blue-900 transition-all shadow-xl shadow-blue-950/20 active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        {isRedeeming ? "Verifying..." : "Unlock Credits"}
+                                                    </button>
+                                                    {redeemMessage.text && (
+                                                        <p className={`text-center text-[9px] font-black uppercase tracking-widest animate-fade-in-up ${redeemMessage.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                                            {redeemMessage.type === 'success' ? '✨' : '❌'} {redeemMessage.text}
+                                                        </p>
+                                                    )}
+                                                </form>
                                             </div>
                                         </div>
-                                    ))}
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="max-w-2xl mx-auto space-y-12 animate-slide-up">

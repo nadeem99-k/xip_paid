@@ -12,6 +12,20 @@ export default function PricingPage() {
     const [paymentMessage, setPaymentMessage] = useState({ type: null, text: null });
     const [copiedField, setCopiedField] = useState(null);
 
+    const [timeLeft, setTimeLeft] = useState({ h: 2, m: 45, s: 12 });
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev.s > 0) return { ...prev, s: prev.s - 1 };
+                if (prev.m > 0) return { ...prev, m: prev.m - 1, s: 59 };
+                if (prev.h > 0) return { h: prev.h - 1, m: 59, s: 59 };
+                return prev;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
     const handleCopy = (text, field) => {
         navigator.clipboard.writeText(text);
         setCopiedField(field);
@@ -30,8 +44,8 @@ export default function PricingPage() {
             coins: 3,
             price: 50,
             icon: '🪙',
-            description: 'Perfect to start your journey.',
-            features: ['3 High Quality Photos', 'Bikini Mode (1.5 Images)', 'Nude Mode (0.5 Images)', 'Standard Speed']
+            description: 'Perfect for a quick test.',
+            features: ['3 Coins (No Daily Limit)', 'High Quality 8K Photos', 'Fast Processing', 'Permanent Access']
         },
         {
             id: '9_coins',
@@ -41,7 +55,7 @@ export default function PricingPage() {
             originalPrice: 150,
             icon: '💎',
             description: 'Most popular for regular users.',
-            features: ['9 Premium Photos', 'Bikini Mode (4.5 Images)', 'Nude Mode (1.5 Images)', 'Priority Speed']
+            features: ['9 Premium Coins (No Limit)', 'Advanced AI Access', 'Faster Generation', 'Multi-Device Support']
         },
 
         {
@@ -52,7 +66,7 @@ export default function PricingPage() {
             originalPrice: 1200,
             icon: '👑',
             description: 'Ultimate power for professionals.',
-            features: ['100 Ultra Photos', 'Bikini Mode (50 Images)', 'Nude Mode (16+ Images)', 'Fastest Speed']
+            features: ['100 Ultra Coins (No Limit)', 'Unlimited Speed', 'Priority Support', 'Lifetime History']
         },
     ];
 
@@ -95,14 +109,40 @@ export default function PricingPage() {
     };
 
     return (
-        <div className="pt-32 pb-20 px-6 min-h-screen bg-white">
+        <div className="pt-32 pb-20 px-6 min-h-screen bg-white text-blue-950">
             <div className="max-w-6xl mx-auto space-y-20 animate-slide-up">
+                {/* Sale Banner */}
+                <div className="relative overflow-hidden bg-blue-600 rounded-[2.5rem] p-8 md:p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-blue-600/20">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                    <div className="space-y-2 text-center md:text-left relative z-10">
+                        <div className="inline-block px-3 py-1 bg-white/20 rounded-lg text-[10px] font-black uppercase tracking-widest mb-2">Flash Sale Active</div>
+                        <h2 className="text-3xl md:text-4xl font-black tracking-tighter">UP TO 50% DISCOUNT! 🎁</h2>
+                        <p className="text-blue-100 text-[10px] font-bold uppercase tracking-widest opacity-80 decoration-blue-300">Unlock Premium Models & Unlimited Speed Now</p>
+                    </div>
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="flex flex-col items-center">
+                            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/[0.15] backdrop-blur-md rounded-2xl flex items-center justify-center text-xl md:text-2xl font-black">{timeLeft.h.toString().padStart(2, '0')}</div>
+                            <span className="text-[8px] font-black mt-2 uppercase tracking-widest opacity-60">Hours</span>
+                        </div>
+                        <span className="text-2xl font-black mb-6">:</span>
+                        <div className="flex flex-col items-center">
+                            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/[0.15] backdrop-blur-md rounded-2xl flex items-center justify-center text-xl md:text-2xl font-black">{timeLeft.m.toString().padStart(2, '0')}</div>
+                            <span className="text-[8px] font-black mt-2 uppercase tracking-widest opacity-60">Mins</span>
+                        </div>
+                        <span className="text-2xl font-black mb-6">:</span>
+                        <div className="flex flex-col items-center">
+                            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/[0.15] backdrop-blur-md rounded-2xl flex items-center justify-center text-xl md:text-2xl font-black">{timeLeft.s.toString().padStart(2, '0')}</div>
+                            <span className="text-[8px] font-black mt-2 uppercase tracking-widest opacity-60">Secs</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="text-center space-y-4 md:space-y-6 max-w-2xl mx-auto">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-600/60">Coin System Active</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-600/60">Monetization System v2.0</span>
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-blue-950">Add More <span className="text-blue-600">Coins</span></h1>
-                    <p className="text-blue-950/40 font-bold uppercase tracking-widest text-[9px] md:text-[10px] leading-relaxed">Buy coins to unlock premium photo styles. <br className="hidden md:block" />Bikini (2 Coins) | Nude (6 Coins)</p>
+                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-blue-950">Unlock <span className="text-blue-600">Full Access</span></h1>
+                    <p className="text-blue-950/40 font-bold uppercase tracking-widest text-[9px] md:text-[10px] leading-relaxed">Free users are limited to 1 image per day. <br className="hidden md:block" />Buy a pack to remove all limits and start creating!</p>
                 </div>
 
                 {paymentMessage.text && (

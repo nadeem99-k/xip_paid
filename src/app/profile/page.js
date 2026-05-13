@@ -58,20 +58,49 @@ export default function ProfilePage() {
                     {/* Account Details */}
                     <div className="md:col-span-2 space-y-8">
                         <div className="bg-white p-10 rounded-[3rem] border border-blue-50 shadow-2xl shadow-blue-900/[0.03] space-y-12">
-                            <div className="space-y-8">
-                                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-blue-900/30">System Credentials</h3>
-                                <div className="grid gap-8">
-                                    <div className="space-y-2">
-                                        <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Network ID (Email)</p>
-                                        <p className="text-sm font-bold text-blue-950">{user.email}</p>
+                            <div className="grid md:grid-cols-2 gap-12">
+                                <div className="space-y-8">
+                                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-blue-900/30">System Credentials</h3>
+                                    <div className="grid gap-8">
+                                        <div className="space-y-2">
+                                            <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Network ID (Email)</p>
+                                            <p className="text-sm font-bold text-blue-950">{user.email}</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Subscription Module</p>
+                                            <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${user.package === 'free' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                                {user.package || 'Free Agent'}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Subscription Module</p>
-                                        <p className="text-sm font-bold text-blue-950 uppercase tracking-tight">{user.package || 'Neutral'}</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Account Created</p>
-                                        <p className="text-sm font-bold text-blue-950">Active Session</p>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-blue-900/30">Affiliate Status</h3>
+                                    <div className="grid gap-8">
+                                        <div className="space-y-2">
+                                            <p className="text-[9px] font-black uppercase text-blue-950/30 tracking-widest">Your Referral Link</p>
+                                            <div className="flex items-center gap-2 bg-blue-50/50 p-1.5 rounded-xl border border-blue-50">
+                                                <input readOnly value={`https://xip-paid.vercel.app?ref=${user.referral_code}`} className="bg-transparent text-[10px] font-bold text-blue-950 flex-1 ml-2 outline-none" />
+                                                <button onClick={() => {
+                                                    navigator.clipboard.writeText(`https://xip-paid.vercel.app?ref=${user.referral_code}`);
+                                                    alert("Link Copied!");
+                                                }} className="px-3 py-1.5 bg-white text-blue-600 text-[8px] font-black uppercase tracking-widest rounded-lg shadow-sm border border-blue-100">Copy</button>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-white p-4 rounded-2xl border border-blue-50 text-center">
+                                                <p className="text-[8px] font-black uppercase text-blue-900/30 tracking-widest mb-1">Total Referrals</p>
+                                                <p className="text-xl font-black text-blue-950">{user.referral_count || 0}</p>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-2xl border border-blue-50 text-center">
+                                                <p className="text-[8px] font-black uppercase text-blue-900/30 tracking-widest mb-1">Rewards Won</p>
+                                                <p className="text-xl font-black text-blue-600">{user.referral_rewarded_count || 0}</p>
+                                            </div>
+                                        </div>
+                                        <p className="text-[8px] font-bold text-blue-900/40 leading-relaxed italic bg-blue-50/50 p-3 rounded-xl">
+                                            💡 Reward of 10 coins is granted only when your referred friend completes their first purchase. Self-referrals will be blocked.
+                                        </p>
                                     </div>
                                 </div>
                             </div>

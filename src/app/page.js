@@ -29,6 +29,16 @@ export default function Home() {
   const { user, isLoading } = useUser();
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [recentImages, setRecentImages] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/public/recent')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setRecentImages(data.images);
+      })
+      .catch(err => console.error("Gallery fetch failed:", err));
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -79,37 +89,39 @@ export default function Home() {
         </div>
 
         {/* Persistent Content Layer */}
-        < div className="relative h-full flex flex-col items-center justify-center text-center z-50 px-6 pointer-events-none" >
+        <div className="relative h-full flex flex-col items-center justify-center text-center z-50 px-6 pointer-events-none" >
           <div key={currentSlide} className="animate-fade-in-up flex flex-col items-center pointer-events-auto">
-            <div className="inline-block px-4 py-1.5 bg-blue-600 text-white text-[10px] font-black tracking-[0.4em] uppercase rounded-full mb-6 md:mb-8">
+            <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-blue-600/90 backdrop-blur-xl text-white text-[10px] font-black tracking-[0.4em] uppercase rounded-full mb-6 md:mb-8 border border-white/20 shadow-2xl">
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
               {slides[currentSlide].tag}
             </div>
             <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tighter text-blue-950 mb-4 md:mb-6 drop-shadow-sm leading-tight px-4">
               {slides[currentSlide].title.split(' ')[0]} <br />
-              <span className="text-blue-600 italic font-light">{slides[currentSlide].title.split(' ')[1]}</span>
+              <span className="text-blue-600 italic font-light">{slides[currentSlide].title.substring(slides[currentSlide].title.indexOf(' ') + 1)}</span>
             </h1>
             <p className="text-lg md:text-2xl text-blue-900/70 font-medium tracking-tight max-w-2xl mb-8 md:mb-12">
-              {slides[currentSlide].subtitle}
+              {slides[currentSlide].subtitle} <br />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 bg-blue-50 px-3 py-1 rounded-full mt-4 inline-block">1 Free Generation Daily</span>
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full sm:w-auto">
               {user ? (
-                <Link href="/dashboard" className="px-10 md:px-12 py-4 md:py-5 bg-blue-600 text-white rounded-2xl text-lg font-bold hover:bg-blue-700 transition-all shadow-[0_20px_40px_rgba(37,99,235,0.2)] hover:-translate-y-1 text-center">
-                  Enter Studio
+                <Link href="/dashboard" className="px-10 md:px-12 py-4 md:py-5 bg-blue-600 text-white rounded-2xl text-lg font-bold hover:bg-blue-700 transition-all shadow-[0_20px_40px_rgba(37,99,235,0.2)] hover:-translate-y-1 text-center group">
+                  Enter AI Studio <span className="inline-block transition-transform group-hover:translate-x-2">→</span>
                 </Link>
               ) : (
                 <>
-                  <Link href="/signup" className="px-10 md:px-12 py-4 md:py-5 bg-blue-600 text-white rounded-2xl text-lg font-bold hover:bg-blue-700 transition-all shadow-[0_20px_40px_rgba(37,99,235,0.2)] hover:-translate-y-1 text-center">
-                    Start Generating
+                  <Link href="/signup" className="px-10 md:px-12 py-4 md:py-5 bg-blue-600 text-white rounded-2xl text-lg font-bold hover:bg-blue-700 transition-all shadow-[0_20px_40px_rgba(37,99,235,0.2)] hover:-translate-y-1 text-center group">
+                    Get Started Free <span className="inline-block transition-transform group-hover:translate-x-2">→</span>
                   </Link>
                   <Link href="/pricing" className="px-10 md:px-12 py-4 md:py-5 glass border border-blue-200 text-blue-950 rounded-2xl text-lg font-bold hover:bg-blue-50 transition-all text-center">
-                    View Pricing
+                    View Premium Plans
                   </Link>
                 </>
               )}
             </div>
           </div>
-        </div >
+        </div>
 
         {/* Slider Indicators */}
         < div className="absolute bottom-10 md:bottom-12 left-1/2 -translate-x-1/2 flex gap-3 z-40" >
@@ -280,29 +292,41 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8 md:gap-12">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="group cursor-none">
-                <div className="aspect-[4/5] rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-                  <img
-                    src={
-                      item === 1 ? "/images/slider-1.png" :
-                        item === 2 ? "/images/slider-2.png" :
-                          "/images/slider-3.png"
-                    }
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
-                    alt={`Gallery ${item}`}
-                  />
-                  <div className="absolute inset-x-4 md:inset-x-6 bottom-4 md:bottom-6 p-4 md:p-6 glass rounded-2xl flex justify-between items-center translate-y-20 group-hover:translate-y-0 transition-all duration-500 opacity-0 group-hover:opacity-100">
-                    <div>
-                      <p className="text-[10px] font-black text-blue-950 uppercase">Serial #00{item}</p>
-                      <p className="text-[8px] font-bold text-blue-600 uppercase mt-1">Flux Model V4</p>
-                    </div>
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">↗</div>
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+            {recentImages.length > 0 ? (
+              recentImages.map((item, idx) => (
+                <div key={idx} className="group relative aspect-[3/4] rounded-[2rem] overflow-hidden shadow-xl hover:-translate-y-2 transition-all">
+                  <img src={item.image_url} alt={item.prompt} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />
+                  <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-blue-950/90 to-transparent translate-y-full group-hover:translate-y-0 transition-transform">
+                    <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">{item.mode} Mode</p>
+                    <p className="text-[11px] text-white font-bold tracking-tight line-clamp-2 italic">"{item.prompt}"</p>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              [1, 2, 3, 4].map((item) => (
+                <div key={item} className="group cursor-none">
+                  <div className="aspect-[4/5] rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+                    <img
+                      src={
+                        item === 1 ? "/images/slider-1.png" :
+                          item === 2 ? "/images/slider-2.png" :
+                            item === 3 ? "/images/slider-3.png" : "/images/gallery-2.png"
+                      }
+                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
+                      alt={`Gallery ${item}`}
+                    />
+                    <div className="absolute inset-x-4 md:inset-x-6 bottom-4 md:bottom-6 p-4 md:p-6 glass rounded-2xl flex justify-between items-center translate-y-20 group-hover:translate-y-0 transition-all duration-500 opacity-0 group-hover:opacity-100">
+                      <div>
+                        <p className="text-[10px] font-black text-blue-950 uppercase">Serial #00{item}</p>
+                        <p className="text-[8px] font-bold text-blue-600 uppercase mt-1">Flux Model V4</p>
+                      </div>
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">↗</div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

@@ -59,6 +59,53 @@ export async function POST(req) {
 
             if (userUpdateError) throw userUpdateError;
 
+            // --- REFERRAL REWARD LOGIC ---
+            // Only trigger referral rewards on the FIRST successful payment
+            const { data: previousPayments } = await adminDb
+                .from("payments")
+                .select("id")
+                .eq("user_id", payment.user_id)
+                .eq("status", "approved")
+                .neq("id", paymentId);
+
+            if (!previousPayments || previousPayments.length === 0) {
+                // This is the first payment!
+                const { data: currentUser } = await adminDb
+                    .from("users")
+                    .select("referred_by")
+                    .eq("id", payment.user_id)
+                    .single();
+
+                if (currentUser?.referred_by) {
+                    console.log(`[Referral] User ${payment.user_id} was referred by ${currentUser.referred_by}. Processing reward...`);
+                    
+                    const { data: referrer } = await adminDb
+                        .from("users")
+                        .select("id, referral_count, referral_rewarded_count, coins")
+                        .eq("id", currentUser.referred_by)
+                        .single();
+
+                    if (referrer) {
+                        const newCount = (referrer.referral_count || 0) + 1;
+                        let newRewardedCount = referrer.referral_rewarded_count || 0;
+                        let newCoins = referrer.coins || 0;
+
+                        if (newCount - newRewardedCount >= 3) {
+                            newCoins += 10;
+                            newRewardedCount += 3;
+                            console.log(`[Referral] Referrer ${referrer.id} reached threshold. 10 coins added.`);
+                        }
+
+                        await adminDb.from("users").update({
+                            referral_count: newCount,
+                            referral_rewarded_count: newRewardedCount,
+                            coins: newCoins
+                        }).eq("id", referrer.id);
+                    }
+                }
+            }
+            // -----------------------------
+
             return NextResponse.json({ success: true, message: "Payment approved and package unlocked." });
         } else if (action === 'reject') {
             const { error: rejectError } = await adminDb

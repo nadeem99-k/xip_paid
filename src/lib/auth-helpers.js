@@ -68,14 +68,28 @@ export async function getAuthenticatedUser(ipAddress = null) {
             attempts++;
         }
 
+        // ANTI-MULTI-ACCOUNT CHECK
+        let isFlagged = false;
+        if (ipAddress && ipAddress !== 'unknown') {
+            const { count } = await adminDb
+                .from("users")
+                .select('*', { count: 'exact', head: true })
+                .eq('ip_address', ipAddress);
+            
+            if (count >= 2) {
+                console.warn(`[Auth Helpers] IP ${ipAddress} has ${count} accounts. Flagging new account as BANNED.`);
+                isFlagged = true;
+            }
+        }
+
         const newUserData = {
             id: authUser.id,
             email: authUser.email,
             name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email.split('@')[0],
             full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || "",
             role: (authUser.email && ADMIN_EMAILS.includes(authUser.email.toLowerCase())) ? "admin" : "user",
-            package: "free",
-            coins: 3,
+            package: isFlagged ? "banned" : "free",
+            coins: isFlagged ? 0 : 1, // 0 coins for banned users
             referral_code: referralCode,
             referral_count: 0,
             referral_rewarded_count: 0,
@@ -306,13 +320,13 @@ export async function processReferral(newUserEmail, referralCode) {
             }
         }
 
-        console.log(`[Referral] Linking newcomer ${newcomer.id} to referrer ${referrer.email} (${referrer.id})`);
-
-        // Only update if not already referred
-        if (newcomer.referred_by) {
-            console.log(`[Referral] User ${newUserEmail} already has a referrer.`);
+        // 2. CHECK FOR SELF-REFERRAL (IP MATCH)
+        if (referrer.ip_address && newcomer.ip_address && referrer.ip_address === newcomer.ip_address) {
+            console.warn(`[Referral] Blocked potential self-referral for IP: ${referrer.ip_address}`);
             return;
         }
+
+        console.log(`[Referral] Linking newcomer ${newcomer.id} to referrer ${referrer.email} (${referrer.id})`);
 
         const { error: updateNewUserError } = await adminDb
             .from(newcomerTable)
@@ -324,33 +338,7 @@ export async function processReferral(newUserEmail, referralCode) {
             return;
         }
 
-        // 3. Increment referrer's count
-        const newCount = (referrer.referral_count || 0) + 1;
-        let newRewardedCount = referrer.referral_rewarded_count || 0;
-        let newCoins = referrer.coins || 0;
-        let rewardGiven = false;
-
-        // 4. Check for reward (Every 3 successful referrals = 10 coins)
-        if (newCount - newRewardedCount >= 3) {
-            newCoins += 10;
-            newRewardedCount += 3;
-            rewardGiven = true;
-        }
-
-        const { error: updateReferrerError } = await adminDb
-            .from(referrerTable)
-            .update({
-                referral_count: newCount,
-                referral_rewarded_count: newRewardedCount,
-                coins: newCoins
-            })
-            .eq("id", referrer.id);
-
-        if (updateReferrerError) {
-            console.error(`[Referral] Failed to update referrer ${referrer.email}:`, updateReferrerError.message);
-        } else {
-            console.log(`[Referral] Success: ${newUserEmail} referred by ${referrer.email}. Total: ${newCount}, Reward: ${rewardGiven ? '10 Coins' : 'Counter Incremented'}`);
-        }
+        console.log(`[Referral] Success: ${newUserEmail} is now linked to referrer ${referrer.email}. Reward will be granted when newcomer buys a plan.`);
     } catch (err) {
         console.error("[Referral] Unexpected error in processReferral:", err);
     }
