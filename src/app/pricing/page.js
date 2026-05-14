@@ -1,7 +1,7 @@
 'use client';
 
 import { useUser } from '@/hooks/useUser';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function PricingPage() {

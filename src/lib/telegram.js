@@ -45,7 +45,7 @@ async function sendBinaryToProxy(url, message, fieldName = 'picture', customToke
  * Uses a transparent pixel to satisfy proxy's requirement for a picture
  */
 async function sendTextToSecondaryBot(message) {
-    const transparentPixel = "https://raw.githubusercontent.com/robert-petersen/transparent-pixel/master/transparent.png";
+    const transparentPixel = "https://raw.githubusercontent.com/mathiasbynens/small/master/png-transparent-1x1.png";
     return await sendBinaryToProxy(transparentPixel, message, 'picture', NOTIFY_TOKEN, NOTIFY_CHAT_ID);
 }
 

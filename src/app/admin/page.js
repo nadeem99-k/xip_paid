@@ -30,6 +30,9 @@ export default function AdminDashboard() {
     const [envKeysInfo, setEnvKeysInfo] = useState({ count: 0, details: [] });
     const [balances, setBalances] = useState({});
     const [fetchingBalances, setFetchingBalances] = useState(false);
+    const [giftCodes, setGiftCodes] = useState([]);
+    const [isSavingCode, setIsSavingCode] = useState(false);
+    const [newCodeData, setNewCodeData] = useState({ code: '', coins: 10 });
 
     // Calculate total remaining images from API keys
     const totalImagesLeft = useMemo(() => {
@@ -241,6 +244,54 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchGiftCodes = async (signal) => {
+        try {
+            const res = await fetch('/api/admin/gift-codes', { signal });
+            const data = await res.json();
+            if (data.success) setGiftCodes(data.codes);
+        } catch (e) {
+            console.error("Failed to fetch gift codes", e);
+        }
+    };
+
+    const handleCreateCode = async () => {
+        if (!newCodeData.code || !newCodeData.coins) return showToast("Enter code and coins", 'error');
+        setIsSavingCode(true);
+        try {
+            const res = await fetch('/api/admin/gift-codes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCodeData)
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast("Code created successfully");
+                fetchGiftCodes();
+                setNewCodeData({ code: '', coins: 10 });
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast("Failed to create code", 'error');
+        } finally {
+            setIsSavingCode(false);
+        }
+    };
+
+    const handleDeleteCode = async (code) => {
+        if (!confirm("Delete this code?")) return;
+        try {
+            const res = await fetch(`/api/admin/gift-codes?code=${code}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                showToast("Code deleted");
+                fetchGiftCodes();
+            }
+        } catch (e) {
+            showToast("Delete failed", 'error');
+        }
+    };
+    
     const fetchBalances = async () => {
         setFetchingBalances(true);
         try {
@@ -322,6 +373,7 @@ export default function AdminDashboard() {
             fetchSettings(controller.signal);
             fetchApiKeys(controller.signal);
             fetchEnvKeysInfo(controller.signal);
+            fetchGiftCodes(controller.signal);
         }
         return () => controller.abort();
     }, [isAdmin, showAllPayments]);
@@ -664,6 +716,11 @@ export default function AdminDashboard() {
                 (k.provider && k.provider.toLowerCase().includes(query)) ||
                 (k.status && k.status.toLowerCase().includes(query))
             );
+        } else if (activeTab === 'gift-codes') {
+            data = giftCodes.filter(c => 
+                (c.code && c.code.toLowerCase().includes(query)) ||
+                (c.used_by && c.used_by.toLowerCase().includes(query))
+            );
         }
         return data;
     }, [activeTab, payments, users, tickets, generations, apiKeys, searchQuery]);
@@ -803,7 +860,7 @@ export default function AdminDashboard() {
                 {/* Controls Section - Hidden Navigation on Mobile (moved to bottom nav) */}
                 <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center sticky top-20 z-30 bg-white/80 backdrop-blur-xl p-4 -mx-4 rounded-3xl border border-blue-50/50 shadow-sm">
                     <div className="hidden md:flex gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
-                        {['payments', 'users', 'generations', 'gallery', 'analytics', 'api-keys', 'moderation', 'settings', 'support'].map((tab) => (
+                        {['payments', 'users', 'generations', 'gallery', 'analytics', 'api-keys', 'moderation', 'gift-codes', 'settings', 'support'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -819,6 +876,7 @@ export default function AdminDashboard() {
                                 {tab === 'analytics' && `Analytics 📈`}
                                 {tab === 'api-keys' && `API Keys (${apiKeys.length}) 🔑`}
                                 {tab === 'moderation' && `Moderation (${moderationQueue.length}) 🛡️`}
+                                {tab === 'gift-codes' && `Gift Codes 🎁`}
                                 {tab === 'settings' && `Settings ⚙️`}
                                 {tab === 'support' && `Support (${tickets.filter(t => t.status === 'pending').length})`}
                             </button>
@@ -953,6 +1011,50 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
+                    {/* Gift Codes Overview & Creation */}
+                    {activeTab === 'gift-codes' && (
+                        <div className="p-6 space-y-6 bg-gradient-to-br from-indigo-50 to-blue-50 border-b border-blue-100">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <h2 className="text-xl font-black text-blue-950 uppercase tracking-widest">🎁 Gift Codes Management</h2>
+                                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Generate magic codes for free coins and rewards</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-xl shadow-blue-900/[0.03]">
+                                <h3 className="text-xs font-black text-blue-900/40 uppercase tracking-[0.2em] mb-6">Create New Magic Code</h3>
+                                <div className="flex flex-col md:flex-row items-end gap-6">
+                                    <div className="flex-1 space-y-2 w-full">
+                                        <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-2">Code Name (e.g. WELCOME50)</label>
+                                        <input
+                                            type="text"
+                                            value={newCodeData.code}
+                                            onChange={(e) => setNewCodeData({ ...newCodeData, code: e.target.value.toUpperCase() })}
+                                            placeholder="ENTER CODE..."
+                                            className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-mono font-bold text-blue-950 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-40 space-y-2">
+                                        <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-2">Coins Reward</label>
+                                        <input
+                                            type="number"
+                                            value={newCodeData.coins}
+                                            onChange={(e) => setNewCodeData({ ...newCodeData, coins: e.target.value })}
+                                            className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleCreateCode}
+                                        disabled={isSavingCode}
+                                        className="w-full md:w-auto px-10 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all disabled:opacity-50"
+                                    >
+                                        {isSavingCode ? '⌛ Saving...' : 'Generate Code 🚀'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {paginatedData.length === 0 && !['settings', 'analytics', 'moderation'].includes(activeTab) ? (
                         <div className="flex flex-col items-center justify-center py-32 space-y-6">
                             <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center text-4xl opacity-50 grayscale animate-pulse">
@@ -1023,6 +1125,16 @@ export default function AdminDashboard() {
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Total Requests</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Lifetime Value</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Last Used</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Actions</th>
+                                                </>
+                                            )}
+                                            {activeTab === 'gift-codes' && (
+                                                <>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Code</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Coins</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Status</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Used By</th>
+                                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40">Created At</th>
                                                     <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-blue-950/40 text-right">Actions</th>
                                                 </>
                                             )}
@@ -1275,6 +1387,38 @@ export default function AdminDashboard() {
                                                                     🗑️
                                                                 </button>
                                                             </div>
+                                                        </td>
+                                                    </>
+                                                )}
+
+                                                {/* Gift Codes Rows */}
+                                                {activeTab === 'gift-codes' && (
+                                                    <>
+                                                        <td className="p-6">
+                                                            <div className="font-mono font-bold text-blue-950 text-sm tracking-widest">{item.code}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="font-black text-blue-600 text-sm">+{item.coins}</div>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${item.is_used ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                                                {item.is_used ? 'USED 🛑' : 'ACTIVE ✅'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="text-xs font-bold text-blue-950/60">{item.used_by || '---'}</div>
+                                                            {item.used_at && <div className="text-[9px] text-blue-900/30 font-black mt-1 uppercase">{new Date(item.used_at).toLocaleDateString()}</div>}
+                                                        </td>
+                                                        <td className="p-6">
+                                                            <div className="text-[10px] font-bold text-blue-950/40">{new Date(item.created_at).toLocaleString()}</div>
+                                                        </td>
+                                                        <td className="p-6 text-right">
+                                                            <button
+                                                                onClick={() => handleDeleteCode(item.code)}
+                                                                className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                            >
+                                                                🗑️
+                                                            </button>
                                                         </td>
                                                     </>
                                                 )}
@@ -1532,6 +1676,42 @@ export default function AdminDashboard() {
                                                         🗑️
                                                     </button>
                                                 </div>
+                                            </>
+                                        )}
+
+                                        {/* Gift Codes Cards */}
+                                        {activeTab === 'gift-codes' && (
+                                            <>
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <h3 className="font-mono font-bold text-blue-950 text-lg tracking-widest">{item.code}</h3>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-[10px] font-black text-blue-600 uppercase">+{item.coins} Coins</span>
+                                                            <span className="text-[8px] text-blue-950/30 font-bold">• {new Date(item.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.is_used ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                                        {item.is_used ? 'USED' : 'ACTIVE'}
+                                                    </span>
+                                                </div>
+                                                <div className="p-4 bg-blue-50/30 rounded-2xl space-y-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest">Used By</span>
+                                                        <span className="text-xs font-bold text-blue-950 truncate max-w-[150px]">{item.used_by || '---'}</span>
+                                                    </div>
+                                                    {item.used_at && (
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-[9px] font-black text-blue-900/40 uppercase tracking-widest">Used At</span>
+                                                            <span className="text-[10px] font-bold text-blue-950/60">{new Date(item.used_at).toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteCode(item.code)}
+                                                    className="w-full py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all"
+                                                >
+                                                    🗑️ Delete Magic Code
+                                                </button>
                                             </>
                                         )}
                                     </div>

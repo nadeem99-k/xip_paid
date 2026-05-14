@@ -4,8 +4,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 
+
+
 function DashboardContent() {
-    const { user: authUser, isLoading: authLoading, refreshUser } = useUser();
+    const { user: authUser, isLoading: authLoading, refreshUser, signOut } = useUser();
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -42,11 +44,12 @@ function DashboardContent() {
     const [redeemCode, setRedeemCode] = useState('');
     const [isRedeeming, setIsRedeeming] = useState(false);
     const [redeemMessage, setRedeemMessage] = useState({ text: '', type: '' });
-    const isFreeUser = !displayUser?.package || displayUser?.package === 'free' || displayUser?.package === 'trial';
-
-
+    const [copiedField, setCopiedField] = useState(null);
+    const [referrals, setReferrals] = useState([]);
+    const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
     // Derived user data
     const displayUser = authUser ? { ...authUser, ...user } : user;
+    const isFreeUser = !displayUser?.package || displayUser?.package === 'free' || displayUser?.package === 'trial';
 
     const handleCopy = (text, field) => {
         navigator.clipboard.writeText(text);
@@ -690,24 +693,6 @@ function DashboardContent() {
 
 
 
-                            {/* Referral Banner */}
-                            <div
-                                onClick={() => setActiveTab('referral')}
-                                className="group relative overflow-hidden p-8 rounded-[2.5rem] bg-gradient-to-r from-blue-600 to-indigo-600 text-white cursor-pointer hover:shadow-2xl hover:shadow-blue-600/20 transition-all animate-fade-in-down"
-                            >
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:bg-white/20 transition-all"></div>
-                                <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-400/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
-
-                                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                                    <div className="space-y-2 text-center md:text-left">
-                                        <h2 className="text-2xl font-black tracking-tighter">Get 10 Free Premium Coins! 🎁</h2>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-100 opacity-80">Invite friends and unlock unlimited creative power</p>
-                                    </div>
-                                    <div className="px-8 py-4 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 shadow-xl group-hover:scale-105 transition-transform">
-                                        Invite & Earn Now <span>🚀</span>
-                                    </div>
-                                </div>
-                            </div>
 
                             <div className="grid lg:grid-cols-11 gap-8 md:gap-16">
                                 {/* Left Side: Controls */}
