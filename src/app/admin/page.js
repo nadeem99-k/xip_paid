@@ -33,6 +33,10 @@ export default function AdminDashboard() {
     const [giftCodes, setGiftCodes] = useState([]);
     const [isSavingCode, setIsSavingCode] = useState(false);
     const [newCodeData, setNewCodeData] = useState({ code: '', coins: 10 });
+    // Promo Codes State
+    const [promoCodes, setPromoCodes] = useState([]);
+    const [isSavingPromo, setIsSavingPromo] = useState(false);
+    const [newPromoData, setNewPromoData] = useState({ code: '', discount_percent: 30, max_uses: '' });
 
     // Calculate total remaining images from API keys
     const totalImagesLeft = useMemo(() => {
@@ -254,6 +258,81 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchPromoCodes = async (signal) => {
+        try {
+            const res = await fetch('/api/admin/promo-codes', { signal });
+            const data = await res.json();
+            if (data.success) setPromoCodes(data.codes);
+        } catch (e) {
+            console.error("Failed to fetch promo codes", e);
+        }
+    };
+
+    const handleCreatePromoCode = async () => {
+        if (!newPromoData.code) return showToast("Enter a promo code", 'error');
+        if (!newPromoData.discount_percent || parseInt(newPromoData.discount_percent) < 1 || parseInt(newPromoData.discount_percent) > 100)
+            return showToast("Discount must be between 1-100%", 'error');
+        setIsSavingPromo(true);
+        try {
+            const res = await fetch('/api/admin/promo-codes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code: newPromoData.code,
+                    discount_percent: parseInt(newPromoData.discount_percent),
+                    max_uses: newPromoData.max_uses ? parseInt(newPromoData.max_uses) : null
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast("Promo code created! ✅");
+                fetchPromoCodes();
+                setNewPromoData({ code: '', discount_percent: 30, max_uses: '' });
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast("Failed to create promo code", 'error');
+        } finally {
+            setIsSavingPromo(false);
+        }
+    };
+
+    const handleTogglePromoCode = async (id, currentStatus) => {
+        try {
+            const res = await fetch('/api/admin/promo-codes', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, is_active: !currentStatus })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message);
+                fetchPromoCodes();
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast("Toggle failed", 'error');
+        }
+    };
+
+    const handleDeletePromoCode = async (id) => {
+        if (!confirm("Delete this promo code?")) return;
+        try {
+            const res = await fetch(`/api/admin/promo-codes?id=${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                showToast("Promo code deleted");
+                fetchPromoCodes();
+            } else {
+                showToast(data.error, 'error');
+            }
+        } catch (e) {
+            showToast("Delete failed", 'error');
+        }
+    };
+
     const handleCreateCode = async () => {
         if (!newCodeData.code || !newCodeData.coins) return showToast("Enter code and coins", 'error');
         setIsSavingCode(true);
@@ -374,6 +453,7 @@ export default function AdminDashboard() {
             fetchApiKeys(controller.signal);
             fetchEnvKeysInfo(controller.signal);
             fetchGiftCodes(controller.signal);
+            fetchPromoCodes(controller.signal);
         }
         return () => controller.abort();
     }, [isAdmin, showAllPayments]);
@@ -860,7 +940,7 @@ export default function AdminDashboard() {
                 {/* Controls Section - Hidden Navigation on Mobile (moved to bottom nav) */}
                 <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center sticky top-20 z-30 bg-white/80 backdrop-blur-xl p-4 -mx-4 rounded-3xl border border-blue-50/50 shadow-sm">
                     <div className="hidden md:flex gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
-                        {['payments', 'users', 'generations', 'gallery', 'analytics', 'api-keys', 'moderation', 'gift-codes', 'settings', 'support'].map((tab) => (
+                        {['payments', 'users', 'generations', 'gallery', 'analytics', 'api-keys', 'moderation', 'gift-codes', 'promo-codes', 'settings', 'support'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -877,6 +957,7 @@ export default function AdminDashboard() {
                                 {tab === 'api-keys' && `API Keys (${apiKeys.length}) 🔑`}
                                 {tab === 'moderation' && `Moderation (${moderationQueue.length}) 🛡️`}
                                 {tab === 'gift-codes' && `Gift Codes 🎁`}
+                                {tab === 'promo-codes' && `Promo Codes 🎟️ (${promoCodes.length})`}
                                 {tab === 'settings' && `Settings ⚙️`}
                                 {tab === 'support' && `Support (${tickets.filter(t => t.status === 'pending').length})`}
                             </button>
@@ -1055,7 +1136,160 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
-                    {paginatedData.length === 0 && !['settings', 'analytics', 'moderation'].includes(activeTab) ? (
+                    {/* Promo Codes Overview & Creation */}
+                    {activeTab === 'promo-codes' && (
+                        <div className="p-6 space-y-6 bg-gradient-to-br from-purple-50 to-pink-50 border-b border-purple-100">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <h2 className="text-xl font-black text-blue-950 uppercase tracking-widest">🎟️ Promo Codes — Payment Discounts</h2>
+                                    <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Generate promo codes that give users % off on plan purchases</p>
+                                </div>
+                                <button onClick={() => fetchPromoCodes()} className="px-4 py-2 bg-white border border-purple-100 text-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-50 transition-all shadow-sm">🔄 Refresh</button>
+                            </div>
+
+                            {/* Stats Row */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-white p-4 rounded-2xl border border-purple-100 shadow-sm">
+                                    <div className="text-[10px] font-black text-purple-900/40 uppercase tracking-widest mb-1">Total Codes</div>
+                                    <div className="text-2xl font-black text-purple-600">{promoCodes.length}</div>
+                                </div>
+                                <div className="bg-white p-4 rounded-2xl border border-green-100 shadow-sm">
+                                    <div className="text-[10px] font-black text-green-900/40 uppercase tracking-widest mb-1">Active</div>
+                                    <div className="text-2xl font-black text-green-600">{promoCodes.filter(c => c.is_active).length}</div>
+                                </div>
+                                <div className="bg-white p-4 rounded-2xl border border-red-100 shadow-sm">
+                                    <div className="text-[10px] font-black text-red-900/40 uppercase tracking-widest mb-1">Total Uses</div>
+                                    <div className="text-2xl font-black text-red-500">{promoCodes.reduce((a, c) => a + (c.usage_count || 0), 0)}</div>
+                                </div>
+                            </div>
+
+                            {/* Create Form */}
+                            <div className="bg-white p-8 rounded-[2.5rem] border border-purple-100 shadow-xl shadow-purple-900/[0.03]">
+                                <h3 className="text-xs font-black text-purple-900/40 uppercase tracking-[0.2em] mb-6">Create New Promo Code</h3>
+                                <div className="flex flex-col md:flex-row items-end gap-4">
+                                    <div className="flex-1 space-y-2 w-full">
+                                        <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-2">Code (e.g. SAVE30)</label>
+                                        <input
+                                            type="text"
+                                            value={newPromoData.code}
+                                            onChange={(e) => setNewPromoData({ ...newPromoData, code: e.target.value.toUpperCase() })}
+                                            placeholder="PROMO CODE..."
+                                            className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-purple-600/10 focus:bg-white rounded-2xl text-sm font-mono font-bold text-blue-950 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-36 space-y-2">
+                                        <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-2">Discount %</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="100"
+                                            value={newPromoData.discount_percent}
+                                            onChange={(e) => setNewPromoData({ ...newPromoData, discount_percent: e.target.value })}
+                                            className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-purple-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-36 space-y-2">
+                                        <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-2">Max Uses (blank=∞)</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={newPromoData.max_uses}
+                                            onChange={(e) => setNewPromoData({ ...newPromoData, max_uses: e.target.value })}
+                                            placeholder="∞"
+                                            className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-purple-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleCreatePromoCode}
+                                        disabled={isSavingPromo}
+                                        className="w-full md:w-auto px-10 py-4 bg-purple-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-purple-700 shadow-xl shadow-purple-600/20 transition-all disabled:opacity-50"
+                                    >
+                                        {isSavingPromo ? '⌛ Saving...' : '🎟️ Create Code'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Promo Codes Table */}
+                            {promoCodes.length > 0 && (
+                                <div className="bg-white rounded-[2.5rem] border border-purple-100 shadow-sm overflow-hidden">
+                                    <div className="hidden md:block overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-purple-50/50 border-b border-purple-100">
+                                                <tr>
+                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Code</th>
+                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Discount</th>
+                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Status</th>
+                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Uses</th>
+                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Created</th>
+                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-purple-50/50">
+                                                {promoCodes.map((pc) => (
+                                                    <tr key={pc.id} className="hover:bg-purple-50/20 transition-colors">
+                                                        <td className="p-5">
+                                                            <span className="font-mono font-black text-blue-950 tracking-widest">{pc.code}</span>
+                                                        </td>
+                                                        <td className="p-5">
+                                                            <span className="px-3 py-1 bg-purple-50 text-purple-600 border border-purple-100 rounded-full text-[10px] font-black uppercase tracking-widest">{pc.discount_percent}% OFF</span>
+                                                        </td>
+                                                        <td className="p-5">
+                                                            <button
+                                                                onClick={() => handleTogglePromoCode(pc.id, pc.is_active)}
+                                                                className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${pc.is_active ? 'bg-green-50 text-green-600 border border-green-100 hover:bg-red-50 hover:text-red-600 hover:border-red-100' : 'bg-red-50 text-red-600 border border-red-100 hover:bg-green-50 hover:text-green-600 hover:border-green-100'}`}
+                                                            >
+                                                                {pc.is_active ? 'ACTIVE ✅' : 'INACTIVE 🔴'}
+                                                            </button>
+                                                        </td>
+                                                        <td className="p-5">
+                                                            <span className="font-black text-blue-950 text-sm">{pc.usage_count || 0}{pc.max_uses ? `/${pc.max_uses}` : ''}</span>
+                                                        </td>
+                                                        <td className="p-5">
+                                                            <div className="text-[10px] font-bold text-blue-950/40">{new Date(pc.created_at).toLocaleDateString()}</div>
+                                                        </td>
+                                                        <td className="p-5 text-right">
+                                                            <button
+                                                                onClick={() => handleDeletePromoCode(pc.id)}
+                                                                className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                                            >
+                                                                🗑️
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {/* Mobile cards */}
+                                    <div className="md:hidden p-4 space-y-3">
+                                        {promoCodes.map((pc) => (
+                                            <div key={pc.id} className="bg-purple-50/40 p-4 rounded-2xl border border-purple-100 space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-mono font-black text-blue-950 tracking-widest">{pc.code}</span>
+                                                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-[10px] font-black">{pc.discount_percent}% OFF</span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-blue-950/40">Uses: {pc.usage_count || 0}{pc.max_uses ? `/${pc.max_uses}` : ''}</span>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleTogglePromoCode(pc.id, pc.is_active)}
+                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${pc.is_active ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                                                        >
+                                                            {pc.is_active ? 'ACTIVE' : 'OFF'}
+                                                        </button>
+                                                        <button onClick={() => handleDeletePromoCode(pc.id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all">🗑️</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+
+                    {!['settings', 'analytics', 'moderation', 'promo-codes'].includes(activeTab) && paginatedData.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-32 space-y-6">
                             <div className="w-24 h-24 bg-blue-50 rounded-[2.5rem] flex items-center justify-center text-4xl opacity-50 grayscale animate-pulse">
                                 {activeTab === 'payments' ? '✅' : activeTab === 'users' ? '👥' : activeTab === 'api-keys' ? '🔑' : activeTab === 'moderation' ? '🛡️' : '📬'}
@@ -1069,7 +1303,8 @@ export default function AdminDashboard() {
                                 </p>
                             </div>
                         </div>
-                    ) : (
+                    )}
+                    {!['settings', 'analytics', 'moderation', 'promo-codes'].includes(activeTab) && paginatedData.length > 0 && (
                         <>
                             {/* Desktop View (Table) - Hidden on Mobile */}
                             <div className="hidden md:block overflow-x-auto">
@@ -1141,8 +1376,8 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-blue-50/50">
-                                        {paginatedData.map((item) => (
-                                            <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
+                                        {paginatedData.map((item, i) => (
+                                            <tr key={item.id || item.code || item.email || `row-${i}`} className="hover:bg-blue-50/30 transition-colors group">
                                                 {/* Payment Rows */}
                                                 {activeTab === 'payments' && (
                                                     <>
@@ -1432,8 +1667,8 @@ export default function AdminDashboard() {
 
                             {/* Mobile View (Cards) - Visible on Mobile */}
                             <div className="md:hidden p-4 space-y-4">
-                                {paginatedData.map((item) => (
-                                    <div key={item.id} className="bg-white p-5 rounded-3xl border border-blue-50 shadow-sm space-y-4">
+                                {paginatedData.map((item, i) => (
+                                    <div key={item.id || item.code || item.email || `card-${i}`} className="bg-white p-5 rounded-3xl border border-blue-50 shadow-sm space-y-4">
                                         {/* Payment Cards */}
                                         {activeTab === 'payments' && (
                                             <>
@@ -1721,8 +1956,8 @@ export default function AdminDashboard() {
                             {/* Gallery View - Grid of images */}
                             {activeTab === 'gallery' && (
                                 <div className="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-slide-up">
-                                    {(searchQuery ? filteredData : paginatedData).map((gen) => (
-                                        <div key={gen.id} className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-blue-50 shadow-sm bg-blue-50/20">
+                                    {(searchQuery ? filteredData : paginatedData).map((gen, i) => (
+                                        <div key={gen.id || `gen-${i}`} className="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-blue-50 shadow-sm bg-blue-50/20">
                                             <img
                                                 src={gen.image_url}
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -1884,8 +2119,8 @@ export default function AdminDashboard() {
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {moderationQueue.banned.map(item => (
-                                                <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-red-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                                            {moderationQueue.banned.map((item, i) => (
+                                                <div key={item.id || item.email || `banned-${i}`} className="bg-white p-6 rounded-[2rem] border border-red-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                                                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform"></div>
                                                     <div className="relative z-10 flex flex-col h-full gap-4">
                                                         <div className="flex-1 min-w-0">
@@ -1922,8 +2157,8 @@ export default function AdminDashboard() {
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {moderationQueue.duplicates.map(item => (
-                                                <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-orange-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                                            {moderationQueue.duplicates.map((item, i) => (
+                                                <div key={item.id || item.email || `dup-${i}`} className="bg-white p-6 rounded-[2rem] border border-orange-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                                                     <div className="absolute top-0 right-0 w-24 h-24 bg-orange-50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform"></div>
                                                     <div className="relative z-10 flex flex-col h-full gap-4">
                                                         <div className="flex-1 min-w-0">

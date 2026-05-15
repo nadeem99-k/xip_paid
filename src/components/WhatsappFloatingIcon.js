@@ -1,9 +1,7 @@
 'use client';
 
 export default function WhatsappFloatingIcon() {
-    const PHONE_NUMBER = "923422168420"; // Adjusted for Pakistan international format
-    const MESSAGE = "Hello! I need help with my payment/plan on XIP AI.";
-    const DIRECT_CHAT_LINK = `https://wa.me/${PHONE_NUMBER}?text=${encodeURIComponent(MESSAGE)}`;
+    const WHATSAPP_CHANNEL_LINK = "https://whatsapp.com/channel/0029Vb76baVBA1f1sQ28Cr3A";
 
     return (
         <div className="fixed bottom-8 right-8 z-[100] group">
@@ -12,13 +10,13 @@ export default function WhatsappFloatingIcon() {
 
             {/* Tooltip */}
             <div className="absolute bottom-full right-0 mb-4 px-4 py-2 bg-blue-950 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all whitespace-nowrap shadow-xl">
-                Chat with Support
+                Join our Channel
                 <div className="absolute top-full right-6 -translate-y-1/2 border-8 border-transparent border-t-blue-950"></div>
             </div>
 
             {/* Icon Button */}
             <a
-                href={DIRECT_CHAT_LINK}
+                href={WHATSAPP_CHANNEL_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative w-16 h-16 bg-green-500 text-white rounded-[1.5rem] flex items-center justify-center text-3xl shadow-[0_20px_40px_rgba(34,197,94,0.3)] hover:shadow-[0_25px_50px_rgba(34,197,94,0.4)] hover:-translate-y-1.5 active:scale-95 transition-all duration-300 group-hover:rotate-12"

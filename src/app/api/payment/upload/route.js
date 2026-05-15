@@ -16,6 +16,7 @@ export async function POST(req) {
         const amount = formData.get("amount");
         const method = formData.get("method");
         const packageType = formData.get("package");
+        const promoCode = formData.get("promo_code") || null;
 
         if (!file || !amount || !method || !packageType) {
             return NextResponse.json({ error: "Missing Proof, Amount, Method or Package" }, { status: 400 });
@@ -77,11 +78,22 @@ export async function POST(req) {
                     method: method,
                     proof_url: publicUrl,
                     status: 'pending',
-                    package: packageType
+                    package: packageType,
+                    promo_code: promoCode
                 }
             ]);
 
         if (dbError) throw dbError;
+
+        // Increment promo code usage if applied
+        if (promoCode) {
+            try {
+                await adminDb.rpc('increment_promo_usage', { code_text: promoCode.toUpperCase() });
+            } catch (promoErr) {
+                // Non-fatal: just log it, don't fail the whole payment
+                console.warn("Promo usage increment failed:", promoErr.message);
+            }
+        }
 
         // Send Telegram Alert
         try {
