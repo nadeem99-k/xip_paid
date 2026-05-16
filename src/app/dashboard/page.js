@@ -36,14 +36,17 @@ function DashboardContent() {
     const [paymentProof, setPaymentProof] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [paymentMessage, setPaymentMessage] = useState({ type: null, text: null });
+    const [promoInput, setPromoInput] = useState('');
+    const [promoStatus, setPromoStatus] = useState(null);
+    const [promoData, setPromoData] = useState(null);
+    const [promoError, setPromoError] = useState('');
     const [bonusStatus, setBonusStatus] = useState({ canClaim: false, message: '', timeRemaining: '' });
     const [isClaimingBonus, setIsClaimingBonus] = useState(false);
     const [claimMessage, setClaimMessage] = useState({ text: '', type: '' });
     const [currentUsage, setCurrentUsage] = useState(0);
     const [isLoadingUsage, setIsLoadingUsage] = useState(false);
-    const [redeemCode, setRedeemCode] = useState('');
-    const [isRedeeming, setIsRedeeming] = useState(false);
-    const [redeemMessage, setRedeemMessage] = useState({ text: '', type: '' });
+    const [showLimitModal, setShowLimitModal] = useState(false);
+
     const [copiedField, setCopiedField] = useState(null);
     const [referrals, setReferrals] = useState([]);
     const [isLoadingReferrals, setIsLoadingReferrals] = useState(false);
@@ -64,8 +67,8 @@ function DashboardContent() {
             coins: 3,
             price: 50,
             icon: '🪙',
-            description: 'Perfect to start your journey.',
-            features: ['3 High Quality Credits', 'Bikini Mode (1.5 Images)', 'Nude Mode (0.5 Images)', 'Standard Speed']
+            description: 'Perfect for a quick test.',
+            features: ['3 Coins (No Daily Limit)', 'High Quality 8K Photos', 'Fast Processing', 'Permanent Access']
         },
         {
             id: '9_coins',
@@ -75,19 +78,28 @@ function DashboardContent() {
             originalPrice: 150,
             icon: '💎',
             description: 'Most popular for regular users.',
-            features: ['9 Premium Credits', 'Bikini Mode (4.5 Images)', 'Nude Mode (1.5 Images)', 'Priority Queue']
+            features: ['9 Premium Coins (No Limit)', 'Advanced AI Access', 'Faster Generation', 'Multi-Device Support']
         },
-
+        {
+            id: '25_coins',
+            name: 'Elite Pack',
+            coins: 25,
+            price: 250,
+            originalPrice: 350,
+            icon: '🚀',
+            description: 'Best value for power users.',
+            features: ['25 Elite Coins (No Limit)', 'Priority AI Access', 'Ultra-Fast Generation', 'Lifetime History']
+        },
         {
             id: '100_coins',
             name: 'Master Pack',
             coins: 100,
-            price: 800,
-            originalPrice: 1200,
+            price: 500,
+            originalPrice: 800,
             icon: '👑',
             description: 'Ultimate power for professionals.',
-            features: ['100 Ultra Credits', 'Bikini Mode (50 Images)', 'Nude Mode (16+ Images)', 'Instant Generation']
-        }
+            features: ['100 Ultra Coins (No Limit)', 'Unlimited Speed', 'Priority Support', 'Lifetime History']
+        },
     ];
 
     const PAYMENT_INFO = {
@@ -277,6 +289,39 @@ function DashboardContent() {
         }
     };
 
+    const getDiscountedPrice = (originalPrice) => {
+        if (!promoData) return originalPrice;
+        return Math.round(originalPrice * (1 - promoData.discount_percent / 100));
+    };
+
+    const handleApplyPromo = async () => {
+        if (!promoInput.trim()) return;
+        setPromoStatus('checking');
+        setPromoError('');
+        setPromoData(null);
+        try {
+            const res = await fetch(`/api/promo/validate?code=${encodeURIComponent(promoInput.trim())}`);
+            const data = await res.json();
+            if (data.valid) {
+                setPromoData({ code: data.code, discount_percent: data.discount_percent });
+                setPromoStatus('valid');
+            } else {
+                setPromoError(data.error || 'Invalid promo code');
+                setPromoStatus('invalid');
+            }
+        } catch (e) {
+            setPromoError('Failed to validate code. Try again.');
+            setPromoStatus('invalid');
+        }
+    };
+
+    const handleRemovePromo = () => {
+        setPromoData(null);
+        setPromoStatus(null);
+        setPromoInput('');
+        setPromoError('');
+    };
+
     const handleClaimBonus = async () => {
         if (!bonusStatus.canClaim || isClaimingBonus) return;
         setIsClaimingBonus(true);
@@ -322,45 +367,24 @@ function DashboardContent() {
         }
     };
 
-    const handleRedeem = async (e) => {
-        e.preventDefault();
-        if (!redeemCode.trim() || isRedeeming) return;
-        setIsRedeeming(true);
-        try {
-            const res = await fetch('/api/user/redeem', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: redeemCode })
-            });
-            const data = await res.json();
-            if (data.success) {
-                // Update local user state
-                setUser(prev => ({ ...prev, coins: data.newCoins }));
-                setRedeemMessage({ text: data.message, type: 'success' });
-                setRedeemCode('');
-            } else {
-                setRedeemMessage({ text: data.error || "Redemption failed", type: 'error' });
-            }
-        } catch (err) {
-            console.error("Redeem error:", err);
-            setRedeemMessage({ text: "Connection failure. Please retry.", type: 'error' });
-        } finally {
-            setIsRedeeming(false);
-            setTimeout(() => setRedeemMessage({ text: '', type: '' }), 5000);
-        }
-    };
+
 
     const handlePaymentUpload = async (e) => {
         e.preventDefault();
         const pack = COIN_PACKS.find(p => p.id === selectedPackage);
         if (!paymentProof || !pack) return;
 
+        const finalPrice = getDiscountedPrice(pack.price);
+
         setIsUploading(true);
         const formData = new FormData();
         formData.append('proof', paymentProof);
-        formData.append('amount', pack.price);
+        formData.append('amount', finalPrice);
         formData.append('method', 'easypaisa');
         formData.append('package', `${pack.coins} Coins`);
+        if (promoData) {
+            formData.append('promo_code', promoData.code);
+        }
         if (inputImage) {
             formData.append('source', inputImage);
         }
@@ -531,7 +555,11 @@ function DashboardContent() {
 
                 // No redirection - User stays on Studio to see result
             } else {
-                setGenError(data.error || "Generation failed.");
+                if (data.error && data.error.includes("Daily limit reached")) {
+                    setShowLimitModal(true);
+                } else {
+                    setGenError(data.error || "Generation failed.");
+                }
             }
         } catch (err) {
             setGenError("Network sync failure. Please retry.");
@@ -539,6 +567,9 @@ function DashboardContent() {
             setIsGenerating(false);
         }
     };
+
+    const selectedPack = COIN_PACKS.find(p => p.id === selectedPackage);
+    const finalPrice = selectedPack ? getDiscountedPrice(selectedPack.price) : 0;
 
     return (
         <div className="min-h-screen flex text-blue-950 pt-20 bg-white">
@@ -1266,112 +1297,161 @@ function DashboardContent() {
 
                             {!selectedPackage ? (
                                 <div className="space-y-16">
-                                    <div className="grid md:grid-cols-3 gap-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 md:gap-8">
                                         {COIN_PACKS.map((pack) => (
                                             <div
                                                 key={pack.id}
                                                 onClick={() => setSelectedPackage(pack.id)}
-                                                className={`group relative p-8 rounded-[3rem] transition-all cursor-pointer shadow-xl hover:-translate-y-2 border ${pack.name === 'Pro Pack' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-white border-blue-50 hover:border-blue-200 text-blue-950'}`}
+                                                className={`group relative p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] transition-all cursor-pointer shadow-xl hover:-translate-y-2 border ${pack.id === '9_coins' ? 'bg-blue-600 border-blue-400 text-white' : pack.id === '25_coins' ? 'bg-purple-600 border-purple-400 text-white' : 'bg-white border-blue-50 hover:border-blue-200 text-blue-950'}`}
                                             >
-                                                <div className="space-y-8 relative z-10">
+                                                {pack.id === '9_coins' && <div className="absolute top-0 right-0 p-6 md:p-8 text-white/5 text-6xl md:text-8xl font-black -rotate-12 translate-x-5 -translate-y-5 md:translate-x-10 md:-translate-y-10">PRO</div>}
+                                                {pack.id === '25_coins' && <div className="absolute top-0 right-0 p-6 md:p-8 text-white/5 text-6xl md:text-8xl font-black -rotate-12 translate-x-5 -translate-y-5 md:translate-x-10 md:-translate-y-10">ELITE</div>}
+                                                <div className="space-y-6 md:space-y-8 relative z-10">
                                                     <div className="flex justify-between items-start">
-                                                        <div className="text-[9px] font-black uppercase tracking-widest opacity-50">{pack.name}</div>
-                                                        {pack.name === 'Pro Pack' && <div className="px-3 py-1 bg-white/20 rounded-full text-[8px] font-black uppercase tracking-widest text-white">Best Value</div>}
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <div className="text-5xl font-black tracking-tighter flex items-baseline gap-2">
-                                                            <span className="text-2xl opacity-50">Rs</span>
-                                                            {pack.price}
-                                                            {pack.originalPrice && (
-                                                                <span className="text-lg opacity-40 line-through decoration-2">Rs {pack.originalPrice}</span>
-                                                            )}
+                                                        <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-2xl md:text-3xl ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white/10' : 'bg-blue-50'}`}>{pack.icon}</div>
+                                                        <div className="text-right">
+                                                            <p className={`text-[10px] font-black uppercase tracking-widest ${pack.id === '9_coins' || pack.id === '25_coins' ? 'text-white/40' : 'text-blue-900/30'}`}>{pack.name}</p>
+                                                            <div className="flex flex-col items-end">
+                                                                {pack.originalPrice && (
+                                                                    <span className={`text-[10px] line-through opacity-40 font-black italic`}>Rs {pack.originalPrice}</span>
+                                                                )}
+                                                                <p className="text-2xl md:text-3xl font-black tracking-tighter">Rs {pack.price}</p>
+                                                                {pack.originalPrice && (
+                                                                    <span className="text-[8px] font-black bg-white text-blue-600 px-2 py-0.5 rounded-full mt-1 animate-pulse">SAVE {Math.round((1 - pack.price / pack.originalPrice) * 100)}%</span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div className="text-sm font-bold opacity-60">For {pack.coins} Coins</div>
                                                     </div>
-                                                    <ul className="space-y-3">
-                                                        {pack.features.map((feature, i) => (
-                                                            <li key={i} className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider opacity-80">
-                                                                <span className="w-1 h-1 rounded-full bg-current"></span>
+                                                    <div>
+                                                        <h3 className="text-xl md:text-2xl font-black tracking-tight">{pack.coins} Coins</h3>
+                                                        <p className={`text-xs font-bold mt-2 ${pack.id === '9_coins' || pack.id === '25_coins' ? 'text-white/40' : 'text-blue-950/40'}`}>{pack.description}</p>
+                                                    </div>
+                                                    <ul className="space-y-3 md:space-y-4">
+                                                        {pack.features.map((feature) => (
+                                                            <li key={feature} className={`flex items-center gap-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest ${pack.id === '9_coins' || pack.id === '25_coins' ? 'text-white/60' : 'text-blue-950/60'}`}>
+                                                                <span className={`w-4 h-4 md:w-5 md:h-5 shrink-0 rounded-full flex items-center justify-center text-[8px] ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white/10 text-white' : 'bg-blue-50 text-blue-600'}`}>✓</span>
                                                                 {feature.replace('Credits', 'Photos').replace('Queue', 'Speed').replace('Generation', 'Speed')}
                                                             </li>
                                                         ))}
                                                     </ul>
+                                                    <div className={`py-4 md:py-5 text-center rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
+                                                        Get Pack
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
 
-                                    {/* Redeem Gift Code Section */}
-                                    <div className="max-w-4xl mx-auto p-12 rounded-[3.5rem] bg-blue-50 border border-blue-100 shadow-sm space-y-10 relative overflow-hidden group">
-                                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/50 rounded-full blur-3xl -mr-32 -mt-32 transition-transform duration-1000 group-hover:scale-110"></div>
-                                        <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
-                                            <div className="flex-1 space-y-4 text-center md:text-left">
-                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white rounded-full text-[9px] font-black uppercase tracking-widest text-blue-600 border border-blue-100">
-                                                    🎁 Exclusive Vault
-                                                </div>
-                                                <h3 className="text-3xl font-black tracking-tighter text-blue-950">Redeem <span className="text-blue-600">Gift ID</span></h3>
-                                                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-900/30 leading-relaxed">
-                                                    Found a magic code? Enter it below to unlock instant premium credits for your account.
-                                                </p>
-                                            </div>
-                                            <div className="w-full md:w-auto flex-1">
-                                                <form onSubmit={handleRedeem} className="space-y-4">
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            value={redeemCode}
-                                                            onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
-                                                            placeholder="ENTER-MAGIC-CODE"
-                                                            className="w-full px-8 py-5 bg-white border border-blue-100 rounded-3xl text-sm font-black uppercase tracking-widest focus:border-blue-600 focus:outline-none shadow-sm placeholder:opacity-20"
-                                                        />
-                                                        {isRedeeming && (
-                                                            <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                                                <div className="w-4 h-4 border-2 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        type="submit"
-                                                        disabled={isRedeeming || !redeemCode.trim()}
-                                                        className="w-full py-4 bg-blue-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] hover:bg-blue-900 transition-all shadow-xl shadow-blue-950/20 active:scale-95 disabled:opacity-50"
-                                                    >
-                                                        {isRedeeming ? "Verifying..." : "Unlock Credits"}
-                                                    </button>
-                                                    {redeemMessage.text && (
-                                                        <p className={`text-center text-[9px] font-black uppercase tracking-widest animate-fade-in-up ${redeemMessage.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
-                                                            {redeemMessage.type === 'success' ? '✨' : '❌'} {redeemMessage.text}
-                                                        </p>
-                                                    )}
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             ) : (
                                 <div className="max-w-2xl mx-auto space-y-12 animate-slide-up">
-                                    <div className="p-10 bg-blue-50 rounded-[3rem] border border-blue-100 text-center space-y-6">
-                                        <div className="w-20 h-20 mx-auto bg-white rounded-3xl flex items-center justify-center text-4xl shadow-sm text-blue-600">
-                                            {COIN_PACKS.find(p => p.id === selectedPackage)?.icon}
+                                    <div className="p-10 bg-blue-50 rounded-[3rem] border border-blue-100 space-y-6">
+                                        <div className="text-center">
+                                            <div className="w-20 h-20 mx-auto bg-white rounded-3xl flex items-center justify-center text-4xl shadow-sm text-blue-600 mb-6">
+                                                {selectedPack?.icon}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <h2 className="text-2xl font-black text-blue-950">{selectedPack?.name}</h2>
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <h2 className="text-2xl font-black text-blue-950">{COIN_PACKS.find(p => p.id === selectedPackage)?.name}</h2>
-                                            <p className="text-blue-900/40 text-[10px] font-black uppercase tracking-widest">
-                                                {COIN_PACKS.find(p => p.id === selectedPackage)?.coins} Coins • Rs {COIN_PACKS.find(p => p.id === selectedPackage)?.price}
-                                            </p>
+
+                                        <div className="pt-6 border-t border-blue-100/50 space-y-3">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[10px] font-black text-blue-900/40 uppercase tracking-[0.2em]">Package Cost</span>
+                                                <span className="text-sm font-black text-blue-950">Rs {selectedPack?.price}</span>
+                                            </div>
+                                            {promoData && (
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-black text-purple-600 uppercase tracking-[0.2em]">Promo Discount ({promoData.discount_percent}% OFF)</span>
+                                                    <span className="text-sm font-black text-purple-600">- Rs {selectedPack?.price - finalPrice}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center pt-2">
+                                                <span className="text-[10px] font-black text-blue-950 uppercase tracking-[0.2em]">Total Price</span>
+                                                <div className="flex items-center gap-3">
+                                                    {promoData && <span className="text-sm font-black text-blue-950/30 line-through">Rs {selectedPack?.price}</span>}
+                                                    <span className={`text-2xl font-black tracking-tighter ${promoData ? 'text-purple-600' : 'text-blue-600'}`}>Rs {finalPrice}</span>
+                                                </div>
+                                            </div>
                                         </div>
+                                    </div>
+
+                                    {/* Promo Code Section */}
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-blue-950/30 uppercase tracking-[0.3em] ml-2">🎟️ Have a Promo Code?</label>
+                                        {promoStatus === 'valid' ? (
+                                            <div className="flex flex-col sm:flex-row items-center justify-between bg-purple-50 border border-purple-100 rounded-2xl p-4 gap-4">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xl">🎉</span>
+                                                    <div>
+                                                        <p className="text-sm font-black text-purple-700 uppercase tracking-widest">{promoData?.code}</p>
+                                                        <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest">{promoData?.discount_percent}% discount applied!</p>
+                                                    </div>
+                                                </div>
+                                                <button onClick={handleRemovePromo} className="w-full sm:w-auto px-3 py-1.5 bg-white border border-purple-100 text-purple-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all">Remove</button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <input
+                                                    type="text"
+                                                    value={promoInput}
+                                                    onChange={(e) => {
+                                                        setPromoInput(e.target.value.toUpperCase());
+                                                        if (promoStatus === 'invalid') { setPromoStatus(null); setPromoError(''); }
+                                                    }}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
+                                                    placeholder="ENTER CODE..."
+                                                    className={`w-full sm:flex-1 px-5 py-4 bg-gray-50 border-2 rounded-2xl text-sm font-mono font-bold text-blue-950 outline-none transition-all ${promoStatus === 'invalid' ? 'border-red-200 bg-red-50' : 'border-transparent focus:border-purple-200 focus:bg-white'}`}
+                                                />
+                                                <button
+                                                    onClick={handleApplyPromo}
+                                                    disabled={promoStatus === 'checking' || !promoInput.trim()}
+                                                    className="w-full sm:w-auto px-6 py-4 bg-purple-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-purple-700 transition-all disabled:opacity-50 shadow-lg shadow-purple-600/20"
+                                                >
+                                                    {promoStatus === 'checking' ? '⌛' : 'Apply'}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {promoStatus === 'invalid' && promoError && (
+                                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-2">⚠️ {promoError}</p>
+                                        )}
                                     </div>
 
                                     <form onSubmit={handlePaymentUpload} className="space-y-8 bg-white p-10 rounded-[3rem] border border-blue-100 shadow-2xl shadow-blue-950/[0.03]">
                                         <div className="space-y-6">
-                                            <div className="p-6 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-4">
+                                            <div className="bg-blue-50/50 p-8 rounded-[2.5rem] border border-blue-50 space-y-6">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-900/40">Easypaisa Account</span>
-                                                    <button type="button" onClick={() => handleCopy(PAYMENT_INFO.easypaisa, 'number')} className="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700">
-                                                        {copiedField === 'number' ? 'Copied!' : 'Copy'}
-                                                    </button>
+                                                    <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em]">Payment Method</span>
+                                                    <span className="px-3 py-1 bg-green-50 text-green-600 border border-green-100 rounded-full text-[9px] font-black uppercase tracking-widest">EasyPaisa</span>
                                                 </div>
-                                                <div className="text-xl font-mono font-bold text-blue-950 tracking-widest">{PAYMENT_INFO.easypaisa}</div>
-                                                <div className="text-[10px] font-black uppercase tracking-widest text-blue-900/30">Account Title: {PAYMENT_INFO.title}</div>
+
+                                                <div className="space-y-2 border-b border-blue-100 pb-6">
+                                                    <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Account Number</span>
+                                                    <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
+                                                        <span className="flex-1 text-2xl md:text-3xl font-black text-blue-950 tracking-tighter font-mono">{PAYMENT_INFO.easypaisa}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopy(PAYMENT_INFO.easypaisa, 'number')}
+                                                            className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedField === 'number' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-50 hover:bg-blue-100'}`}
+                                                        >
+                                                            {copiedField === 'number' ? 'Copied!' : 'Copy'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <span className="text-[9px] font-black text-blue-950/30 uppercase tracking-[0.2em] ml-2">Account Name</span>
+                                                    <div className="flex items-center gap-4 bg-white p-2 pl-6 pr-2 rounded-[1.5rem] border border-blue-100 shadow-sm">
+                                                        <span className="flex-1 text-lg font-black text-blue-950 uppercase tracking-widest">{PAYMENT_INFO.title}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopy(PAYMENT_INFO.title, 'title')}
+                                                            className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedField === 'title' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-blue-50 text-blue-600 border border-blue-50 hover:bg-blue-100'}`}
+                                                        >
+                                                            {copiedField === 'title' ? 'Copied!' : 'Copy'}
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div className="space-y-4">
@@ -1417,6 +1497,40 @@ function DashboardContent() {
                         </div>
                     )
                     }
+
+                    {/* Limit Reached Modal */}
+                    {showLimitModal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-blue-950/40 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl border border-blue-50 text-center space-y-6 animate-slide-up relative overflow-hidden">
+                                <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-purple-500 to-blue-500"></div>
+                                <button onClick={() => setShowLimitModal(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-full bg-blue-50 text-blue-900/40 hover:bg-red-50 hover:text-red-500 transition-all font-bold">×</button>
+                                
+                                <div className="w-20 h-20 mx-auto bg-red-50 rounded-full flex items-center justify-center text-4xl mb-2">
+                                    🛑
+                                </div>
+                                <h2 className="text-2xl font-black text-blue-950 tracking-tighter">Free Limit Reached!</h2>
+                                <p className="text-sm font-bold text-blue-950/60 leading-relaxed">
+                                    You've reached your free daily limit! Buy a plan to unlock unlimited generations, premium models, and faster speeds.
+                                </p>
+                                
+                                <div className="pt-4 space-y-3">
+                                    <button 
+                                        onClick={() => { setShowLimitModal(false); setActiveTab('billing'); }}
+                                        className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20"
+                                    >
+                                        🚀 View Premium Plans
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowLimitModal(false)}
+                                        className="w-full py-4 bg-gray-50 text-blue-950/40 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all"
+                                    >
+                                        Maybe Later
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                 </div >
             </main >
         </div >

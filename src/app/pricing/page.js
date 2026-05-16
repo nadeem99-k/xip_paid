@@ -77,8 +77,8 @@ export default function PricingPage() {
             id: '100_coins',
             name: 'Master Pack',
             coins: 100,
-            price: 800,
-            originalPrice: 1200,
+            price: 500,
+            originalPrice: 800,
             icon: '👑',
             description: 'Ultimate power for professionals.',
             features: ['100 Ultra Coins (No Limit)', 'Unlimited Speed', 'Priority Support', 'Lifetime History']
@@ -218,25 +218,25 @@ export default function PricingPage() {
                 )}
 
                 {!selectedPackage ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-6xl mx-auto">
                         {COIN_PACKS.map((pack) => (
                             <div
                                 key={pack.id}
                                 onClick={() => setSelectedPackage(pack.id)}
-                                className={`group relative p-8 rounded-[3rem] transition-all cursor-pointer shadow-xl hover:-translate-y-2 border ${pack.id === '9_coins' ? 'bg-blue-600 border-blue-400 text-white' : pack.id === '25_coins' ? 'bg-purple-600 border-purple-400 text-white' : 'bg-white border-blue-50 hover:border-blue-200 text-blue-950'}`}
+                                className={`group relative p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] transition-all cursor-pointer shadow-xl hover:-translate-y-2 border ${pack.id === '9_coins' ? 'bg-blue-600 border-blue-400 text-white' : pack.id === '25_coins' ? 'bg-purple-600 border-purple-400 text-white' : 'bg-white border-blue-50 hover:border-blue-200 text-blue-950'}`}
                             >
-                                {pack.id === '9_coins' && <div className="absolute top-0 right-0 p-8 text-white/5 text-8xl font-black -rotate-12 translate-x-10 -translate-y-10">PRO</div>}
-                                {pack.id === '25_coins' && <div className="absolute top-0 right-0 p-8 text-white/5 text-8xl font-black -rotate-12 translate-x-10 -translate-y-10">ELITE</div>}
-                                <div className="space-y-8 relative z-10">
+                                {pack.id === '9_coins' && <div className="absolute top-0 right-0 p-6 md:p-8 text-white/5 text-6xl md:text-8xl font-black -rotate-12 translate-x-5 -translate-y-5 md:translate-x-10 md:-translate-y-10">PRO</div>}
+                                {pack.id === '25_coins' && <div className="absolute top-0 right-0 p-6 md:p-8 text-white/5 text-6xl md:text-8xl font-black -rotate-12 translate-x-5 -translate-y-5 md:translate-x-10 md:-translate-y-10">ELITE</div>}
+                                <div className="space-y-6 md:space-y-8 relative z-10">
                                     <div className="flex justify-between items-start">
-                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white/10' : 'bg-blue-50'}`}>{pack.icon}</div>
+                                        <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-2xl md:text-3xl ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white/10' : 'bg-blue-50'}`}>{pack.icon}</div>
                                         <div className="text-right">
                                             <p className={`text-[10px] font-black uppercase tracking-widest ${pack.id === '9_coins' || pack.id === '25_coins' ? 'text-white/40' : 'text-blue-900/30'}`}>{pack.name}</p>
                                             <div className="flex flex-col items-end">
                                                 {pack.originalPrice && (
                                                     <span className={`text-[10px] line-through opacity-40 font-black italic`}>Rs {pack.originalPrice}</span>
                                                 )}
-                                                <p className="text-3xl font-black tracking-tighter">Rs {pack.price}</p>
+                                                <p className="text-2xl md:text-3xl font-black tracking-tighter">Rs {pack.price}</p>
                                                 {pack.originalPrice && (
                                                     <span className="text-[8px] font-black bg-white text-blue-600 px-2 py-0.5 rounded-full mt-1 animate-pulse">SAVE {Math.round((1 - pack.price / pack.originalPrice) * 100)}%</span>
                                                 )}
@@ -244,18 +244,18 @@ export default function PricingPage() {
                                         </div>
                                     </div>
                                     <div>
-                                        <h3 className="text-2xl font-black tracking-tight">{pack.coins} Coins</h3>
+                                        <h3 className="text-xl md:text-2xl font-black tracking-tight">{pack.coins} Coins</h3>
                                         <p className={`text-xs font-bold mt-2 ${pack.id === '9_coins' || pack.id === '25_coins' ? 'text-white/40' : 'text-blue-950/40'}`}>{pack.description}</p>
                                     </div>
-                                    <ul className="space-y-4">
+                                    <ul className="space-y-3 md:space-y-4">
                                         {pack.features.map((feature) => (
-                                            <li key={feature} className={`flex items-center gap-3 text-[11px] font-black uppercase tracking-widest ${pack.id === '9_coins' || pack.id === '25_coins' ? 'text-white/60' : 'text-blue-950/60'}`}>
-                                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white/10 text-white' : 'bg-blue-50 text-blue-600'}`}>✓</span>
+                                            <li key={feature} className={`flex items-center gap-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest ${pack.id === '9_coins' || pack.id === '25_coins' ? 'text-white/60' : 'text-blue-950/60'}`}>
+                                                <span className={`w-4 h-4 md:w-5 md:h-5 shrink-0 rounded-full flex items-center justify-center text-[8px] ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white/10 text-white' : 'bg-blue-50 text-blue-600'}`}>✓</span>
                                                 {feature}
                                             </li>
                                         ))}
                                     </ul>
-                                    <div className={`py-5 text-center rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
+                                    <div className={`py-4 md:py-5 text-center rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg ${pack.id === '9_coins' || pack.id === '25_coins' ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
                                         Get Pack
                                     </div>
                                 </div>
@@ -338,7 +338,7 @@ export default function PricingPage() {
                         <div className="space-y-3">
                             <label className="text-[10px] font-black text-blue-950/30 uppercase tracking-[0.3em] ml-2">🎟️ Have a Promo Code?</label>
                             {promoStatus === 'valid' ? (
-                                <div className="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-2xl p-4">
+                                <div className="flex flex-col sm:flex-row items-center justify-between bg-purple-50 border border-purple-100 rounded-2xl p-4 gap-4">
                                     <div className="flex items-center gap-3">
                                         <span className="text-xl">🎉</span>
                                         <div>
@@ -346,10 +346,10 @@ export default function PricingPage() {
                                             <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest">{promoData?.discount_percent}% discount applied!</p>
                                         </div>
                                     </div>
-                                    <button onClick={handleRemovePromo} className="px-3 py-1.5 bg-white border border-purple-100 text-purple-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all">Remove</button>
+                                    <button onClick={handleRemovePromo} className="w-full sm:w-auto px-3 py-1.5 bg-white border border-purple-100 text-purple-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all">Remove</button>
                                 </div>
                             ) : (
-                                <div className="flex gap-3">
+                                <div className="flex flex-col sm:flex-row gap-3">
                                     <input
                                         type="text"
                                         value={promoInput}
@@ -359,12 +359,12 @@ export default function PricingPage() {
                                         }}
                                         onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
                                         placeholder="ENTER CODE..."
-                                        className={`flex-1 px-5 py-4 bg-gray-50 border-2 rounded-2xl text-sm font-mono font-bold text-blue-950 outline-none transition-all ${promoStatus === 'invalid' ? 'border-red-200 bg-red-50' : 'border-transparent focus:border-purple-200 focus:bg-white'}`}
+                                        className={`w-full sm:flex-1 px-5 py-4 bg-gray-50 border-2 rounded-2xl text-sm font-mono font-bold text-blue-950 outline-none transition-all ${promoStatus === 'invalid' ? 'border-red-200 bg-red-50' : 'border-transparent focus:border-purple-200 focus:bg-white'}`}
                                     />
                                     <button
                                         onClick={handleApplyPromo}
                                         disabled={promoStatus === 'checking' || !promoInput.trim()}
-                                        className="px-6 py-4 bg-purple-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-purple-700 transition-all disabled:opacity-50 shadow-lg shadow-purple-600/20"
+                                        className="w-full sm:w-auto px-6 py-4 bg-purple-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-purple-700 transition-all disabled:opacity-50 shadow-lg shadow-purple-600/20"
                                     >
                                         {promoStatus === 'checking' ? '⌛' : 'Apply'}
                                     </button>

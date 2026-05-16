@@ -6,8 +6,12 @@ CREATE TABLE promo_codes (
   is_active BOOLEAN DEFAULT true,
   usage_count INTEGER DEFAULT 0,
   max_uses INTEGER DEFAULT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ DEFAULT NULL
 );
+
+-- Note: If you have already run the above, you can simply run this instead:
+-- ALTER TABLE promo_codes ADD COLUMN expires_at TIMESTAMPTZ DEFAULT NULL;
 
 -- 2. Create the increment_promo_usage function
 -- This allows the server to safely increment the usage count when a code is used.

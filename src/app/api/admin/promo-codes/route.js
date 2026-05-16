@@ -33,7 +33,7 @@ export async function POST(req) {
     if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
-        const { code, discount_percent, max_uses } = await req.json();
+        const { code, discount_percent, max_uses, expires_at } = await req.json();
 
         if (!code) {
             return NextResponse.json({ error: "Code is required" }, { status: 400 });
@@ -52,6 +52,7 @@ export async function POST(req) {
                 is_active: true,
                 usage_count: 0,
                 max_uses: max_uses ? parseInt(max_uses) : null,
+                expires_at: expires_at ? new Date(expires_at).toISOString() : null,
                 created_at: new Date().toISOString()
             }])
             .select()

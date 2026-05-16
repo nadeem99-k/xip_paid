@@ -36,7 +36,7 @@ export default function AdminDashboard() {
     // Promo Codes State
     const [promoCodes, setPromoCodes] = useState([]);
     const [isSavingPromo, setIsSavingPromo] = useState(false);
-    const [newPromoData, setNewPromoData] = useState({ code: '', discount_percent: 30, max_uses: '' });
+    const [newPromoData, setNewPromoData] = useState({ code: '', discount_percent: 30, max_uses: '', expires_at: '' });
 
     // Calculate total remaining images from API keys
     const totalImagesLeft = useMemo(() => {
@@ -274,20 +274,29 @@ export default function AdminDashboard() {
             return showToast("Discount must be between 1-100%", 'error');
         setIsSavingPromo(true);
         try {
+            let expiresAtIso = null;
+            if (newPromoData.expires_at) {
+                const hours = parseInt(newPromoData.expires_at);
+                const date = new Date();
+                date.setHours(date.getHours() + hours);
+                expiresAtIso = date.toISOString();
+            }
+
             const res = await fetch('/api/admin/promo-codes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     code: newPromoData.code,
                     discount_percent: parseInt(newPromoData.discount_percent),
-                    max_uses: newPromoData.max_uses ? parseInt(newPromoData.max_uses) : null
+                    max_uses: newPromoData.max_uses ? parseInt(newPromoData.max_uses) : null,
+                    expires_at: expiresAtIso
                 })
             });
             const data = await res.json();
             if (data.success) {
                 showToast("Promo code created! ✅");
                 fetchPromoCodes();
-                setNewPromoData({ code: '', discount_percent: 30, max_uses: '' });
+                setNewPromoData({ code: '', discount_percent: 30, max_uses: '', expires_at: '' });
             } else {
                 showToast(data.error, 'error');
             }
@@ -1199,6 +1208,24 @@ export default function AdminDashboard() {
                                             className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-purple-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 outline-none transition-all"
                                         />
                                     </div>
+                                    <div className="w-full md:w-48 space-y-2">
+                                        <label className="text-[10px] font-black text-blue-950 uppercase tracking-widest ml-2">Expires In</label>
+                                        <select
+                                            value={newPromoData.expires_at}
+                                            onChange={(e) => setNewPromoData({ ...newPromoData, expires_at: e.target.value })}
+                                            className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-purple-600/10 focus:bg-white rounded-2xl text-sm font-bold text-blue-950 outline-none transition-all appearance-none"
+                                        >
+                                            <option value="">Never Expires</option>
+                                            <option value="1">1 Hour</option>
+                                            <option value="3">3 Hours</option>
+                                            <option value="6">6 Hours</option>
+                                            <option value="12">12 Hours</option>
+                                            <option value="24">1 Day</option>
+                                            <option value="48">2 Days</option>
+                                            <option value="72">3 Days</option>
+                                            <option value="168">1 Week</option>
+                                        </select>
+                                    </div>
                                     <button
                                         onClick={handleCreatePromoCode}
                                         disabled={isSavingPromo}
@@ -1220,7 +1247,7 @@ export default function AdminDashboard() {
                                                     <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Discount</th>
                                                     <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Status</th>
                                                     <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Uses</th>
-                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Created</th>
+                                                    <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40">Expiration</th>
                                                     <th className="p-5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-950/40 text-right">Actions</th>
                                                 </tr>
                                             </thead>
@@ -1245,7 +1272,9 @@ export default function AdminDashboard() {
                                                             <span className="font-black text-blue-950 text-sm">{pc.usage_count || 0}{pc.max_uses ? `/${pc.max_uses}` : ''}</span>
                                                         </td>
                                                         <td className="p-5">
-                                                            <div className="text-[10px] font-bold text-blue-950/40">{new Date(pc.created_at).toLocaleDateString()}</div>
+                                                            <div className="text-[10px] font-bold text-blue-950/60">
+                                                                {pc.expires_at ? new Date(pc.expires_at).toLocaleString() : 'Never'}
+                                                            </div>
                                                         </td>
                                                         <td className="p-5 text-right">
                                                             <button
@@ -2765,6 +2794,8 @@ export default function AdminDashboard() {
                             { id: 'gallery', icon: '🖼️', label: 'Gallery' },
                             { id: 'analytics', icon: '📈', label: 'Stats' },
                             { id: 'api-keys', icon: '🔑', label: 'Keys', count: apiKeys.length },
+                            { id: 'gift-codes', icon: '🎁', label: 'Gifts' },
+                            { id: 'promo-codes', icon: '🎟️', label: 'Promos', count: promoCodes.length },
                             { id: 'support', icon: '💬', label: 'Tickets', count: tickets.filter(t => t.status === 'pending').length },
                             { id: 'settings', icon: '⚙️', label: 'Setup' }
                         ].map((item) => (

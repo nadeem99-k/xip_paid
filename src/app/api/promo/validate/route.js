@@ -14,7 +14,7 @@ export async function GET(req) {
 
         const { data, error } = await adminDb
             .from("promo_codes")
-            .select("id, code, discount_percent, is_active, usage_count, max_uses")
+            .select("id, code, discount_percent, is_active, usage_count, max_uses, expires_at")
             .eq("code", code.trim().toUpperCase())
             .single();
 
@@ -29,6 +29,15 @@ export async function GET(req) {
         // Check usage limit
         if (data.max_uses !== null && data.usage_count >= data.max_uses) {
             return NextResponse.json({ valid: false, error: "This promo code has reached its usage limit" });
+        }
+
+        // Check expiration
+        if (data.expires_at) {
+            const now = new Date();
+            const expiration = new Date(data.expires_at);
+            if (now > expiration) {
+                return NextResponse.json({ valid: false, error: "This promo code has expired" });
+            }
         }
 
         return NextResponse.json({
